@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import db from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { generateDemoData } from '../demoSeeder.js';
-import logger from '../logger.js';
+import logger, { stringifyIfNotEmpty } from '../logger.js';
 import { emitWishDeleted } from '../socket.js';
 import { getEventProfile } from '../configManager.js';
 import { reloadRules } from '../rulesManager.js';
@@ -336,8 +336,8 @@ router.get('/logs', requireAdmin, async (req, res) => {
       try {
         const parsed = JSON.parse(line);
         const { timestamp, level, message, ...meta } = parsed;
-        const metaStr = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '';
-        return `[${timestamp || ''}] ${level || ''}: ${message || ''}${metaStr}`;
+        const metaStr = stringifyIfNotEmpty(meta);
+        return `[${timestamp || ''}] ${level || ''}: ${message || ''}${metaStr ? ' ' + metaStr : ''}`;
       } catch {
         return line;
       }
