@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.24.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.1...wishboard-v1.24.2) (2026-08-09)
+
+
+### Bug Fixes
+
+* allow sts:TagSession in OIDC deployer role for GitHub Actions ([44dff18](https://github.com/wishboards/wishboard/commit/44dff1808d63b7ba2678911397df01e737001cf1))
+* allow unique repository IDs in OIDC subject claims ([86775d2](https://github.com/wishboards/wishboard/commit/86775d20b3cb12c025ba72fcf5d6b0e649c55c7d))
+* set log groups explicitly with retention period ([ea14201](https://github.com/wishboards/wishboard/commit/ea142019ddce6d76c5e5d9bc7625cf5471087851))
+
 ## [1.24.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.0...wishboard-v1.24.1) (2026-08-09)
 
 
