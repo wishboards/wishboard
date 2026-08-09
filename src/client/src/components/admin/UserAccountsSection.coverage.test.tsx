@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import UserAccountsSection from './UserAccountsSection';
 import React from 'react';
+import { flushPromises } from '../../utils/testUtils';
 
 const mockFetch = vi.fn();
 globalThis.fetch = mockFetch;
@@ -255,7 +256,7 @@ describe('UserAccountsSection Coverage', () => {
     globalThis.confirm = vi.fn(() => false);
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
     // Wait a tick to ensure fetch isn't called again
-    await new Promise((r) => setTimeout(r, 0));
+    await flushPromises();
   });
 
   it('handles cancel delete', async () => {
