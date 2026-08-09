@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.0...wishboard-v1.24.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* remove unused EFS and EC2 permissions from OIDC role ([#394](https://github.com/wishboards/wishboard/issues/394)) ([e51f02f](https://github.com/wishboards/wishboard/commit/e51f02f4b1dcfeca203dc5cff10ef1853f80f611))
+
 ## [1.24.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.23.1...wishboard-v1.24.0) (2026-08-07)
 
 
