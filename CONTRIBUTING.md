@@ -39,7 +39,7 @@ CI runs lint, type-check, format-check, build, tests, gitleaks secret scanning, 
 ## Development Setup
 
 1. **Clone the repository:**
-   `git clone https://github.com/plthomasva/wishboard.git`
+   `git clone https://github.com/wishboards/wishboard.git`
 2. **Install dependencies:**
    Navigate into the repository directory and run `npm install`.
 3. **Run the development server:**

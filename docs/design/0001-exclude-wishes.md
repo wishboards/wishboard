@@ -1,6 +1,6 @@
 # Design 0200: Let a user exclude ("not interested" / hide) a wish
 
-- **Status:** Implemented. Tracks [#200](https://github.com/plthomasva/wishboard/issues/200).
+- **Status:** Implemented. Tracks [#200](https://github.com/wishboards/wishboard/issues/200).
 - **Date:** 2026-07
 - **Related:** [ADR 0002 (database architecture)](../adr/0002-serverless-database-architecture.md), [Matching Rules](../MATCHING_RULES.md)
 

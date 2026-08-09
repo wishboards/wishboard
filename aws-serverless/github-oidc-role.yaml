@@ -4,7 +4,7 @@ Description: Provisions GitHub OIDC identity provider and IAM Role for Wishboard
 Parameters:
   GitHubOrg:
     Type: String
-    Default: plthomasva
+    Default: wishboards
     Description: GitHub Organization or Username.
   GitHubRepo:
     Type: String

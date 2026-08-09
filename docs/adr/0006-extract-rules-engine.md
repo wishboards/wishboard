@@ -35,4 +35,4 @@ We will execute this extraction in two distinct phases to manage complexity and 
 
 - **Architectural Cleanliness**: Wishboard's route handlers become thinner and focused strictly on HTTP and database operations.
 - **Community Impact**: Offers the open-source ecosystem a standalone, zero-dependency identity matchmaking engine.
-- **Tracking**: Phase 1 is tracked via [#330](https://github.com/plthomasva/wishboard/issues/330). Phase 2 is tracked via [#331](https://github.com/plthomasva/wishboard/issues/331) and documented in `BACKLOG.md` to be executed once the internal module API stabilizes.
+- **Tracking**: Phase 1 is tracked via [#330](https://github.com/wishboards/wishboard/issues/330). Phase 2 is tracked via [#331](https://github.com/wishboards/wishboard/issues/331) and documented in `BACKLOG.md` to be executed once the internal module API stabilizes.

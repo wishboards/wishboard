@@ -29,7 +29,7 @@ function resolveParams(options) {
       repo = repo || gitInfo.repo;
       logInfo(`Detected GitHub repository from git remote: ${org}/${repo}`);
     } else {
-      org = org || 'plthomasva';
+      org = org || 'wishboards';
       repo = repo || 'wishboard';
       logWarn(`Could not detect GitHub repository from Git remote. Defaulting to ${org}/${repo}`);
     }

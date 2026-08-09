@@ -12,7 +12,7 @@ services:
       - RUST_LOG=info
 
   wishboard:
-    image: ghcr.io/plthomasva/wishboard:${APP_VERSION:-latest}
+    image: ghcr.io/wishboards/wishboard:${APP_VERSION:-latest}
     build:
       context: .
       dockerfile: Dockerfile

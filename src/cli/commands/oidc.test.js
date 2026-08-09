@@ -190,7 +190,7 @@ describe('oidc commands', () => {
       // Verifies fallback parameters were passed to cloudformation deploy call
       expect(commandUtils.execCommand).toHaveBeenCalledWith(
         'aws',
-        expect.arrayContaining(['GitHubOrg=plthomasva', 'GitHubRepo=wishboard']),
+        expect.arrayContaining(['GitHubOrg=wishboards', 'GitHubRepo=wishboard']),
         { dryRun: false }
       );
     });

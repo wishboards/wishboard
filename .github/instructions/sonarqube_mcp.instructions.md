@@ -8,7 +8,7 @@ so it doesn't nag on docs / BACKLOG / CI-YAML-only work.
 
 # Project identity
 
-- SonarCloud project key: `plthomasva_wishboard` (organization `plthomasva`, region EU).
+- SonarCloud project key: `wishboards_wishboard` (organization `wishboards`, region EU).
 - This is auto-resolved from `.sonarlint/connectedMode.json` (checked in), so you normally
   do **not** need `search_my_sonarqube_projects` — use the key directly. Only fall back to a
   lookup if that resolution fails.
@@ -73,7 +73,7 @@ authorized`, verify the token type.
 
 ## Project not found
 
-- The key is `plthomasva_wishboard`; verify spelling. Only reach for `search_my_sonarqube_projects`
+- The key is `wishboards_wishboard`; verify spelling. Only reach for `search_my_sonarqube_projects`
   if `.sonarlint/connectedMode.json` resolution fails.
 
 ## Snippet analysis

@@ -1,8 +1,8 @@
 # Wishboard
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=plthomasva_wishboard&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=plthomasva_wishboard)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=plthomasva_wishboard&metric=coverage)](https://sonarcloud.io/summary/new_code?id=plthomasva_wishboard)
-[![Mutation Status](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2Fplthomasva%2Fwishboard%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/plthomasva/wishboard/main)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=wishboards_wishboard&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=wishboards_wishboard)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=wishboards_wishboard&metric=coverage)](https://sonarcloud.io/summary/new_code?id=wishboards_wishboard)
+[![Mutation Status](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2Fwishboards%2Fwishboard%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/wishboards/wishboard/main)
 
 Offline wish board for conventions, built to run on a Raspberry Pi or similar local device.
 
