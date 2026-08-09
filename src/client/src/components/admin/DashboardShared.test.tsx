@@ -12,6 +12,7 @@ import {
   SectionTitle,
   Grid,
   MetricsToolbar,
+  gradDef,
 } from './DashboardShared';
 
 describe('formatTime', () => {
@@ -29,6 +30,32 @@ describe('formatTime', () => {
   it('returns "Invalid Date" or empty string for invalid dates', () => {
     const timeStr = formatTime('invalid-date');
     expect(['', 'Invalid Date']).toContain(timeStr);
+  });
+
+  it('returns empty string when an error is thrown', () => {
+    const badInput = {
+      valueOf: () => { throw new Error('forced throw'); }
+    } as any;
+    expect(formatTime(badInput)).toBe('');
+  });
+});
+
+describe('gradDef', () => {
+  it('renders a linear gradient with correct id and stroke color', () => {
+    render(
+      <svg>
+        {gradDef('test-grad', { stroke: '#ff0000' })}
+      </svg>
+    );
+    const gradient = document.querySelector('linearGradient');
+    expect(gradient).toBeInTheDocument();
+    expect(gradient).toHaveAttribute('id', 'test-grad');
+
+    const stops = document.querySelectorAll('stop');
+    expect(stops).toHaveLength(2);
+    // React outputs 'stop-color' for stopColor camelCase attribute
+    expect(stops[0]).toHaveAttribute('stop-color', '#ff0000');
+    expect(stops[1]).toHaveAttribute('stop-color', '#ff0000');
   });
 });
 
