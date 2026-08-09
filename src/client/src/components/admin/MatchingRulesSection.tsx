@@ -25,6 +25,231 @@ interface MatchingRulesSectionProps {
   refreshCounter: number;
 }
 
+interface MatchingRulesTableProps {
+  filteredRules: Rule[];
+  ruleSort: { key: string; dir: 'asc' | 'desc' };
+  handleRuleSort: (key: string) => void;
+  editRule: (rule: Rule) => void;
+  deleteRule: (id?: string) => void;
+}
+
+function MatchingRulesTable({
+  filteredRules,
+  ruleSort,
+  handleRuleSort,
+  editRule,
+  deleteRule,
+}: Readonly<MatchingRulesTableProps>) {
+  return (
+    <div
+      style={{
+        overflowX: 'auto',
+        marginBottom: '24px',
+        background: '#1c1c1c',
+        borderRadius: '8px',
+        border: '1px solid #333',
+      }}
+    >
+      <table
+        className="responsive-table"
+        style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: '#e0e0e0' }}
+      >
+        <thead>
+          <tr style={{ borderBottom: '1px solid #444', backgroundColor: '#2a2a2a' }}>
+            <th
+              style={{ padding: '12px', cursor: 'pointer' }}
+              onClick={() => handleRuleSort('rule_type')}
+            >
+              Type {getSortIcon(ruleSort, 'rule_type')}
+            </th>
+            <th
+              style={{ padding: '12px', cursor: 'pointer' }}
+              onClick={() => handleRuleSort('trigger_attribute')}
+            >
+              Trigger {getSortIcon(ruleSort, 'trigger_attribute')}
+            </th>
+            <th
+              style={{ padding: '12px', cursor: 'pointer' }}
+              onClick={() => handleRuleSort('context_attribute')}
+            >
+              Context {getSortIcon(ruleSort, 'context_attribute')}
+            </th>
+            <th
+              style={{ padding: '12px', cursor: 'pointer' }}
+              onClick={() => handleRuleSort('target_attribute')}
+            >
+              Target {getSortIcon(ruleSort, 'target_attribute')}
+            </th>
+            <th style={{ padding: '12px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredRules.map((rule) => (
+            <tr key={rule.id} style={{ borderBottom: '1px solid #333' }}>
+              <td data-label="Type" style={{ padding: '12px' }}>
+                <strong>{rule.rule_type}</strong>
+              </td>
+              <td data-label="Trigger" style={{ padding: '12px' }}>
+                {rule.trigger_attribute} = {rule.trigger_value}
+              </td>
+              <td data-label="Context" style={{ padding: '12px' }}>
+                {rule.context_attribute ? (
+                  `${rule.context_attribute} = ${rule.context_value}`
+                ) : (
+                  <span style={{ color: '#777' }}>-</span>
+                )}
+              </td>
+              <td data-label="Target" style={{ padding: '12px' }}>
+                {rule.target_attribute} = {rule.target_value}
+              </td>
+              <td data-label="Actions" style={{ padding: '12px' }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '0.8rem',
+                    minWidth: 'auto',
+                    marginRight: '4px',
+                  }}
+                  onClick={() => editRule(rule)}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: 'auto' }}
+                  onClick={() => deleteRule(rule.id)}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+          {filteredRules.length === 0 && (
+            <tr>
+              <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#888' }}>
+                No matching rules found.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface MatchingRuleFormProps {
+  editingRuleId: string | null;
+  newRule: Rule;
+  setNewRule: (rule: Rule) => void;
+  saveRule: (event: React.SyntheticEvent<HTMLFormElement>) => void;
+  cancelEdit: () => void;
+}
+
+function MatchingRuleForm({
+  editingRuleId,
+  newRule,
+  setNewRule,
+  saveRule,
+  cancelEdit,
+}: Readonly<MatchingRuleFormProps>) {
+  return (
+    <form
+      id="rule-form"
+      className="form-card"
+      onSubmit={saveRule}
+      style={{ marginTop: '24px', border: editingRuleId ? '2px solid #555' : 'none' }}
+    >
+      <h3>{editingRuleId ? 'Edit Rule' : 'Add New Rule'}</h3>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <label>
+          Rule Type{' '}
+          <select
+            value={newRule.rule_type}
+            onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
+          >
+            <option value="expansion">Expansion (Synonyms)</option>
+            <option value="cross_match">Cross-Match (Symmetrical)</option>
+            <option value="enrichment">Enrichment (Implicit Attribute)</option>
+            <option value="acceptance">Acceptance (Blank Override)</option>
+          </select>
+        </label>
+        <label>
+          Trigger Attribute{' '}
+          <select
+            value={newRule.trigger_attribute}
+            onChange={(e) => setNewRule({ ...newRule, trigger_attribute: e.target.value })}
+          >
+            <option value="role">Role</option>
+            <option value="gender">Gender</option>
+            <option value="orientation">Orientation</option>
+          </select>
+        </label>
+        <label>
+          Target Attribute{' '}
+          <select
+            value={newRule.target_attribute}
+            onChange={(e) => setNewRule({ ...newRule, target_attribute: e.target.value })}
+          >
+            <option value="role">Role</option>
+            <option value="gender">Gender</option>
+            <option value="orientation">Orientation</option>
+          </select>
+        </label>
+      </div>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <label style={{ flex: 1 }}>
+          Trigger Value (e.g. handler){' '}
+          <input
+            required
+            value={newRule.trigger_value}
+            onChange={(e) => setNewRule({ ...newRule, trigger_value: e.target.value })}
+          />
+        </label>
+        <label style={{ flex: 1 }}>
+          Target Value (e.g. pet, pup){' '}
+          <input
+            required
+            value={newRule.target_value}
+            onChange={(e) => setNewRule({ ...newRule, target_value: e.target.value })}
+          />
+        </label>
+      </div>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <label style={{ flex: 1 }}>
+          Context Attribute (Optional){' '}
+          <select
+            value={newRule.context_attribute}
+            onChange={(e) => setNewRule({ ...newRule, context_attribute: e.target.value })}
+          >
+            <option value="">None</option>
+            <option value="role">Role</option>
+            <option value="gender">Gender</option>
+            <option value="orientation">Orientation</option>
+          </select>
+        </label>
+        <label style={{ flex: 1 }}>
+          Context Value (Optional){' '}
+          <input
+            value={newRule.context_value}
+            onChange={(e) => setNewRule({ ...newRule, context_value: e.target.value })}
+          />
+        </label>
+      </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button type="submit">{editingRuleId ? 'Save Changes' : 'Add Rule'}</button>
+        {editingRuleId && (
+          <button type="button" className="secondary-button" onClick={cancelEdit}>
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
 export default function MatchingRulesSection({
   authHeader,
   setMessage,
@@ -37,7 +262,7 @@ export default function MatchingRulesSection({
     key: 'created_at',
     dir: 'desc',
   });
-  const emptyRule = {
+  const emptyRule: Rule = {
     rule_type: 'expansion',
     trigger_attribute: 'role',
     trigger_value: '',
@@ -160,193 +385,20 @@ export default function MatchingRulesSection({
           style={{ padding: '8px', width: '100%', maxWidth: '300px' }}
         />
       </div>
-      <div
-        style={{
-          overflowX: 'auto',
-          marginBottom: '24px',
-          background: '#1c1c1c',
-          borderRadius: '8px',
-          border: '1px solid #333',
-        }}
-      >
-        <table
-          className="responsive-table"
-          style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: '#e0e0e0' }}
-        >
-          <thead>
-            <tr style={{ borderBottom: '1px solid #444', backgroundColor: '#2a2a2a' }}>
-              <th
-                style={{ padding: '12px', cursor: 'pointer' }}
-                onClick={() => handleRuleSort('rule_type')}
-              >
-                Type {getSortIcon(ruleSort, 'rule_type')}
-              </th>
-              <th
-                style={{ padding: '12px', cursor: 'pointer' }}
-                onClick={() => handleRuleSort('trigger_attribute')}
-              >
-                Trigger {getSortIcon(ruleSort, 'trigger_attribute')}
-              </th>
-              <th
-                style={{ padding: '12px', cursor: 'pointer' }}
-                onClick={() => handleRuleSort('context_attribute')}
-              >
-                Context {getSortIcon(ruleSort, 'context_attribute')}
-              </th>
-              <th
-                style={{ padding: '12px', cursor: 'pointer' }}
-                onClick={() => handleRuleSort('target_attribute')}
-              >
-                Target {getSortIcon(ruleSort, 'target_attribute')}
-              </th>
-              <th style={{ padding: '12px' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRules.map((rule) => (
-              <tr key={rule.id} style={{ borderBottom: '1px solid #333' }}>
-                <td data-label="Type" style={{ padding: '12px' }}>
-                  <strong>{rule.rule_type}</strong>
-                </td>
-                <td data-label="Trigger" style={{ padding: '12px' }}>
-                  {rule.trigger_attribute} = {rule.trigger_value}
-                </td>
-                <td data-label="Context" style={{ padding: '12px' }}>
-                  {rule.context_attribute ? (
-                    `${rule.context_attribute} = ${rule.context_value}`
-                  ) : (
-                    <span style={{ color: '#777' }}>-</span>
-                  )}
-                </td>
-                <td data-label="Target" style={{ padding: '12px' }}>
-                  {rule.target_attribute} = {rule.target_value}
-                </td>
-                <td data-label="Actions" style={{ padding: '12px' }}>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '0.8rem',
-                      minWidth: 'auto',
-                      marginRight: '4px',
-                    }}
-                    onClick={() => editRule(rule)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    style={{ padding: '4px 8px', fontSize: '0.8rem', minWidth: 'auto' }}
-                    onClick={() => deleteRule(rule.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredRules.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#888' }}>
-                  No matching rules found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <form
-        id="rule-form"
-        className="form-card"
-        onSubmit={saveRule}
-        style={{ marginTop: '24px', border: editingRuleId ? '2px solid #555' : 'none' }}
-      >
-        <h3>{editingRuleId ? 'Edit Rule' : 'Add New Rule'}</h3>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <label>
-            Rule Type{' '}
-            <select
-              value={newRule.rule_type}
-              onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}
-            >
-              <option value="expansion">Expansion (Synonyms)</option>
-              <option value="cross_match">Cross-Match (Symmetrical)</option>
-              <option value="enrichment">Enrichment (Implicit Attribute)</option>
-              <option value="acceptance">Acceptance (Blank Override)</option>
-            </select>
-          </label>
-          <label>
-            Trigger Attribute{' '}
-            <select
-              value={newRule.trigger_attribute}
-              onChange={(e) => setNewRule({ ...newRule, trigger_attribute: e.target.value })}
-            >
-              <option value="role">Role</option>
-              <option value="gender">Gender</option>
-              <option value="orientation">Orientation</option>
-            </select>
-          </label>
-          <label>
-            Target Attribute{' '}
-            <select
-              value={newRule.target_attribute}
-              onChange={(e) => setNewRule({ ...newRule, target_attribute: e.target.value })}
-            >
-              <option value="role">Role</option>
-              <option value="gender">Gender</option>
-              <option value="orientation">Orientation</option>
-            </select>
-          </label>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <label style={{ flex: 1 }}>
-            Trigger Value (e.g. handler){' '}
-            <input
-              required
-              value={newRule.trigger_value}
-              onChange={(e) => setNewRule({ ...newRule, trigger_value: e.target.value })}
-            />
-          </label>
-          <label style={{ flex: 1 }}>
-            Target Value (e.g. pet, pup){' '}
-            <input
-              required
-              value={newRule.target_value}
-              onChange={(e) => setNewRule({ ...newRule, target_value: e.target.value })}
-            />
-          </label>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <label style={{ flex: 1 }}>
-            Context Attribute (Optional){' '}
-            <select
-              value={newRule.context_attribute}
-              onChange={(e) => setNewRule({ ...newRule, context_attribute: e.target.value })}
-            >
-              <option value="">None</option>
-              <option value="role">Role</option>
-              <option value="gender">Gender</option>
-              <option value="orientation">Orientation</option>
-            </select>
-          </label>
-          <label style={{ flex: 1 }}>
-            Context Value (Optional){' '}
-            <input
-              value={newRule.context_value}
-              onChange={(e) => setNewRule({ ...newRule, context_value: e.target.value })}
-            />
-          </label>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button type="submit">{editingRuleId ? 'Save Changes' : 'Add Rule'}</button>
-          {editingRuleId && (
-            <button type="button" className="secondary-button" onClick={cancelEdit}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
+      <MatchingRulesTable
+        filteredRules={filteredRules}
+        ruleSort={ruleSort}
+        handleRuleSort={handleRuleSort}
+        editRule={editRule}
+        deleteRule={deleteRule}
+      />
+      <MatchingRuleForm
+        editingRuleId={editingRuleId}
+        newRule={newRule}
+        setNewRule={setNewRule}
+        saveRule={saveRule}
+        cancelEdit={cancelEdit}
+      />
     </section>
   );
 }

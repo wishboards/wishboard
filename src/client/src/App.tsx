@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AuthProvider, useAuth } from './AuthContext';
+import React, { useEffect, useState } from 'react';
+import { AuthProvider, useAuth, AuthUser } from './AuthContext';
 import { EventProfileProvider } from './EventProfileContext';
 import HomePage from './pages/HomePage';
 import EnterWishPage from './pages/EnterWishPage';
@@ -96,6 +96,316 @@ const removeKioskParams = () => {
   }
 };
 
+const AppHeader = React.memo(function AppHeader({
+  page,
+  navigate,
+  user,
+  logout,
+}: {
+  page: PageId;
+  navigate: (pageId: PageId) => void;
+  user: AuthUser | null;
+  logout: () => void;
+}) {
+  return (
+    <header className="app-header desktop-only">
+      <div className="logo">Wishboard</div>
+      <nav className="nav-bar">
+        {pages.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={page === item.id ? 'nav-button active' : 'nav-button'}
+            onClick={() => navigate(item.id as PageId)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      <div className="user-area" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {user ? (
+          <>
+            <button
+              type="button"
+              className="user-link-button"
+              onClick={() => navigate('account')}
+              aria-label="My Account"
+            >
+              <span
+                aria-hidden="true"
+                style={{ marginRight: '6px', display: 'inline-flex', alignItems: 'center' }}
+              >
+                <span className="emoji-icon">👤</span>
+              </span>
+              {user.username}
+            </button>
+            <button type="button" className="compact-btn" onClick={logout}>
+              Log out
+            </button>
+          </>
+        ) : (
+          <>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontWeight: 600,
+                fontSize: '1.05rem',
+                padding: '8px 12px',
+                cursor: 'default',
+              }}
+              aria-label="Guest Account"
+            >
+              <span
+                aria-hidden="true"
+                style={{ marginRight: '6px', display: 'inline-flex', alignItems: 'center' }}
+              >
+                <span className="emoji-icon">👤</span>
+              </span>{' '}
+              Guest
+            </div>
+            <button type="button" className="compact-btn" onClick={() => navigate('account')}>
+              Log in
+            </button>
+          </>
+        )}
+      </div>
+    </header>
+  );
+});
+
+const AppMain = React.memo(function AppMain({
+  isKiosk,
+  page,
+  setIsKiosk,
+  navigate,
+}: {
+  isKiosk: boolean;
+  page: PageId;
+  setIsKiosk: (kiosk: boolean) => void;
+  navigate: (pageId: PageId) => void;
+}) {
+  if (isKiosk) {
+    return (
+      <main className="kiosk-content">
+        <DisplayPage onEnterKiosk={() => setIsKiosk(true)} isKiosk={true} />
+        <WiFiQrCode />
+      </main>
+    );
+  }
+
+  return (
+    <main className="content-area">
+      {page === 'home' && <HomePage onNavigate={navigate} />}
+      {page === 'enter' && <EnterWishPage />}
+      {page === 'search' && <SearchPage />}
+      {page === 'display' && <DisplayPage onEnterKiosk={() => setIsKiosk(true)} isKiosk={false} />}
+      {page === 'account' && <AccountPage />}
+      {page === 'about' && <AboutPage />}
+      {page === 'manage-wish' && <ManageWishPage />}
+      {page === 'wishmail-dashboard' && <WishmailDashboard />}
+      {page === 'admin' && <AdminPage />}
+      {page === 'poster' && <PosterPage />}
+    </main>
+  );
+});
+
+const MobileBottomBar = React.memo(function MobileBottomBar({
+  page,
+  navigate,
+  isMobileMenuOpen,
+  setIsMobileMenuOpen,
+}: {
+  page: PageId;
+  navigate: (pageId: PageId) => void;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (open: boolean) => void;
+}) {
+  return (
+    <nav className="mobile-bottom-bar">
+      {pages
+        .filter((p) => !['admin', 'poster', 'about'].includes(p.id))
+        .map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            className={`mobile-tab-button ${page === item.id ? 'active' : ''}`}
+            onClick={() => navigate(item.id as PageId)}
+          >
+            <div className="mobile-tab-icon">
+              <span className="emoji-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+            </div>
+            <span className="mobile-tab-label">{item.label}</span>
+          </button>
+        ))}
+      {/* Hamburger Menu for the rest */}
+      <button
+        type="button"
+        className="mobile-tab-button"
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+      >
+        <div className="mobile-tab-icon">
+          <span className="emoji-icon" aria-hidden="true">
+            ☰
+          </span>
+        </div>
+        <span className="mobile-tab-label">More</span>
+      </button>
+    </nav>
+  );
+});
+
+const MobileHamburgerMenu = React.memo(function MobileHamburgerMenu({
+  setIsMobileMenuOpen,
+  navigate,
+  user,
+  logout,
+}: {
+  setIsMobileMenuOpen: (open: boolean) => void;
+  navigate: (pageId: PageId) => void;
+  user: AuthUser | null;
+  logout: () => void;
+}) {
+  return (
+    <div id="mobile-hamburger-menu" className="mobile-hamburger-menu" style={{ display: 'flex' }}>
+      <button
+        type="button"
+        aria-label="Close menu"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'default',
+          padding: 0,
+          margin: 0,
+        }}
+        onClick={() => setIsMobileMenuOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setIsMobileMenuOpen(false);
+        }}
+      />
+      <div className="hamburger-content">
+        <button
+          type="button"
+          className="hamburger-close"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          ✕
+        </button>
+        <div className="hamburger-items">
+          <button
+            type="button"
+            className="hamburger-item"
+            onClick={() => {
+              navigate('about');
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            About
+          </button>
+          <button
+            type="button"
+            className="hamburger-item"
+            onClick={() => {
+              navigate('admin');
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            Admin
+          </button>
+          {user && (
+            <button
+              type="button"
+              className="hamburger-item"
+              onClick={() => {
+                logout();
+                setIsMobileMenuOpen(false);
+              }}
+            >
+              Log out
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ExitKioskModal = React.memo(function ExitKioskModal({
+  handleExitKiosk,
+  kioskError,
+  kioskUsername,
+  setKioskUsername,
+  kioskPassphrase,
+  setKioskPassphrase,
+  setShowExitPrompt,
+  setKioskError,
+}: {
+  handleExitKiosk: (e: React.SyntheticEvent<HTMLFormElement>) => Promise<void>;
+  kioskError: string | null;
+  kioskUsername: string;
+  setKioskUsername: (username: string) => void;
+  kioskPassphrase: string;
+  setKioskPassphrase: (passphrase: string) => void;
+  setShowExitPrompt: (show: boolean) => void;
+  setKioskError: (error: string | null) => void;
+}) {
+  return (
+    <div className="kiosk-modal-backdrop">
+      <div className="kiosk-modal">
+        <h2>Exit Kiosk Mode</h2>
+        <p className="kiosk-modal-sub">Please enter admin credentials to exit kiosk mode.</p>
+        <form onSubmit={handleExitKiosk}>
+          {kioskError && <div className="kiosk-modal-error">{kioskError}</div>}
+          <label>
+            Admin Username{' '}
+            <input
+              type="text"
+              required
+              value={kioskUsername}
+              onChange={(e) => setKioskUsername(e.target.value)}
+              placeholder="e.g. admin"
+              autoFocus
+            />
+          </label>
+          <label>
+            Passphrase{' '}
+            <input
+              type="password"
+              required
+              value={kioskPassphrase}
+              onChange={(e) => setKioskPassphrase(e.target.value)}
+              placeholder="Enter passphrase"
+            />
+          </label>
+          <div className="kiosk-modal-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setShowExitPrompt(false);
+                setKioskError(null);
+                setKioskUsername('');
+                setKioskPassphrase('');
+              }}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="primary-button">
+              Confirm Exit
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+});
+
 function AppContent() {
   const [page, setPage] = useState<PageId>(getHashPage);
   const [isKiosk, setIsKiosk] = useState<boolean>(checkIsKioskParam);
@@ -178,250 +488,41 @@ function AppContent() {
 
   return (
     <div className={shellClass}>
-      {!isKiosk && (
-        <header className="app-header desktop-only">
-          <div className="logo">Wishboard</div>
-          <nav className="nav-bar">
-            {pages.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                className={page === item.id ? 'nav-button active' : 'nav-button'}
-                onClick={() => navigate(item.id as PageId)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-          <div className="user-area" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {user ? (
-              <>
-                <button
-                  type="button"
-                  className="user-link-button"
-                  onClick={() => navigate('account')}
-                  aria-label="My Account"
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{ marginRight: '6px', display: 'inline-flex', alignItems: 'center' }}
-                  >
-                    <span className="emoji-icon">👤</span>
-                  </span>
-                  {user.username}
-                </button>
-                <button type="button" className="compact-btn" onClick={logout}>
-                  Log out
-                </button>
-              </>
-            ) : (
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    fontWeight: 600,
-                    fontSize: '1.05rem',
-                    padding: '8px 12px',
-                    cursor: 'default',
-                  }}
-                  aria-label="Guest Account"
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{ marginRight: '6px', display: 'inline-flex', alignItems: 'center' }}
-                  >
-                    <span className="emoji-icon">👤</span>
-                  </span>{' '}
-                  Guest
-                </div>
-                <button type="button" className="compact-btn" onClick={() => navigate('account')}>
-                  Log in
-                </button>
-              </>
-            )}
-          </div>
-        </header>
-      )}
+      {!isKiosk && <AppHeader page={page} navigate={navigate} user={user} logout={logout} />}
 
-      {isKiosk ? (
-        <main className="kiosk-content">
-          <DisplayPage onEnterKiosk={() => setIsKiosk(true)} isKiosk={true} />
-          <WiFiQrCode />
-        </main>
-      ) : (
-        <main className="content-area">
-          {page === 'home' && <HomePage onNavigate={navigate} />}
-          {page === 'enter' && <EnterWishPage />}
-          {page === 'search' && <SearchPage />}
-          {page === 'display' && (
-            <DisplayPage onEnterKiosk={() => setIsKiosk(true)} isKiosk={false} />
-          )}
-          {page === 'account' && <AccountPage />}
-          {page === 'about' && <AboutPage />}
-          {page === 'manage-wish' && <ManageWishPage />}
-          {page === 'wishmail-dashboard' && <WishmailDashboard />}
-          {page === 'admin' && <AdminPage />}
-          {page === 'poster' && <PosterPage />}
-        </main>
-      )}
+      <AppMain isKiosk={isKiosk} page={page} setIsKiosk={setIsKiosk} navigate={navigate} />
 
       {/* Mobile Bottom Tab Bar */}
       {!isKiosk && (
-        <nav className="mobile-bottom-bar">
-          {pages
-            .filter((p) => !['admin', 'poster', 'about'].includes(p.id))
-            .map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                className={`mobile-tab-button ${page === item.id ? 'active' : ''}`}
-                onClick={() => navigate(item.id as PageId)}
-              >
-                <div className="mobile-tab-icon">
-                  <span className="emoji-icon" aria-hidden="true">
-                    {item.icon}
-                  </span>
-                </div>
-                <span className="mobile-tab-label">{item.label}</span>
-              </button>
-            ))}
-          {/* Hamburger Menu for the rest */}
-          <button
-            type="button"
-            className="mobile-tab-button"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <div className="mobile-tab-icon">
-              <span className="emoji-icon" aria-hidden="true">
-                ☰
-              </span>
-            </div>
-            <span className="mobile-tab-label">More</span>
-          </button>
-        </nav>
+        <MobileBottomBar
+          page={page}
+          navigate={navigate}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+        />
       )}
 
       {/* Mobile Hamburger Overlay */}
       {!isKiosk && isMobileMenuOpen && (
-        <div
-          id="mobile-hamburger-menu"
-          className="mobile-hamburger-menu"
-          style={{ display: 'flex' }}
-        >
-          <button
-            type="button"
-            aria-label="Close menu"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'default',
-              padding: 0,
-              margin: 0,
-            }}
-            onClick={() => setIsMobileMenuOpen(false)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setIsMobileMenuOpen(false);
-            }}
-          />
-          <div className="hamburger-content">
-            <button
-              type="button"
-              className="hamburger-close"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              ✕
-            </button>
-            <div className="hamburger-items">
-              <button
-                type="button"
-                className="hamburger-item"
-                onClick={() => {
-                  navigate('about');
-                  setIsMobileMenuOpen(false);
-                }}
-              >
-                About
-              </button>
-              <button
-                type="button"
-                className="hamburger-item"
-                onClick={() => {
-                  navigate('admin');
-                  setIsMobileMenuOpen(false);
-                }}
-              >
-                Admin
-              </button>
-              {user && (
-                <button
-                  type="button"
-                  className="hamburger-item"
-                  onClick={() => {
-                    logout();
-                    setIsMobileMenuOpen(false);
-                  }}
-                >
-                  Log out
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <MobileHamburgerMenu
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          navigate={navigate}
+          user={user}
+          logout={logout}
+        />
       )}
 
       {showExitPrompt && (
-        <div className="kiosk-modal-backdrop">
-          <div className="kiosk-modal">
-            <h2>Exit Kiosk Mode</h2>
-            <p className="kiosk-modal-sub">Please enter admin credentials to exit kiosk mode.</p>
-            <form onSubmit={handleExitKiosk}>
-              {kioskError && <div className="kiosk-modal-error">{kioskError}</div>}
-              <label>
-                Admin Username{' '}
-                <input
-                  type="text"
-                  required
-                  value={kioskUsername}
-                  onChange={(e) => setKioskUsername(e.target.value)}
-                  placeholder="e.g. admin"
-                  autoFocus
-                />
-              </label>
-              <label>
-                Passphrase{' '}
-                <input
-                  type="password"
-                  required
-                  value={kioskPassphrase}
-                  onChange={(e) => setKioskPassphrase(e.target.value)}
-                  placeholder="Enter passphrase"
-                />
-              </label>
-              <div className="kiosk-modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => {
-                    setShowExitPrompt(false);
-                    setKioskError(null);
-                    setKioskUsername('');
-                    setKioskPassphrase('');
-                  }}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="primary-button">
-                  Confirm Exit
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ExitKioskModal
+          handleExitKiosk={handleExitKiosk}
+          kioskError={kioskError}
+          kioskUsername={kioskUsername}
+          setKioskUsername={setKioskUsername}
+          kioskPassphrase={kioskPassphrase}
+          setKioskPassphrase={setKioskPassphrase}
+          setShowExitPrompt={setShowExitPrompt}
+          setKioskError={setKioskError}
+        />
       )}
     </div>
   );

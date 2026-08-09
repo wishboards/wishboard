@@ -15,12 +15,11 @@ interface FlaggedWishesSectionProps {
   refreshCounter: number;
 }
 
-export default function FlaggedWishesSection({
-  authHeader,
-  setMessage,
-  setError,
-  refreshCounter,
-}: Readonly<FlaggedWishesSectionProps>) {
+function useFlaggedWishes(
+  authHeader: Record<string, string>,
+  setError: (err: string | null) => void,
+  refreshCounter: number
+) {
   const [flags, setFlags] = useState<Array<FlaggedWish>>([]);
 
   const loadFlags = React.useCallback(async () => {
@@ -60,6 +59,40 @@ export default function FlaggedWishesSection({
       socket.off('wish:deleted', removeFlag);
     };
   }, [socket, addFlag, removeFlag]);
+
+  return { flags, loadFlags };
+}
+
+interface FlaggedWishCardProps {
+  wish: FlaggedWish;
+  clearFlag: (id: string) => void;
+  removeWish: (id: string) => void;
+}
+
+function FlaggedWishCard({ wish, clearFlag, removeWish }: Readonly<FlaggedWishCardProps>) {
+  return (
+    <article className="wish-card" key={wish.id}>
+      <p>{wish.content}</p>
+      <p className="microtext">Submitted by {wish.user_id || 'anonymous'}</p>
+      <div className="wish-actions">
+        <button type="button" className="secondary-button" onClick={() => clearFlag(wish.id)}>
+          Clear Flag
+        </button>
+        <button type="button" onClick={() => removeWish(wish.id)}>
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+}
+
+export default function FlaggedWishesSection({
+  authHeader,
+  setMessage,
+  setError,
+  refreshCounter,
+}: Readonly<FlaggedWishesSectionProps>) {
+  const { flags, loadFlags } = useFlaggedWishes(authHeader, setError, refreshCounter);
 
   const removeWish = async (id: string) => {
     setMessage(null);
@@ -116,22 +149,12 @@ export default function FlaggedWishesSection({
           <p>No flagged wishes at the moment.</p>
         ) : (
           flags.map((wish) => (
-            <article className="wish-card" key={wish.id}>
-              <p>{wish.content}</p>
-              <p className="microtext">Submitted by {wish.user_id || 'anonymous'}</p>
-              <div className="wish-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => clearFlag(wish.id)}
-                >
-                  Clear Flag
-                </button>
-                <button type="button" onClick={() => removeWish(wish.id)}>
-                  Remove
-                </button>
-              </div>
-            </article>
+            <FlaggedWishCard
+              key={wish.id}
+              wish={wish}
+              clearFlag={clearFlag}
+              removeWish={removeWish}
+            />
           ))
         )}
       </div>

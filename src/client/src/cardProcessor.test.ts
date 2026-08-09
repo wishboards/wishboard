@@ -6,6 +6,7 @@ import {
   getDefaultPoly,
   alignPolygons,
   applyDampening,
+  fallbackTextContour,
 } from './cardProcessor';
 
 describe('cardProcessor geometry & layout utilities', () => {
@@ -119,5 +120,118 @@ describe('cardProcessor geometry & layout utilities', () => {
     const heavyRes = applyDampening(largeShiftPoly, previousPoly, debugLinesHeavy);
     expect(debugLinesHeavy).toContain('Filter: Heavy Dampening');
     expect(heavyRes[0].x).toBeCloseTo(0 * 0.95 + 200 * 0.05);
+  });
+});
+
+describe('fallbackTextContour', () => {
+  const pWidth = 400;
+  const pHeight = 800;
+  const processScale = 2;
+  const video = { videoWidth: 800, videoHeight: 1600 } as any;
+
+  it('returns null when no valid contours are found (area too small or too large)', () => {
+    const cvMock = {
+      contourArea: (cnt: any) => (cnt.id === 'small' ? 10 : pWidth * pHeight * 0.1),
+      boundingRect: () => ({ x: 100, y: 100, width: 100, height: 100 }),
+    };
+    const contoursMock = {
+      size: () => 2,
+      get: (i: number) => ({ id: i === 0 ? 'small' : 'large' }),
+    };
+
+    const result = fallbackTextContour(cvMock, video, contoursMock, processScale, pWidth, pHeight);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when bounding box width is too small (maxX - minX <= pWidth * 0.1)', () => {
+    const cvMock = {
+      contourArea: () => 1000,
+      boundingRect: () => ({ x: 100, y: 100, width: pWidth * 0.05, height: 100 }),
+    };
+    const contoursMock = {
+      size: () => 1,
+      get: () => ({ id: 'valid-area-small-width' }),
+    };
+
+    const result = fallbackTextContour(cvMock, video, contoursMock, processScale, pWidth, pHeight);
+    expect(result).toBeNull();
+  });
+
+  it('returns expected padded and scaled polygon for matching wide text contours (corrects to 5/3 aspect ratio)', () => {
+    const cvMock = {
+      contourArea: () => 1000,
+      boundingRect: () => ({
+        x: pWidth * 0.1,
+        y: pHeight * 0.1,
+        width: pWidth * 0.6,
+        height: pHeight * 0.1,
+      }),
+    };
+    const contoursMock = {
+      size: () => 1,
+      get: () => ({ id: 'wide-text' }),
+    };
+
+    const result = fallbackTextContour(cvMock, video, contoursMock, processScale, pWidth, pHeight);
+    expect(result).not.toBeNull();
+    expect(result).toHaveLength(4);
+
+    const padX = pWidth * 0.05;
+    const padY = pHeight * 0.05;
+    const minX = (pWidth * 0.1 - padX) / processScale;
+    const minY = (pHeight * 0.1 - padY) / processScale;
+    const maxX = (pWidth * 0.1 + pWidth * 0.6 + padX) / processScale;
+    const maxY = (pHeight * 0.1 + pHeight * 0.1 + padY) / processScale;
+
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    // Original w/h ratio is (0.5+0.1) / (0.1+0.1) = 0.6 / 0.2 = 3 which is > 5/3
+    // So h is calculated as w * (3/5)
+    const expectedW = maxX - minX;
+    const expectedH = expectedW * (3 / 5);
+
+    expect(result![0].x).toBeCloseTo(cx - expectedW / 2);
+    expect(result![0].y).toBeCloseTo(cy - expectedH / 2);
+    expect(result![2].x).toBeCloseTo(cx + expectedW / 2);
+    expect(result![2].y).toBeCloseTo(cy + expectedH / 2);
+  });
+
+  it('returns expected padded and scaled polygon for matching tall text contours (corrects to 5/3 aspect ratio)', () => {
+    const cvMock = {
+      contourArea: () => 1000,
+      boundingRect: () => ({
+        x: pWidth * 0.1,
+        y: pHeight * 0.1,
+        width: pWidth * 0.2,
+        height: pHeight * 0.4,
+      }),
+    };
+    const contoursMock = {
+      size: () => 1,
+      get: () => ({ id: 'tall-text' }),
+    };
+
+    const result = fallbackTextContour(cvMock, video, contoursMock, processScale, pWidth, pHeight);
+    expect(result).not.toBeNull();
+    expect(result).toHaveLength(4);
+
+    const padX = pWidth * 0.05;
+    const padY = pHeight * 0.05;
+    const minX = (pWidth * 0.1 - padX) / processScale;
+    const minY = (pHeight * 0.1 - padY) / processScale;
+    const maxX = (pWidth * 0.1 + pWidth * 0.2 + padX) / processScale;
+    const maxY = (pHeight * 0.1 + pHeight * 0.4 + padY) / processScale;
+
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    // Original w/h ratio is (0.2+0.1) / (0.4+0.1) = 0.3 / 0.5 = 0.6 which is < 5/3
+    // So w is calculated as h * (5/3)
+    const expectedH = maxY - minY;
+    const expectedW = expectedH * (5 / 3);
+
+    expect(result![0].x).toBeCloseTo(cx - expectedW / 2);
+    expect(result![0].y).toBeCloseTo(cy - expectedH / 2);
+    expect(result![2].x).toBeCloseTo(cx + expectedW / 2);
+    expect(result![2].y).toBeCloseTo(cy + expectedH / 2);
   });
 });

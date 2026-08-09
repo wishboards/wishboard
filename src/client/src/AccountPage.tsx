@@ -53,10 +53,7 @@ function useUsernameExistence(username: string) {
   return { existingUsername, mode, setMode };
 }
 
-function ClaimWishForm({
-  token,
-  loadWishes,
-}: Readonly<{ token: string | null; loadWishes: () => void }>) {
+function useClaimWish(token: string | null, loadWishes: () => void) {
   const [claimId, setClaimId] = useState('');
   const [claimSecret, setClaimSecret] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -91,6 +88,16 @@ function ClaimWishForm({
     setClaimSecret('');
     loadWishes();
   };
+
+  return { claimId, setClaimId, claimSecret, setClaimSecret, message, error, claimWish };
+}
+
+function ClaimWishForm({
+  token,
+  loadWishes,
+}: Readonly<{ token: string | null; loadWishes: () => void }>) {
+  const { claimId, setClaimId, claimSecret, setClaimSecret, message, error, claimWish } =
+    useClaimWish(token, loadWishes);
 
   return (
     <div className="profile-edit">
@@ -279,36 +286,22 @@ interface Wish {
   unread_wishmail_count?: number;
 }
 
-export default function AccountPage() {
-  const { user, token, login, register, logout, refreshUser } = useAuth();
+function UnauthenticatedAccountPage() {
+  const { login, register } = useAuth();
   const { excludedIds, unexcludeWish } = useExcludedWishes();
+  const { categories } = useEventProfile();
+
   const [username, setUsername] = useState('');
   const [passphrase, setPassphrase] = useState('');
-  const { categories } = useEventProfile();
   const [identityAttributes, setIdentityAttributes] = useState<Record<string, string>>({});
-  const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>({});
-  const [contacts, setContacts] = useState<Array<{ type: string; value: string }>>([]);
-  const [wishmailEnabled, setWishmailEnabled] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wishes, setWishes] = useState<Wish[]>([]);
   const [hiddenWishes, setHiddenWishes] = useState<Wish[]>([]);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePreview, setDeletePreview] = useState<{
-    wishesCount: number;
-    wishmailsCount: number;
-  } | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
   const [regConflicts, setRegConflicts] = useState<
-    Array<{ message: string; target_attribute: string }>
-  >([]);
-  const [editConflicts, setEditConflicts] = useState<
     Array<{ message: string; target_attribute: string }>
   >([]);
 
   const { existingUsername, mode, setMode } = useUsernameExistence(username);
-
   const effectiveMode = existingUsername ? 'login' : mode;
 
   // Debounced conflict check for registration form
@@ -324,6 +317,144 @@ export default function AccountPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [identityAttributes, categories, effectiveMode]);
+
+  const loadHiddenWishes = useCallback(async () => {
+    if (excludedIds.length === 0) {
+      setHiddenWishes([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/wishes?ids=${excludedIds.join(',')}&ignore_attributes=1`);
+      if (response.ok) {
+        const data = await response.json();
+        setHiddenWishes(data);
+      }
+    } catch (err) {
+      console.error('Failed to load local hidden wishes:', err);
+    }
+  }, [excludedIds]);
+
+  useEffect(() => {
+    loadHiddenWishes();
+  }, [loadHiddenWishes]);
+
+  const onLogin = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!username.trim() || !passphrase.trim()) {
+      setError('Username and passphrase are required to log in.');
+      return;
+    }
+    const response = await login(username.trim(), passphrase.trim());
+    if (!response.success) {
+      setError(response.error || 'Login failed.');
+      return;
+    }
+    setMessage('Logged in successfully.');
+    setUsername('');
+    setPassphrase('');
+  };
+
+  const onRegister = async (event: React.SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!username.trim()) {
+      setError('Username is required to register.');
+      return;
+    }
+    const response = await register(
+      username.trim(),
+      passphrase.trim() || undefined,
+      identityAttributes
+    );
+    if (!response.success) {
+      setError(response.error || 'Registration failed.');
+      return;
+    }
+    setMessage(`Account created. Remember your passphrase: ${response.secret}`);
+    setUsername('');
+    setPassphrase('');
+    setIdentityAttributes({});
+  };
+
+  const unhideWish = async (id: string) => {
+    setError(null);
+    setMessage(null);
+    try {
+      await unexcludeWish(id);
+      setMessage('Wish is now visible again.');
+      setHiddenWishes((prev) => prev.filter((w) => w.id !== id));
+    } catch {
+      setError('Error un-hiding wish.');
+    }
+  };
+
+  return (
+    <>
+      <UnauthenticatedAccountView
+        mode={mode}
+        setMode={setMode}
+        effectiveMode={effectiveMode}
+        onLogin={onLogin}
+        onRegister={onRegister}
+        username={username}
+        setUsername={setUsername}
+        passphrase={passphrase}
+        setPassphrase={setPassphrase}
+        identityAttributes={identityAttributes}
+        setIdentityAttributes={setIdentityAttributes}
+        regConflicts={regConflicts}
+        message={message}
+        error={error}
+        isSubmitDisabled={regConflicts.length > 0}
+      />
+      {hiddenWishes.length > 0 && (
+        <div style={{ marginTop: '40px', marginBottom: '32px' }}>
+          <h2>Hidden Wishes (Not Interested)</h2>
+          <p style={{ marginBottom: '16px', fontSize: '0.9rem', color: '#556275' }}>
+            These wishes are hidden from your search results on this device. If you log in, they
+            will be saved to your account so they stay hidden across all your sessions.
+          </p>
+          <div className="wish-grid">
+            {hiddenWishes.map((wish) => (
+              <WishCard
+                key={wish.id}
+                wish={wish}
+                showFlag={false}
+                isExcluded={true}
+                onExclude={() => {}}
+                onUnexclude={() => unhideWish(wish.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function AuthenticatedAccountPage() {
+  const { user, token, logout, refreshUser } = useAuth();
+  const { categories } = useEventProfile();
+
+  const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>({});
+  const [contacts, setContacts] = useState<Array<{ type: string; value: string }>>([]);
+  const [wishmailEnabled, setWishmailEnabled] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [hiddenWishes, setHiddenWishes] = useState<Wish[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<{
+    wishesCount: number;
+    wishmailsCount: number;
+  } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editConflicts, setEditConflicts] = useState<
+    Array<{ message: string; target_attribute: string }>
+  >([]);
 
   // Debounced conflict check for profile edit form
   useEffect(() => {
@@ -355,36 +486,19 @@ export default function AccountPage() {
   }, [user, token]);
 
   const loadHiddenWishes = useCallback(async () => {
-    if (user) {
-      try {
-        const response = await fetch('/api/wishes/exclusions', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setHiddenWishes(data);
-        }
-      } catch (err) {
-        console.error('Failed to load hidden wishes:', err);
+    if (!user) return;
+    try {
+      const response = await fetch('/api/wishes/exclusions', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setHiddenWishes(data);
       }
-    } else {
-      if (excludedIds.length === 0) {
-        setHiddenWishes([]);
-        return;
-      }
-      try {
-        const response = await fetch(
-          `/api/wishes?ids=${excludedIds.join(',')}&ignore_attributes=1`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          setHiddenWishes(data);
-        }
-      } catch (err) {
-        console.error('Failed to load local hidden wishes:', err);
-      }
+    } catch (err) {
+      console.error('Failed to load hidden wishes:', err);
     }
-  }, [user, token, excludedIds]);
+  }, [user, token]);
 
   useEffect(() => {
     loadWishes();
@@ -439,47 +553,6 @@ export default function AccountPage() {
     }
   };
 
-  const onLogin = async (event: React.SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setMessage(null);
-    if (!username.trim() || !passphrase.trim()) {
-      setError('Username and passphrase are required to log in.');
-      return;
-    }
-    const response = await login(username.trim(), passphrase.trim());
-    if (!response.success) {
-      setError(response.error || 'Login failed.');
-      return;
-    }
-    setMessage('Logged in successfully.');
-    setUsername('');
-    setPassphrase('');
-  };
-
-  const onRegister = async (event: React.SyntheticEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setMessage(null);
-    if (!username.trim()) {
-      setError('Username is required to register.');
-      return;
-    }
-    const response = await register(
-      username.trim(),
-      passphrase.trim() || undefined,
-      identityAttributes
-    );
-    if (!response.success) {
-      setError(response.error || 'Registration failed.');
-      return;
-    }
-    setMessage(`Account created. Remember your passphrase: ${response.secret}`);
-    setUsername('');
-    setPassphrase('');
-    setIdentityAttributes({});
-  };
-
   const deleteWish = async (id: string) => {
     setError(null);
     setMessage(null);
@@ -504,13 +577,6 @@ export default function AccountPage() {
     setError(null);
     setMessage(null);
     try {
-      if (!user) {
-        await unexcludeWish(id);
-        setMessage('Wish is now visible again.');
-        setHiddenWishes((prev) => prev.filter((w) => w.id !== id));
-        return;
-      }
-
       const response = await fetch(`/api/wishes/${encodeURIComponent(id)}/exclude`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -570,50 +636,7 @@ export default function AccountPage() {
     loadWishes();
   };
 
-  if (!user) {
-    return (
-      <>
-        <UnauthenticatedAccountView
-          mode={mode}
-          setMode={setMode}
-          effectiveMode={effectiveMode}
-          onLogin={onLogin}
-          onRegister={onRegister}
-          username={username}
-          setUsername={setUsername}
-          passphrase={passphrase}
-          setPassphrase={setPassphrase}
-          identityAttributes={identityAttributes}
-          setIdentityAttributes={setIdentityAttributes}
-          regConflicts={regConflicts}
-          message={message}
-          error={error}
-          isSubmitDisabled={regConflicts.length > 0}
-        />
-        {hiddenWishes.length > 0 && (
-          <div style={{ marginTop: '40px', marginBottom: '32px' }}>
-            <h2>Hidden Wishes (Not Interested)</h2>
-            <p style={{ marginBottom: '16px', fontSize: '0.9rem', color: '#556275' }}>
-              These wishes are hidden from your search results on this device. If you log in, they
-              will be saved to your account so they stay hidden across all your sessions.
-            </p>
-            <div className="wish-grid">
-              {hiddenWishes.map((wish) => (
-                <WishCard
-                  key={wish.id}
-                  wish={wish}
-                  showFlag={false}
-                  isExcluded={true}
-                  onExclude={() => {}}
-                  onUnexclude={() => unhideWish(wish.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
+  if (!user) return null; // Should not happen if correctly gated
 
   return (
     <section>
@@ -929,4 +952,14 @@ export default function AccountPage() {
       )}
     </section>
   );
+}
+
+export default function AccountPage() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <UnauthenticatedAccountPage />;
+  }
+
+  return <AuthenticatedAccountPage />;
 }

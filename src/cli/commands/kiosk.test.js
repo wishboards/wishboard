@@ -77,7 +77,11 @@ describe('kiosk commands', () => {
       expect(sshCmds().some((s) => s.includes('build-kiosk.sh prod ex.com reset 2.0.0'))).toBe(
         true
       );
-      expect(sshCmds().some((s) => s.startsWith('rm -rf'))).toBe(true);
+      const rmCalls = vi
+        .mocked(commandUtils.execCommand)
+        .mock.calls.filter((c) => c[0] === 'ssh' && c[1][1] === 'rm');
+      expect(rmCalls.length).toBeGreaterThan(0);
+      expect(rmCalls[0][1]).toEqual(['pi@pi.local', 'rm', '-rf', '--', '/tmp/remote-xyz']);
     });
 
     it('defaults rules to keep and version to the package.json version', () => {

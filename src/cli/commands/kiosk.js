@@ -116,6 +116,9 @@ export function deployKiosk(options) {
     if (res.status !== 0 || !remoteTemp) {
       throw new Error(`Failed to create a remote temporary directory on ${target}.`);
     }
+    if (!/^\/[\w./-]+$/.test(remoteTemp)) {
+      throw new Error(`Invalid remote temporary directory returned: ${remoteTemp}`);
+    }
   }
 
   try {
@@ -137,7 +140,7 @@ export function deployKiosk(options) {
     // Always clean up the remote temp dir.
     if (!dryRun && remoteTemp && remoteTemp !== '/' && remoteTemp !== '/tmp') {
       logStep('Cleaning up remote temporary directory...');
-      execCommand('ssh', [target, `rm -rf ${remoteTemp}`], { stdio: 'pipe' });
+      execCommand('ssh', [target, 'rm', '-rf', '--', remoteTemp], { stdio: 'pipe' });
     }
   }
 }

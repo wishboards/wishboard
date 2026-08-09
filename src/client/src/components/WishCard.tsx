@@ -125,6 +125,166 @@ function ExcludeToggleButton({
   );
 }
 
+function WishBottomActions({
+  hasBottomActions,
+  wish,
+  onViewWishmail,
+  onSendMail,
+  unreadWishmailCount,
+}: Readonly<{
+  hasBottomActions: boolean;
+  wish: Wish;
+  onViewWishmail?: (id: string) => void;
+  onSendMail?: (id: string) => void;
+  unreadWishmailCount?: number;
+}>) {
+  if (!hasBottomActions) return null;
+  return (
+    <>
+      {wish.contacts && wish.contacts.length > 0 && (
+        <div className="wish-contacts-list">
+          {wish.contacts.map((c, i) => (
+            <span key={`${c.type}-${i}`} className="wish-contact-item">
+              <strong>{c.type}:</strong> {c.value}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {(wish.wishmail_enabled || onViewWishmail) && (
+        <button
+          type="button"
+          className="send-mail-icon-btn"
+          onClick={(e) => {
+            e.preventDefault();
+            if (onViewWishmail) {
+              onViewWishmail(wish.id);
+            } else if (onSendMail) {
+              onSendMail(wish.id);
+            }
+          }}
+          title={onViewWishmail ? 'View Wishmail' : 'Send Wishmail'}
+          aria-label={onViewWishmail ? 'View Wishmail' : 'Send Wishmail'}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect width="20" height="16" x="2" y="4" rx="2" />
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+          </svg>
+          {onViewWishmail && unreadWishmailCount !== undefined && unreadWishmailCount > 0 && (
+            <div className="mail-unread-dot" title={`${unreadWishmailCount} unread message(s)`} />
+          )}
+        </button>
+      )}
+    </>
+  );
+}
+
+function WishTopActions({
+  wishId,
+  isExcluded,
+  showFlag,
+  onFlag,
+  onExclude,
+  onUnexclude,
+  onEdit,
+  onDelete,
+  onAdminDelete,
+}: Readonly<{
+  wishId: string;
+  isExcluded: boolean;
+  showFlag?: boolean;
+  onFlag?: (id: string) => void;
+  onExclude?: (id: string) => void;
+  onUnexclude?: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onAdminDelete?: (id: string) => void;
+}>) {
+  return (
+    <div className="card-top-left-actions">
+      {showFlag && onFlag && <FlagButton onFlag={() => onFlag(wishId)} />}
+      {onExclude && (
+        <ExcludeToggleButton
+          wishId={wishId}
+          isExcluded={isExcluded}
+          onExclude={onExclude}
+          onUnexclude={onUnexclude}
+        />
+      )}
+      {onEdit && (
+        <button
+          type="button"
+          className="owner-edit-wish-btn"
+          onClick={() => onEdit(wishId)}
+          title="Edit Wish"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z" />
+          </svg>
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          className="owner-delete-wish-btn"
+          onClick={() => onDelete(wishId)}
+          title="Delete Wish"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      )}
+      {onAdminDelete && (
+        <button
+          type="button"
+          className="admin-delete-wish-btn"
+          onClick={() => onAdminDelete(wishId)}
+          title="Admin Delete Wish"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function WishCard({
   wish,
   cardClass = 'wish-card',
@@ -175,58 +335,6 @@ export default function WishCard({
 
   const hasImage = Boolean(wish.image_url || wish.image_id);
 
-  const renderBottomActions = () => {
-    if (!hasBottomActions) return null;
-    return (
-      <>
-        {wish.contacts && wish.contacts.length > 0 && (
-          <div className="wish-contacts-list">
-            {wish.contacts.map((c, i) => (
-              <span key={`${c.type}-${i}`} className="wish-contact-item">
-                <strong>{c.type}:</strong> {c.value}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {(wish.wishmail_enabled || onViewWishmail) && (
-          <button
-            type="button"
-            className="send-mail-icon-btn"
-            onClick={(e) => {
-              e.preventDefault();
-              if (onViewWishmail) {
-                onViewWishmail(wish.id);
-              } else if (onSendMail) {
-                onSendMail(wish.id);
-              }
-            }}
-            title={onViewWishmail ? 'View Wishmail' : 'Send Wishmail'}
-            aria-label={onViewWishmail ? 'View Wishmail' : 'Send Wishmail'}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect width="20" height="16" x="2" y="4" rx="2" />
-              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-            </svg>
-            {onViewWishmail && unreadWishmailCount !== undefined && unreadWishmailCount > 0 && (
-              <div className="mail-unread-dot" title={`${unreadWishmailCount} unread message(s)`} />
-            )}
-          </button>
-        )}
-      </>
-    );
-  };
-
   return (
     <article
       className={`${cardClass} ${hasImage ? 'card-has-image' : ''} ${isExcluded ? 'is-excluded' : ''} ${isOverflowing && isEditorPreview ? 'text-overflow-hint' : ''}`}
@@ -250,77 +358,17 @@ export default function WishCard({
         {!hasImage && <IdentityStickers attributes={wish.creator_attributes} />}
 
         {showTopActions && (
-          <div className="card-top-left-actions">
-            {showFlag && onFlag && <FlagButton onFlag={() => onFlag(wish.id)} />}
-            {onExclude && (
-              <ExcludeToggleButton
-                wishId={wish.id}
-                isExcluded={isExcluded}
-                onExclude={onExclude}
-                onUnexclude={onUnexclude}
-              />
-            )}
-            {onEdit && (
-              <button
-                type="button"
-                className="owner-edit-wish-btn"
-                onClick={() => onEdit(wish.id)}
-                title="Edit Wish"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z" />
-                </svg>
-              </button>
-            )}
-            {onDelete && (
-              <button
-                type="button"
-                className="owner-delete-wish-btn"
-                onClick={() => onDelete(wish.id)}
-                title="Delete Wish"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            )}
-            {onAdminDelete && (
-              <button
-                type="button"
-                className="admin-delete-wish-btn"
-                onClick={() => onAdminDelete(wish.id)}
-                title="Admin Delete Wish"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            )}
-          </div>
+          <WishTopActions
+            wishId={wish.id}
+            isExcluded={isExcluded}
+            showFlag={showFlag}
+            onFlag={onFlag}
+            onExclude={onExclude}
+            onUnexclude={onUnexclude}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAdminDelete={onAdminDelete}
+          />
         )}
 
         {hasImage ? (
@@ -339,7 +387,13 @@ export default function WishCard({
             <p className="sr-only" style={{ display: 'none' }}>
               {wish.content}
             </p>
-            {renderBottomActions()}
+            <WishBottomActions
+              hasBottomActions={hasBottomActions}
+              wish={wish}
+              onViewWishmail={onViewWishmail}
+              onSendMail={onSendMail}
+              unreadWishmailCount={unreadWishmailCount}
+            />
           </div>
         ) : (
           <p className="wish-text" ref={contentRef}>
@@ -350,7 +404,13 @@ export default function WishCard({
 
       {!hasImage && hasBottomActions && (
         <div style={{ position: 'relative', flex: '0 0 2.2em', marginTop: '4px' }}>
-          {renderBottomActions()}
+          <WishBottomActions
+            hasBottomActions={hasBottomActions}
+            wish={wish}
+            onViewWishmail={onViewWishmail}
+            onSendMail={onSendMail}
+            unreadWishmailCount={unreadWishmailCount}
+          />
         </div>
       )}
     </article>

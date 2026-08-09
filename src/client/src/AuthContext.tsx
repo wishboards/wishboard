@@ -8,7 +8,7 @@ import React, {
   ReactNode,
 } from 'react';
 
-type AuthUser = {
+export type AuthUser = {
   id: string;
   username: string;
   role: string;
@@ -77,11 +77,15 @@ const migrateLocalStorageExclusions = async (token: string) => {
   }
 };
 
-export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
-  // @refresh reset
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(storageKey)); // NOSONAR
-  const [user, setUser] = useState<AuthUser | null>(null);
-
+function useRefreshUser({
+  token,
+  setToken,
+  setUser,
+}: {
+  token: string | null;
+  setToken: React.Dispatch<React.SetStateAction<string | null>>;
+  setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
+}) {
   const refreshUser = useCallback(async () => {
     if (!token) {
       setUser(null);
@@ -101,76 +105,109 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     const data = await response.json();
     setUser(mapToAuthUser(data));
-  }, [token]);
+  }, [token, setToken, setUser]);
 
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
 
-  const login = async (username: string, passphrase: string) => {
-    const response = await fetch('/api/users/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, passphrase }),
-    });
+  return { refreshUser };
+}
 
-    const data = await response.json();
-    if (!response.ok) {
-      return { success: false, error: data.error || 'Login failed.' };
-    }
+function useAuthOperations({
+  setToken,
+  setUser,
+}: {
+  setToken: React.Dispatch<React.SetStateAction<string | null>>;
+  setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
+}) {
+  const login = useCallback(
+    async (username: string, passphrase: string) => {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, passphrase }),
+      });
 
-    setToken(data.token);
-    localStorage.setItem(storageKey, data.token); // NOSONAR
-    setUser(mapToAuthUser(data));
-    await migrateLocalStorageExclusions(data.token);
-    return { success: true, role: data.role };
-  };
+      const data = await response.json();
+      if (!response.ok) {
+        return { success: false, error: data.error || 'Login failed.' };
+      }
 
-  const register = async (
-    username: string,
-    passphrase?: string,
-    identityAttributes?: Record<string, string>,
-    contacts?: { type: string; value: string }[],
-    wishmailEnabled?: boolean
-  ) => {
-    const response = await fetch('/api/users/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        passphrase,
-        identity_attributes: identityAttributes,
-        contacts,
-        wishmail_enabled: wishmailEnabled,
-      }),
-    });
+      setToken(data.token);
+      localStorage.setItem(storageKey, data.token); // NOSONAR
+      setUser(mapToAuthUser(data));
+      await migrateLocalStorageExclusions(data.token);
+      return { success: true, role: data.role };
+    },
+    [setToken, setUser]
+  );
 
-    const data = await response.json();
-    if (!response.ok) {
-      return { success: false, error: data.error || 'Registration failed.' };
-    }
+  const register = useCallback(
+    async (
+      username: string,
+      passphrase?: string,
+      identityAttributes?: Record<string, string>,
+      contacts?: { type: string; value: string }[],
+      wishmailEnabled?: boolean
+    ) => {
+      const response = await fetch('/api/users/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          passphrase,
+          identity_attributes: identityAttributes,
+          contacts,
+          wishmail_enabled: wishmailEnabled,
+        }),
+      });
 
-    setToken(data.token);
-    localStorage.setItem(storageKey, data.token); // NOSONAR
-    setUser(mapToAuthUser(data));
-    await migrateLocalStorageExclusions(data.token);
-    return { success: true, secret: data.secret, role: data.role };
-  };
+      const data = await response.json();
+      if (!response.ok) {
+        return { success: false, error: data.error || 'Registration failed.' };
+      }
 
-  const logout = () => {
+      setToken(data.token);
+      localStorage.setItem(storageKey, data.token); // NOSONAR
+      setUser(mapToAuthUser(data));
+      await migrateLocalStorageExclusions(data.token);
+      return { success: true, secret: data.secret, role: data.role };
+    },
+    [setToken, setUser]
+  );
+
+  const logout = useCallback(() => {
     localStorage.removeItem(storageKey); // NOSONAR
     setToken(null);
     setUser(null);
-  };
+  }, [setToken, setUser]);
 
-  const setTokenExternally = (newToken: string) => {
-    setToken(newToken);
-    localStorage.setItem(storageKey, newToken); // NOSONAR
-  };
+  const setTokenExternally = useCallback(
+    (newToken: string) => {
+      setToken(newToken);
+      localStorage.setItem(storageKey, newToken); // NOSONAR
+    },
+    [setToken]
+  );
+
+  return { login, register, logout, setTokenExternally };
+}
+
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
+  // @refresh reset
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem(storageKey)); // NOSONAR
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  const { refreshUser } = useRefreshUser({ token, setToken, setUser });
+  const { login, register, logout, setTokenExternally } = useAuthOperations({
+    setToken,
+    setUser,
+  });
 
   const value = useMemo(
     () => ({ user, token, login, register, logout, refreshUser, setTokenExternally }),
-    [user, token, refreshUser]
+    [user, token, login, register, logout, refreshUser, setTokenExternally]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

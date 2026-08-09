@@ -119,4 +119,112 @@ describe('App Coverage', () => {
       expect(globalThis.window.location.hash).not.toContain('kiosk=true');
     });
   });
+
+  it('renders display page normally and enters kiosk via button', async () => {
+    globalThis.window.location.hash = '#display';
+    render(<App />);
+    const enterKioskBtn = await screen.findByText('Enter Kiosk');
+    fireEvent.click(enterKioskBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Is Kiosk: Yes')).toBeInTheDocument();
+    });
+  });
+
+  it('navigates through mobile tab bar', async () => {
+    globalThis.window.location.hash = '#home';
+    render(<App />);
+    const searchTab = screen
+      .getAllByText('Search Wishes')[1]
+      .closest('button') as HTMLButtonElement;
+    fireEvent.click(searchTab);
+    expect(globalThis.window.location.hash).toBe('#search');
+  });
+
+  it('toggles mobile hamburger menu and navigates', async () => {
+    render(<App />);
+    const moreTab = screen.getByText('More').closest('button') as HTMLButtonElement;
+    fireEvent.click(moreTab);
+
+    // Test navigation inside hamburger
+    const aboutBtn = screen
+      .getAllByText('About')
+      .find((el) => el.tagName === 'BUTTON' && el.className.includes('hamburger-item'));
+    if (aboutBtn) {
+      fireEvent.click(aboutBtn);
+      expect(globalThis.window.location.hash).toBe('#about');
+    }
+
+    fireEvent.click(moreTab);
+    const adminBtn = screen
+      .getAllByText('Admin')
+      .find((el) => el.tagName === 'BUTTON' && el.className.includes('hamburger-item'));
+    if (adminBtn) {
+      fireEvent.click(adminBtn);
+      expect(globalThis.window.location.hash).toBe('#admin');
+    }
+  });
+
+  it('closes mobile hamburger menu with Escape key', async () => {
+    render(<App />);
+    const moreTab = screen.getByText('More').closest('button') as HTMLButtonElement;
+    fireEvent.click(moreTab);
+
+    // Wait for the menu overlay to be in document. It has aria-label="Close menu".
+    const closeMenuArea = screen.getByLabelText('Close menu');
+    fireEvent.keyDown(closeMenuArea, { key: 'Escape', code: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Close menu')).not.toBeInTheDocument();
+    });
+  });
+
+  it('closes mobile hamburger menu with X button', async () => {
+    render(<App />);
+    const moreTab = screen.getByText('More').closest('button') as HTMLButtonElement;
+    fireEvent.click(moreTab);
+
+    // The X button has text ✕
+    const xBtn = screen.getByText('✕');
+    fireEvent.click(xBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Close menu')).not.toBeInTheDocument();
+    });
+  });
+
+  it('cancels kiosk exit prompt', async () => {
+    globalThis.window.location.hash = '#display?kiosk=true';
+    render(<App />);
+
+    fireEvent.keyDown(globalThis.window, { key: 'Escape', code: 'Escape' });
+
+    const cancelBtn = screen.getByText('Cancel');
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Exit Kiosk Mode')).not.toBeInTheDocument();
+    });
+  });
+
+  it('handles kiosk exit error for non-admin user', async () => {
+    mockLogin.mockResolvedValueOnce({ success: true, role: 'user' });
+
+    globalThis.window.location.hash = '#display?kiosk=true';
+    render(<App />);
+
+    fireEvent.keyDown(globalThis.window, { key: 'Escape', code: 'Escape' });
+    fireEvent.change(screen.getByPlaceholderText('e.g. admin'), { target: { value: 'user' } });
+    fireEvent.change(screen.getByPlaceholderText('Enter passphrase'), {
+      target: { value: 'pass' },
+    });
+
+    const form = screen.getByPlaceholderText('e.g. admin').closest('form') as HTMLFormElement;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Access denied: You must be an admin to exit kiosk mode.')
+      ).toBeInTheDocument();
+    });
+  });
 });

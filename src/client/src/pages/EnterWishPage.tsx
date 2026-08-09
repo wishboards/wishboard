@@ -452,7 +452,6 @@ export default function EnterWishPage() {
                 <QRCodeSVG
                   value={`${globalThis.location.origin}${globalThis.location.pathname}#manage-wish?id=${result.id}&secret=${encodeURIComponent(result.secret)}`}
                   size={150}
-
                   bgColor="#ffffff"
                   fgColor="#0f172a"
                 />

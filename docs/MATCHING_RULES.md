@@ -205,7 +205,7 @@ following semantics are deliberate (pinned by the regression matrix in
   explicit desired gender **and** no orientation to infer one from, there is no
   established preference, so it does **not** match. (This was an over-match:
   a woman's wish with neither set was shown to a straight man — see
-  [#199](https://github.com/plthomasva/wishboard/issues/199).) To be matched
+  [#199](https://github.com/wishboards/wishboard/issues/199).) To be matched
   implicitly, set an orientation or an explicit desired gender; or use Broad
   Search for unfiltered results.
 - **Bisexual vs. pansexual.** By design, **bisexual** matches binary genders
