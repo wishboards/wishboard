@@ -9,11 +9,11 @@ const pkgPath = resolve(process.cwd(), '../package.json');
 let githubUrl = 'https://github.com/wishboards/wishboard';
 try {
 	const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-	if (pkg.repository && pkg.repository.url) {
+	if (pkg.repository?.url) {
 		githubUrl = pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, '');
 	}
 } catch (e) {
-	// Fallback
+	console.warn('Could not read package.json repository url:', e.message);
 }
 if (process.env.GITHUB_REPOSITORY) {
 	githubUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}`;

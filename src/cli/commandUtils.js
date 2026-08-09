@@ -64,7 +64,7 @@ export function getGitRepoInfo() {
   try {
     const pkgPath = new URL('../../package.json', import.meta.url);
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    if (pkg.repository && pkg.repository.url) {
+    if (pkg.repository?.url) {
       const match = GITHUB_REMOTE_REGEX.exec(pkg.repository.url);
       if (match) {
         return { org: match[1], repo: match[2] };
