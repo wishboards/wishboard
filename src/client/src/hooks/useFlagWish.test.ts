@@ -23,7 +23,9 @@ describe('useFlagWish', () => {
     const flagWish = useFlagWish(onSuccessMock);
     await flagWish('wish-123');
 
-    expect(confirmSpy).toHaveBeenCalledWith('Are you sure you want to flag this wish as inappropriate?');
+    expect(confirmSpy).toHaveBeenCalledWith(
+      'Are you sure you want to flag this wish as inappropriate?'
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(onSuccessMock).not.toHaveBeenCalled();
   });

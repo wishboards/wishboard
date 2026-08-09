@@ -20,14 +20,7 @@ import {
   Tooltip,
 } from 'recharts';
 import {
-  DataPoint,
-  MetricSeries,
-  MetricGroup,
-  formatTime,
-  formatValue,
-  COLORS,
-  gradDef,
-  TICK_STYLE,
+  GradDef,
   CustomTooltip,
   MetricCard,
   NoData,
@@ -35,6 +28,15 @@ import {
   Grid,
   MetricsToolbar,
 } from './DashboardShared';
+import {
+  formatTime,
+  formatValue,
+  COLORS,
+  TICK_STYLE,
+  type MetricGroup,
+  type MetricSeries,
+  type DataPoint,
+} from './DashboardSharedUtils';
 
 interface AwsMetricsResponse {
   groups: MetricGroup[];
@@ -98,7 +100,7 @@ const SparklineCard: React.FC<SparklineCardProps> = ({ metric }) => {
       {hasData ? (
         <ResponsiveContainer width="100%" height={70}>
           <AreaChart data={dataPoints} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-            {gradDef(`grad-${id}`, color)}
+            <GradDef id={`grad-${id}`} color={color} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="t"
