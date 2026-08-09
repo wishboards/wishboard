@@ -59,6 +59,7 @@ import { generatePassphrase } from '../../client/src/passphrase.js';
 import logger from '../logger.js';
 import { getRules } from '../rulesManager.js';
 import { emitNewWish, emitWishFlagged, emitWishDeleted } from '../socket.js';
+import { ensureArray } from '../utils/arrays.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -179,7 +180,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     });
   }
 
-  const parsedContacts = Array.isArray(contacts) ? contacts : [];
+  const parsedContacts = ensureArray(contacts);
   const wme = wishmail_enabled ? 1 : 0;
 
   const now = new Date().toISOString();
@@ -520,7 +521,7 @@ router.post('/:id/manage', async (req, res) => {
 
   if (content?.trim()) {
     const { contacts, wishmail_enabled, new_passphrase } = req.body;
-    const parsedContacts = Array.isArray(contacts) ? contacts : [];
+    const parsedContacts = ensureArray(contacts);
     const wme = wishmail_enabled ? 1 : 0;
     const now = new Date().toISOString();
 
