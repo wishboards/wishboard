@@ -12,6 +12,13 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(projectRoot, 'package.jso
 export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version),
+    'import.meta.env.VITE_GITHUB_REPO': JSON.stringify(
+      process.env.GITHUB_REPOSITORY
+        ? `https://github.com/${process.env.GITHUB_REPOSITORY}`
+        : packageJson.repository?.url
+          ? packageJson.repository.url.replace(/^git\+/, '').replace(/\.git$/, '')
+          : 'https://github.com/wishboards/wishboard'
+    ),
   },
   // Vite should bundle the client app from src/client
   root: clientRoot,

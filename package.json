@@ -2,6 +2,10 @@
   "name": "wishboard",
   "version": "1.24.1",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wishboards/wishboard.git"
+  },
   "bin": {
     "wishboard": "./src/cli/wishboard.js"
   },

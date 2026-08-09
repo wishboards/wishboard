@@ -27,11 +27,11 @@ function resolveParams(options) {
     if (gitInfo) {
       org = org || gitInfo.org;
       repo = repo || gitInfo.repo;
-      logInfo(`Detected GitHub repository from git remote: ${org}/${repo}`);
+      logInfo(`Detected GitHub repository: ${org}/${repo}`);
     } else {
-      org = org || 'wishboards';
-      repo = repo || 'wishboard';
-      logWarn(`Could not detect GitHub repository from Git remote. Defaulting to ${org}/${repo}`);
+      throw new Error(
+        'Could not detect GitHub repository from Git remote or package.json repository field. Please provide --org and --repo.'
+      );
     }
   }
 

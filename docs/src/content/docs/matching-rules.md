@@ -1,4 +1,4 @@
-# Wishboard Matching Engine Rules
+---\ntitle: Matching Rules\n---\n# Wishboard Matching Engine Rules
 
 The Wishboard matching engine is designed to be inclusive, flexible, and
 powerful. It leverages four types of rules to create connections between users
