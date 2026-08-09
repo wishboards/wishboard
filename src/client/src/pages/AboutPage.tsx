@@ -44,7 +44,7 @@ export default function AboutPage() {
       </p>
       <p>
         <a
-          href="https://github.com/plthomasva/wishboard"
+          href="https://github.com/wishboards/wishboard"
           target="_blank"
           rel="noopener noreferrer"
           className="secondary-button"

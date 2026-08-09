@@ -60,4 +60,4 @@ To avoid blocking web request handlers or CPU-stalling local deployments:
 - **Zero Footprint Default**: Single-node Raspberry Pi deployments without AI configured suffer zero performance overhead.
 - **User Control**: Users retain total control over their wish attributes, preventing AI hallucination from corrupting matching logic.
 - **Extensibility**: Third-party developers can plug in custom local or cloud LLM providers without altering core Wishboard code.
-- **Tracking**: Tracked in GitHub issue [#332](https://github.com/plthomasva/wishboard/issues/332) and documented in `BACKLOG.md`.
+- **Tracking**: Tracked in GitHub issue [#332](https://github.com/wishboards/wishboard/issues/332) and documented in `BACKLOG.md`.

@@ -3,7 +3,7 @@
     "npx vitest": true
   },
   "sonarlint.connectedMode.project": {
-    "connectionId": "plthomasva",
-    "projectKey": "plthomasva_wishboard"
+    "connectionId": "wishboards",
+    "projectKey": "wishboards_wishboard"
   }
 }
