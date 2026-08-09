@@ -8,6 +8,10 @@ const __dirname = path.dirname(__filename);
 
 const META_KEYS = new Set(['timestamp', 'level', 'message']);
 
+export const stringifyIfNotEmpty = (meta) => {
+  return Object.keys(meta).length ? JSON.stringify(meta) : '';
+};
+
 // Custom Transport for WebSockets — no constructor needed, inherits parent
 class SocketTransport extends winston.Transport {
   log(info, callback) {
@@ -19,9 +23,7 @@ class SocketTransport extends winston.Transport {
     import('./socket.js')
       .then((socketModule) => {
         const metaEntries = Object.entries(info).filter(([k]) => !META_KEYS.has(k));
-        const formattedLog = `[${info.timestamp}] ${info.level}: ${info.message} ${
-          metaEntries.some(() => true) ? JSON.stringify(Object.fromEntries(metaEntries)) : ''
-        }`;
+        const formattedLog = `[${info.timestamp}] ${info.level}: ${info.message} ${stringifyIfNotEmpty(Object.fromEntries(metaEntries))}`;
         socketModule.emitSystemLog(formattedLog);
       })
       .catch((err) => {
@@ -74,9 +76,7 @@ const transports = [
          */
         (info) => {
           const { timestamp, level, message, ...meta } = info;
-          return `[${timestamp}] ${level}: ${message} ${
-            Object.keys(meta).length ? JSON.stringify(meta) : ''
-          }`;
+          return `[${timestamp}] ${level}: ${message} ${stringifyIfNotEmpty(meta)}`;
         }
       )
     ),

@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import AdminPage from './AdminPage';
+import { extractUrl } from '../../../../tests/testUtils';
 
 let mockUser: any = null;
 let mockToken: any = null;
@@ -140,7 +141,7 @@ describe('AdminPage', () => {
     logoutMock.mockReset();
 
     globalThis.fetch = vi.fn().mockImplementation((input, options) => {
-      const url = typeof input === 'string' ? input : '';
+      const url = extractUrl(input as RequestInfo | URL);
       const matcher = fetchMatchers.find((m) => m.test(url));
       if (matcher) {
         return Promise.resolve(matcher.handler(options));
@@ -301,7 +302,7 @@ describe('AdminPage', () => {
     mockToken = 'admin-token';
 
     globalThis.fetch = vi.fn().mockImplementation((input) => {
-      const url = typeof input === 'string' ? input : '';
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.endsWith('/api/admin/flags')) {
         return Promise.resolve({ ok: true, json: async () => [] });
       }
@@ -434,7 +435,7 @@ describe('AdminPage', () => {
     mockToken = 'admin-token';
 
     globalThis.fetch = vi.fn().mockImplementation((input) => {
-      const url = typeof input === 'string' ? input : '';
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/config')) {
         return Promise.resolve({ ok: true, json: async () => ({ realtimeProvider: 'socketio' }) });
       }
@@ -469,7 +470,7 @@ describe('AdminPage', () => {
     mockUser = { id: 'admin-id', username: 'admin', role: 'admin' };
     mockToken = 'admin-token';
     globalThis.fetch = vi.fn().mockImplementation(async (input) => {
-      const url = typeof input === 'string' ? input : '';
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/admin/logs')) {
         throw new Error('Network fail');
       }

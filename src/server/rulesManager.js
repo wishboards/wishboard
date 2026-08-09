@@ -38,13 +38,14 @@ const rowToRule = (row) => ({
   target_value: row.target_value,
 });
 
-const insertRule = (rule) =>
-  db.execute({
-    sql: `INSERT INTO rules (${RULE_COLUMNS.join(', ')}) VALUES (${RULE_COLUMNS.map(() => '?').join(
-      ', '
-    )})`,
-    args: RULE_COLUMNS.map((c) => rule[c] ?? null),
-  });
+const buildInsertRuleQuery = (rule) => ({
+  sql: `INSERT INTO rules (${RULE_COLUMNS.join(', ')}) VALUES (${RULE_COLUMNS.map(() => '?').join(
+    ', '
+  )})`,
+  args: RULE_COLUMNS.map((c) => rule[c] ?? null),
+});
+
+const insertRule = (rule) => db.execute(buildInsertRuleQuery(rule));
 
 const updateRuleRow = (rule) => {
   const setCols = RULE_COLUMNS.filter((c) => c !== 'id');
@@ -107,9 +108,14 @@ export const seedIfEmpty = async () => {
   const seed = legacy ?? getDomainConfig().rules;
   const source = legacy ? 'legacy rules.yaml' : 'bundled defaults';
 
-  for (const rule of seed) {
-    await insertRule(rule);
+  const stmts = seed.map(buildInsertRuleQuery);
+
+  const BATCH_SIZE = 1000;
+  for (let i = 0; i < stmts.length; i += BATCH_SIZE) {
+    const batch = stmts.slice(i, i + BATCH_SIZE);
+    await db.batch(batch, 'write');
   }
+
   logger.info(`Seeded ${seed.length} rules into the database from ${source}`);
 };
 
