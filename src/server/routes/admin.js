@@ -199,13 +199,20 @@ router.post('/reset-rules', requireAdmin, async (req, res) => {
 
     // Re-seed default rules from profile
     const profileRules = getEventProfile().rules;
-    for (const rule of profileRules) {
-      await db
-        .prepare(
-          `INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
+
+    // SQLite boolean mapping (true -> 1, false -> 0, undefined -> null)
+    // Matches the internal mapArg in dbWrapper.
+    const mapArg = (a) => {
+      if (a === undefined) return null;
+      if (typeof a === 'boolean') return a ? 1 : 0;
+      return a;
+    };
+
+    const stmts = profileRules.map((rule) => {
+      return {
+        sql: `INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
           rule.id,
           rule.rule_type,
           rule.trigger_attribute,
@@ -213,8 +220,15 @@ router.post('/reset-rules', requireAdmin, async (req, res) => {
           rule.context_attribute,
           rule.context_value,
           rule.target_attribute,
-          rule.target_value
-        );
+          rule.target_value,
+        ].map(mapArg),
+      };
+    });
+
+    const BATCH_SIZE = 1000;
+    for (let i = 0; i < stmts.length; i += BATCH_SIZE) {
+      const batch = stmts.slice(i, i + BATCH_SIZE);
+      await db.batch(batch, 'write');
     }
 
     // Synchronize the memory cache
