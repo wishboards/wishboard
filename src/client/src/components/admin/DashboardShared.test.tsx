@@ -48,11 +48,7 @@ describe('formatTime', () => {
 
 describe('gradDef', () => {
   it('renders a linear gradient with correct ID and colour', () => {
-    const { container } = render(
-      <svg>
-        {gradDef('test-gradient', { stroke: '#ff0000' })}
-      </svg>
-    );
+    const { container } = render(<svg>{gradDef('test-gradient', { stroke: '#ff0000' })}</svg>);
     const defs = container.querySelector('defs');
     expect(defs).toBeInTheDocument();
     const gradient = container.querySelector('linearGradient');
