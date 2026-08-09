@@ -251,9 +251,13 @@ function UnauthenticatedAccountView({
             })}
           </>
         )}
-        <button type="submit" disabled={effectiveMode === 'register' && isSubmitDisabled}>
-          {effectiveMode === 'login' ? 'Login' : 'Register'}
-        </button>
+        {effectiveMode === 'login' ? (
+          <button type="submit">Login</button>
+        ) : (
+          <button type="submit" disabled={isSubmitDisabled}>
+            Register
+          </button>
+        )}
       </form>
       {effectiveMode === 'register' && isSubmitDisabled && (
         <div className="message error" style={{ marginTop: '12px' }}>
