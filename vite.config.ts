@@ -10,10 +10,10 @@ const clientRoot = resolve(projectRoot, 'src/client');
 const packageJson = JSON.parse(fs.readFileSync(resolve(projectRoot, 'package.json'), 'utf-8'));
 
 const defaultRepo = 'https://github.com/wishboards/wishboard';
-const pkgRepo = packageJson.repository?.url 
+const pkgRepo = packageJson.repository?.url
   ? packageJson.repository.url.replace(/^git\+/, '').replace(/\.git$/, '')
   : defaultRepo;
-const githubRepo = process.env.GITHUB_REPOSITORY 
+const githubRepo = process.env.GITHUB_REPOSITORY
   ? `https://github.com/${process.env.GITHUB_REPOSITORY}`
   : pkgRepo;
 
