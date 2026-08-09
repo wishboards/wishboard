@@ -47,6 +47,28 @@ describe('useExcludedWishes', () => {
     expect(result.current.excludedIds).toEqual([]);
   });
 
+  it('handles localStorage.getItem error gracefully', async () => {
+    mockAuth({ token: null, user: null });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Mock getItem to throw an error
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('localStorage is disabled');
+    });
+
+    const { result } = renderHook(() => useExcludedWishes());
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.excludedIds).toEqual([]);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to load wish exclusions from localStorage:',
+      expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+    getItemSpy.mockRestore();
+  });
+
   it('excludes a wish in localStorage for anonymous users', async () => {
     mockAuth({ token: null, user: null });
 

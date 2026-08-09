@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+import { extractUrl } from './testUtils';
 
 const MOCK_DOMAIN = {
   domain: 'default',
@@ -38,12 +39,7 @@ const MOCK_DOMAIN = {
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-  let urlStr = '';
-  if (typeof url === 'string') {
-    urlStr = url;
-  } else if (url instanceof URL) {
-    urlStr = url.href;
-  }
+  const urlStr = extractUrl(url);
   if (urlStr === '/api/config' || urlStr.endsWith('/api/config')) {
     return {
       ok: true,
