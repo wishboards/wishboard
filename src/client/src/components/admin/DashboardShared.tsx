@@ -119,11 +119,7 @@ export const CustomTooltip = ({
       }}
     >
       <div style={{ color: '#9ca3af', marginBottom: '4px' }}>
-        {rawLabel === undefined
-          ? ''
-          : typeof rawLabel === 'number'
-            ? formatTime(rawLabel)
-            : formatTime(rawLabel)}
+        {rawLabel === undefined ? '' : formatTime(rawLabel)}
       </div>
       {isAwsFormat ? (
         <div>
