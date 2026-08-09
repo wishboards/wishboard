@@ -36,7 +36,7 @@ describe('conflicts utils', () => {
       const conflicts: Conflict[] = [
         { message: 'error1', target_attribute: 'attr1' },
         { message: 'error2', target_attribute: 'attr1' },
-        { message: 'error3', target_attribute: 'attr2' }
+        { message: 'error3', target_attribute: 'attr2' },
       ];
       expect(getConflictWarning(conflicts, 'attr1')).toBe('error1 error2');
     });
@@ -57,7 +57,7 @@ describe('conflicts utils', () => {
       const mockConflicts = [{ message: 'error', target_attribute: 'attr1' }];
       fetchMock.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ conflicts: mockConflicts })
+        json: async () => ({ conflicts: mockConflicts }),
       } as Response);
 
       const result = await fetchConflicts({ key: ['val'] });
@@ -65,7 +65,7 @@ describe('conflicts utils', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/rules/check-conflicts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attributes: { key: ['val'] } })
+        body: JSON.stringify({ attributes: { key: ['val'] } }),
       });
       expect(result).toEqual(mockConflicts);
     });
@@ -73,7 +73,7 @@ describe('conflicts utils', () => {
     it('returns empty array if response ok but missing conflicts field', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({})
+        json: async () => ({}),
       } as Response);
 
       const result = await fetchConflicts({ key: ['val'] });
@@ -82,7 +82,7 @@ describe('conflicts utils', () => {
 
     it('returns empty array if response is not ok', async () => {
       fetchMock.mockResolvedValueOnce({
-        ok: false
+        ok: false,
       } as Response);
 
       const result = await fetchConflicts({ key: ['val'] });
