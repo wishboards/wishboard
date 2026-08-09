@@ -286,6 +286,9 @@ const dbWrapper = {
   executeMultiple: async (...args) => {
     return await db.executeMultiple(...args);
   },
+  batch: async (...args) => {
+    return await db.batch(...args);
+  },
 };
 
 export default dbWrapper;
