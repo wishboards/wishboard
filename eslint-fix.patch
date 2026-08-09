@@ -1,0 +1,32 @@
+--- a/src/client/src/components/admin/DashboardShared.test.tsx
++++ b/src/client/src/components/admin/DashboardShared.test.tsx
+@@ -28,6 +28,32 @@
+     const timeStr = formatTime('invalid-date');
+     expect(['', 'Invalid Date']).toContain(timeStr);
+   });
++
++  it('returns empty string if toLocaleTimeString throws', () => {
++    const toLocaleTimeStringSpy = vi
++      .spyOn(Date.prototype, 'toLocaleTimeString')
++      .mockImplementation(() => {
++        throw new Error('Mock error');
++      });
++
++    const timeStr = formatTime(1672583400000);
++    expect(timeStr).toBe('');
++
++    toLocaleTimeStringSpy.mockRestore();
++  });
++});
++
++describe('gradDef', () => {
++  it('renders a linear gradient with correct ID and colour', () => {
++    const { container } = render(
++      <svg>
++        {gradDef('test-gradient', { stroke: '#ff0000' })}
++      </svg>
++    );
++    const defs = container.querySelector('defs');
++    expect(defs).toBeInTheDocument();
++  });
+ });
