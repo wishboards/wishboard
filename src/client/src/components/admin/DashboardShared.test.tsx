@@ -3,17 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import {
-  formatTime,
-  formatShortTime,
-  formatValue,
   CustomTooltip,
   MetricCard,
   NoData,
   SectionTitle,
   Grid,
   MetricsToolbar,
-  gradDef,
+  GradDef,
 } from './DashboardShared';
+import { formatTime, formatShortTime, formatValue } from './DashboardUtils';
 
 describe('formatTime', () => {
   it('formats string timestamp to HH:MM', () => {
@@ -34,17 +32,19 @@ describe('formatTime', () => {
 
   it('returns empty string when an error is thrown', () => {
     const badInput = {
-      valueOf: () => { throw new Error('forced throw'); }
+      valueOf: () => {
+        throw new Error('forced throw');
+      },
     } as any;
     expect(formatTime(badInput)).toBe('');
   });
 });
 
-describe('gradDef', () => {
+describe('GradDef', () => {
   it('renders a linear gradient with correct id and stroke color', () => {
     render(
       <svg>
-        {gradDef('test-grad', { stroke: '#ff0000' })}
+        <GradDef id="test-grad" color={{ stroke: '#ff0000' }} />
       </svg>
     );
     const gradient = document.querySelector('linearGradient');
