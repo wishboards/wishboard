@@ -398,4 +398,3 @@ Outputs:
   RoleArn:
     Value: !GetAtt GithubDeployerRole.Arn
     Description: ARN of the GitHub Actions deployment role.
-

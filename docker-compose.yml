@@ -36,4 +36,3 @@ services:
       # - WISHBOARD_ADMIN_USERNAME=admin
       # - WISHBOARD_ADMIN_SECRET=admin-board
       # - CORS_ALLOWED_ORIGINS=http://your-domain.com
-
