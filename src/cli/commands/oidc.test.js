@@ -176,22 +176,12 @@ describe('oidc commands', () => {
       );
     });
 
-    it('uses fallback organization and repo when auto-detection fails and none are provided', () => {
+    it('throws error when auto-detection fails and no org/repo are provided', () => {
       vi.mocked(commandUtils.hasCommand).mockReturnValue(true);
       vi.mocked(commandUtils.getGitRepoInfo).mockReturnValue(null);
-      vi.mocked(commandUtils.execCommand).mockReturnValue({
-        status: 0,
-        stdout: '123456789012\n',
-        stderr: '',
-      });
 
-      setupOidc({ region: 'us-west-2' });
-
-      // Verifies fallback parameters were passed to cloudformation deploy call
-      expect(commandUtils.execCommand).toHaveBeenCalledWith(
-        'aws',
-        expect.arrayContaining(['GitHubOrg=wishboards', 'GitHubRepo=wishboard']),
-        { dryRun: false }
+      expect(() => setupOidc({ region: 'us-west-2' })).toThrow(
+        'Could not detect GitHub repository from Git remote or package.json repository field'
       );
     });
 
