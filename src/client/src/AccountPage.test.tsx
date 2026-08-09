@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { extractUrl } from '../../../tests/testUtils';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 
 const useAuthMock = vi.fn();
@@ -28,7 +29,7 @@ describe('AccountPage', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((input) => {
-        const url = typeof input === 'string' ? input : input.url;
+        const url = extractUrl(input as RequestInfo | URL);
         if (url.includes('/api/users/exists')) {
           return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: false }) });
         }
@@ -138,7 +139,7 @@ describe('AccountPage', () => {
       .fn()
       .mockResolvedValue({ success: false, error: 'Invalid username or passphrase.' });
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/exists')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
       }
@@ -208,7 +209,7 @@ describe('AccountPage', () => {
   it('lets logged-in users edit and save profile attributes', async () => {
     const refreshUser = vi.fn();
     const fetchMock = vi.fn((input, init) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url === '/api/users/me' && init?.method === 'PUT') {
         return Promise.resolve({
           ok: true,
@@ -269,7 +270,7 @@ describe('AccountPage', () => {
 
   it('renders Edit Wish link and allows user to delete a wish', async () => {
     const fetchMock = vi.fn((input, _init) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/me/wishes')) {
         return Promise.resolve({
           ok: true,
@@ -357,7 +358,7 @@ describe('AccountPage', () => {
 
   it('shows error if deleting a wish fails', async () => {
     const fetchMock = vi.fn((input, _init) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/me/wishes')) {
         return Promise.resolve({
           ok: true,
@@ -426,7 +427,7 @@ describe('AccountPage', () => {
   it('allows user to delete their account and handles cancellation', async () => {
     const logout = vi.fn();
     const fetchMock = vi.fn((input, init) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/me/delete-preview')) {
         return Promise.resolve({
           ok: true,
@@ -493,7 +494,7 @@ describe('AccountPage', () => {
 
   it('shows error if account delete preview fails', async () => {
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/me/delete-preview')) {
         return Promise.resolve({ ok: false, json: () => Promise.resolve({ error: 'failed' }) });
       }
@@ -526,7 +527,7 @@ describe('AccountPage', () => {
 
   it('handles network errors gracefully when checking username existence', async () => {
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/exists')) {
         return Promise.reject(new Error('Network error'));
       }
@@ -561,7 +562,7 @@ describe('AccountPage', () => {
 
   it('allows user to claim a wish and handles errors', async () => {
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/wishes/invalid-wish/claim')) {
         return Promise.resolve({
           ok: false,
@@ -605,7 +606,7 @@ describe('AccountPage', () => {
 
   it('allows user to claim a wish and handles success', async () => {
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/wishes/valid-wish/claim')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
       }
@@ -661,7 +662,7 @@ describe('AccountPage', () => {
     });
 
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/wishes/exclusions') && !url.includes('/list')) {
         return Promise.resolve({
           ok: true,
@@ -716,7 +717,7 @@ describe('AccountPage', () => {
     });
 
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/exists')) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: false }) });
       }
@@ -757,7 +758,7 @@ describe('AccountPage', () => {
     });
 
     const fetchMock = vi.fn((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = extractUrl(input as RequestInfo | URL);
       if (url.includes('/api/users/me/deactivate')) {
         return Promise.resolve({ ok: true });
       }
