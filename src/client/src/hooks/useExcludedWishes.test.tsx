@@ -52,8 +52,14 @@ describe('useExcludedWishes', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // Mock getItem to throw an error
-    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('localStorage is disabled');
+    const originalLocalStorage = window.localStorage;
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: () => {
+          throw new Error('localStorage is disabled');
+        },
+      },
+      configurable: true,
     });
 
     const { result } = renderHook(() => useExcludedWishes());
@@ -66,7 +72,10 @@ describe('useExcludedWishes', () => {
     );
 
     consoleErrorSpy.mockRestore();
-    getItemSpy.mockRestore();
+    Object.defineProperty(window, 'localStorage', {
+      value: originalLocalStorage,
+      configurable: true,
+    });
   });
 
   it('excludes a wish in localStorage for anonymous users', async () => {
