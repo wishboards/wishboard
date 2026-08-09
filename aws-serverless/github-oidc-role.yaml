@@ -41,12 +41,16 @@ Resources:
           - Effect: Allow
             Principal:
               Federated: !If [CreateOIDCProvider, !Ref GithubOidcProvider, !Ref OidcProviderArn]
-            Action: sts:AssumeRoleWithWebIdentity
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+              - sts:TagSession
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOrg}/${GitHubRepo}:*'
+                token.actions.githubusercontent.com:sub:
+                  - !Sub 'repo:${GitHubOrg}/${GitHubRepo}:*'
+                  - !Sub 'repo:${GitHubOrg}@*/${GitHubRepo}@*:*'
       Policies:
         - PolicyName: WishboardDeployerPolicy
           PolicyDocument:
