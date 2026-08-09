@@ -55,11 +55,9 @@ describe('gradDef', () => {
     );
     const defs = container.querySelector('defs');
     expect(defs).toBeInTheDocument();
-
     const gradient = container.querySelector('linearGradient');
     expect(gradient).toBeInTheDocument();
     expect(gradient).toHaveAttribute('id', 'test-gradient');
-
     const stops = container.querySelectorAll('stop');
     expect(stops).toHaveLength(2);
     // React Testing Library usually converts camelCase SVG attributes to lowercase in the DOM
