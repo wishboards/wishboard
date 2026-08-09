@@ -28,6 +28,18 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+import {
+  formatShortTime,
+  COLORS as C,
+  gradDef,
+  TICK_STYLE,
+  CustomTooltip as ChartTooltip,
+  MetricCard,
+  NoData,
+  SectionTitle,
+  Grid,
+  MetricsToolbar,
+} from './DashboardShared';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -56,141 +68,6 @@ interface LocalMetricsResponse {
   intervalMs: number;
   generatedAt: string;
 }
-
-// ── Colour palette (same tokens as AwsMetricsDashboard) ───────────────────────
-
-const C = {
-  blue: { stroke: '#60a5fa', fill: '#1d4ed8' },
-  green: { stroke: '#34d399', fill: '#065f46' },
-  purple: { stroke: '#a78bfa', fill: '#4c1d95' },
-  pink: { stroke: '#e879f9', fill: '#701a75' },
-  red: { stroke: '#f87171', fill: '#991b1b' },
-  orange: { stroke: '#fb923c', fill: '#92400e' },
-  teal: { stroke: '#2dd4bf', fill: '#134e4a' },
-};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const formatTime = (ts: number): string =>
-  new Date(ts).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
-
-const formatShortTime = (ts: number): string =>
-  new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-
-// ── Shared sub-components ─────────────────────────────────────────────────────
-
-interface TooltipProps {
-  active?: boolean;
-  payload?: Array<{ value?: number; name?: string; color?: string }>;
-  label?: number;
-  unit?: string;
-}
-
-const ChartTooltip = ({ active, payload, label, unit = '' }: TooltipProps) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div
-      style={{
-        background: '#1e1e2e',
-        border: '1px solid #374151',
-        borderRadius: '6px',
-        padding: '8px 12px',
-        fontSize: '12px',
-        color: '#e5e7eb',
-      }}
-    >
-      <div style={{ color: '#9ca3af', marginBottom: '4px' }}>
-        {label === undefined ? '' : formatTime(label)}
-      </div>
-      {payload.map((p) => (
-        <div key={p.name ?? p.color} style={{ color: p.color ?? '#e5e7eb' }}>
-          {p.name && <span style={{ marginRight: 4 }}>{p.name}:</span>}
-          <strong>{typeof p.value === 'number' ? `${p.value.toFixed(1)}${unit}` : '—'}</strong>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-interface CardProps {
-  title: string;
-  headline: string;
-  headlineNote?: string;
-  children: React.ReactNode;
-}
-
-const MetricCard = ({ title, headline, headlineNote, children }: CardProps) => (
-  <div
-    style={{
-      background: '#111827',
-      border: '1px solid #1f2937',
-      borderRadius: '8px',
-      padding: '12px 14px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-      minWidth: 0,
-    }}
-  >
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        flexWrap: 'wrap',
-        gap: '4px',
-      }}
-    >
-      <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 500 }}>{title}</span>
-      <div style={{ textAlign: 'right' }}>
-        <span
-          style={{ fontSize: '20px', fontWeight: 700, color: '#f9fafb', letterSpacing: '-0.5px' }}
-        >
-          {headline}
-        </span>
-        {headlineNote && (
-          <span style={{ fontSize: '10px', color: '#6b7280', marginLeft: '4px' }}>
-            {headlineNote}
-          </span>
-        )}
-      </div>
-    </div>
-    {children}
-  </div>
-);
-
-const NoData = () => (
-  <div
-    style={{
-      height: 70,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#374151',
-      fontSize: '12px',
-    }}
-  >
-    Collecting…
-  </div>
-);
-
-// Gradient defs — inlined as a helper function to avoid JSX component overload issues
-const gradDef = (id: string, color: { stroke: string }) => (
-  <defs>
-    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-      <stop offset="5%" stopColor={color.stroke} stopOpacity={0.4} />
-      <stop offset="95%" stopColor={color.stroke} stopOpacity={0} />
-    </linearGradient>
-  </defs>
-);
-
-// Shared XAxis tick style — applied inline to avoid TypeScript overload issues with spreads
-const TICK_STYLE = { fontSize: 9, fill: '#6b7280' };
 
 // ── OS Metric Cards ───────────────────────────────────────────────────────────
 
@@ -510,36 +387,6 @@ const LatencyCard = ({ samples }: { samples: HttpSample[] }) => {
   );
 };
 
-// ── Section headers ───────────────────────────────────────────────────────────
-
-const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <h3
-    style={{
-      margin: '0 0 12px',
-      fontSize: '14px',
-      color: '#d1d5db',
-      fontWeight: 600,
-      letterSpacing: '0.5px',
-      textTransform: 'uppercase',
-    }}
-  >
-    {children}
-  </h3>
-);
-
-const Grid = ({ children }: { children: React.ReactNode }) => (
-  <div
-    style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-      gap: '12px',
-      marginBottom: '28px',
-    }}
-  >
-    {children}
-  </div>
-);
-
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const AUTO_REFRESH_MS = 10_000; // 10s — matches 2× the 5s sample interval
@@ -598,64 +445,6 @@ function useLocalMetrics(authHeader: Record<string, string>) {
   };
 }
 
-interface MetricsToolbarProps {
-  loading: boolean;
-  autoRefresh: boolean;
-  setAutoRefresh: (val: boolean) => void;
-  fetchMetrics: () => void;
-  generatedAt?: string;
-}
-
-const MetricsToolbar = ({
-  loading,
-  autoRefresh,
-  setAutoRefresh,
-  fetchMetrics,
-  generatedAt,
-}: MetricsToolbarProps) => (
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      marginBottom: '20px',
-      flexWrap: 'wrap',
-    }}
-  >
-    <button type="button" className="secondary-button" onClick={fetchMetrics} disabled={loading}>
-      {loading ? '⟳ Refreshing…' : '⟳ Refresh Now'}
-    </button>
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        fontSize: '13px',
-        color: '#9ca3af',
-        cursor: 'pointer',
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={autoRefresh}
-        onChange={(e) => setAutoRefresh(e.target.checked)}
-      />
-      <span>Auto-refresh every 10s</span>
-    </label>
-    {generatedAt && (
-      <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#6b7280' }}>
-        Last updated:{' '}
-        {new Date(generatedAt).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        })}
-      </span>
-    )}
-  </div>
-);
-
 export default function LocalMetricsDashboard({
   authHeader,
 }: Readonly<LocalMetricsDashboardProps>) {
@@ -670,6 +459,7 @@ export default function LocalMetricsDashboard({
         setAutoRefresh={setAutoRefresh}
         fetchMetrics={fetchMetrics}
         generatedAt={data?.generatedAt}
+        refreshIntervalLabel="10s"
       />
 
       {error && (
