@@ -19,6 +19,8 @@ function logError(msg) {
   console.error(`\x1b[31mERROR: ${msg}\x1b[0m`);
 }
 
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** Reads a scalar value (e.g. stack_name, region, profile) from samconfig.toml for a given config environment. */
 function readTomlValue(key, envName = 'default') {
   if (!fs.existsSync(SAM_CONFIG)) return '';
@@ -39,7 +41,8 @@ function readTomlValue(key, envName = 'default') {
       currentSection = sectionMatch[1].trim();
       continue;
     }
-    const match = new RegExp(String.raw`^\s*${key}\s*=\s*(.+?)\s*$`).exec(line);
+    const escapedKey = escapeRegExp(key);
+    const match = new RegExp(String.raw`^\s*${escapedKey}\s*=\s*(.+?)\s*$`).exec(line);
     if (match && currentSection && !valuesBySection[currentSection]) {
       valuesBySection[currentSection] = match[1].trim().replace(/^"|"$/g, '');
     }
@@ -63,7 +66,8 @@ function readTomlValue(key, envName = 'default') {
  */
 function getOverrideValue(key, overrides) {
   const normalized = overrides.replaceAll('\\', '');
-  const regex = new RegExp(`${key}="([^"]*)"`);
+  const escapedKey = escapeRegExp(key);
+  const regex = new RegExp(`${escapedKey}="([^"]*)"`);
   const match = regex.exec(normalized);
   return match ? match[1] : '';
 }
@@ -75,7 +79,8 @@ function getOverrideValue(key, overrides) {
  */
 function assertNotSilentlyBlanked(key, resolved, tomlOverrides) {
   const normalized = tomlOverrides.replaceAll('\\', '');
-  const regex = new RegExp(`${key}="([^"]+)"`);
+  const escapedKey = escapeRegExp(key);
+  const regex = new RegExp(`${escapedKey}="([^"]+)"`);
   const raw = regex.exec(normalized);
   if (raw && !resolved) {
     throw new Error(
