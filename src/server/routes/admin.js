@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import db from '../db.js';
+import db, { mapArg } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { generateDemoData } from '../demoSeeder.js';
 import logger from '../logger.js';
@@ -199,11 +199,6 @@ router.post('/reset-rules', requireAdmin, async (req, res) => {
 
     // Re-seed default rules from profile
     const profileRules = getEventProfile().rules;
-    const mapArg = (a) => {
-      if (a === undefined) return null;
-      if (typeof a === 'boolean') return a ? 1 : 0;
-      return a;
-    };
 
     const stmts = profileRules.map((rule) => ({
       sql: `INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value)

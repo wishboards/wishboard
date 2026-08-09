@@ -1,4 +1,4 @@
-import db from '../../server/db.js';
+import db, { mapArg } from '../../server/db.js';
 import { createSalt, hashPassphrase } from '../../server/auth.js';
 import { promptPassphrase } from './auth.js';
 import { getEventProfile } from '../../server/configManager.js';
@@ -120,11 +120,6 @@ export async function resetRules(
 
     // Re-seed default rules from profile
     const profileRules = getEventProfile().rules;
-    const mapArg = (a) => {
-      if (a === undefined) return null;
-      if (typeof a === 'boolean') return a ? 1 : 0;
-      return a;
-    };
 
     const stmts = profileRules.map((rule) => ({
       sql: `INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value)
