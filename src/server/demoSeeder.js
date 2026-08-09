@@ -12,10 +12,20 @@ const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
 const DEFAULT_USER_COUNT = 50;
 const DEFAULT_WISH_COUNT = 100;
 
+// Helper to securely shuffle an array using Fisher-Yates
+function shuffleArray(arr) {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 // Helper to grab 1-N random items from an array
 function getRandom(arr, maxCount = 2) {
   const count = crypto.randomInt(1, maxCount + 1);
-  return [...arr].sort(() => Math.random() - 0.5).slice(0, count);
+  return shuffleArray(arr).slice(0, count);
 }
 
 function generateRandomContacts(contactMethods) {
