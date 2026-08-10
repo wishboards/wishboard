@@ -1,4 +1,4 @@
-# ADR 0001: Unify cross-platform deployment logic in a Node/TypeScript CLI
+---\ntitle: 0001 Unified Deployment Cli\n---\n# ADR 0001: Unify cross-platform deployment logic in a Node/TypeScript CLI
 
 - **Status:** Accepted (implemented — see the unified deployment CLI under `src/cli/`)
 - **Context date:** 2026

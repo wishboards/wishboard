@@ -227,17 +227,24 @@ if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migra
       const rs = await localDb.execute(`SELECT * FROM ${table}`);
       if (rs.rows.length > 0) {
         console.log(`Migrating ${rs.rows.length} rows for table ${table}...`);
-        for (const row of rs.rows) {
+
+        const stmts = rs.rows.map((row) => {
           const columns = Object.keys(row).join(', ');
           const placeholders = Object.keys(row)
             .map(() => '?')
             .join(', ');
           const values = Object.values(row);
 
-          await db.execute({
+          return {
             sql: `INSERT OR IGNORE INTO ${table} (${columns}) VALUES (${placeholders})`,
             args: values,
-          });
+          };
+        });
+
+        const BATCH_SIZE = 1000;
+        for (let i = 0; i < stmts.length; i += BATCH_SIZE) {
+          const batch = stmts.slice(i, i + BATCH_SIZE);
+          await db.batch(batch, 'write');
         }
       }
     } catch (err) {
@@ -278,6 +285,9 @@ const dbWrapper = {
   },
   executeMultiple: async (...args) => {
     return await db.executeMultiple(...args);
+  },
+  batch: async (...args) => {
+    return await db.batch(...args);
   },
 };
 

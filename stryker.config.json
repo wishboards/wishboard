@@ -9,7 +9,6 @@
     "fileName": "reports/mutation/index.html"
   },
   "dashboard": {
-    "project": "github.com/plthomasva/wishboard",
     "version": "main",
     "reportType": "full"
   },

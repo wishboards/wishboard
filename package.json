@@ -1,7 +1,11 @@
 {
   "name": "wishboard",
-  "version": "1.23.1",
+  "version": "1.24.2",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wishboards/wishboard.git"
+  },
   "bin": {
     "wishboard": "./src/cli/wishboard.js"
   },
@@ -40,7 +44,7 @@
     "@aws-sdk/client-apigatewaymanagementapi": "^3.1096.0",
     "@aws-sdk/client-cloudwatch": "3.1096.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.1096.0",
-    "@aws-sdk/client-s3": "^3.1095.0",
+    "@aws-sdk/client-s3": "^3.1104.0",
     "@aws-sdk/client-ssm": "^3.1095.0",
     "@codegenie/serverless-express": "^5.0.0",
     "@libsql/client": "^0.17.4",
@@ -69,7 +73,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.1",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "@vitest/coverage-v8": "^4.1.10",
@@ -80,9 +84,9 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.7.0",
+    "globals": "^17.9.0",
     "husky": "^9.1.7",
-    "jsdom": "^30.0.0",
+    "jsdom": "^30.0.1",
     "lint-staged": "^17.2.0",
     "prettier": "^3.9.6",
     "qrcode.react": "^4.2.0",

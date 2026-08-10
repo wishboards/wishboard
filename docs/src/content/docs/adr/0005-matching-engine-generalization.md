@@ -1,4 +1,4 @@
-# ADR 0005: Matching Engine Generalization and Context-Aware Rules
+---\ntitle: 0005 Matching Engine Generalization\n---\n# ADR 0005: Matching Engine Generalization and Context-Aware Rules
 
 - **Status:** Implemented
 - **Date:** 2026-07
@@ -6,9 +6,9 @@
 
 ## Context
 
-Wishboard's matching engine relies on matching rules defined in the database `rules` table (see [ADR 0002](0002-serverless-database-architecture.md) and [#188](https://github.com/plthomasva/wishboard/issues/188)), which are seeded by default from the active event profile's `profile.yaml` (e.g., [profiles/lifestyle/profile.yaml](../../profiles/lifestyle/profile.yaml)). These rules govern how attribute categories such as `gender`, `orientation`, and `role` are matched bidirectionally between a wish creator and a searcher.
+Wishboard's matching engine relies on matching rules defined in the database `rules` table (see [ADR 0002](0002-serverless-database-architecture.md) and [#188](https://github.com/wishboards/wishboard/issues/188)), which are seeded by default from the active event profile's `profile.yaml` (e.g., [profiles/lifestyle/profile.yaml](../../profiles/lifestyle/profile.yaml)). These rules govern how attribute categories such as `gender`, `orientation`, and `role` are matched bidirectionally between a wish creator and a searcher.
 
-In the completed work for [#206](https://github.com/plthomasva/wishboard/issues/206) (see PR [#233](https://github.com/plthomasva/wishboard/pull/233)), we expanded the default taxonomy for power-exchange, activity, pet-play, and rope roles. However, during that implementation, context-gated rules were deferred due to a structural limitation:
+In the completed work for [#206](https://github.com/wishboards/wishboard/issues/206) (see PR [#233](https://github.com/wishboards/wishboard/pull/233)), we expanded the default taxonomy for power-exchange, activity, pet-play, and rope roles. However, during that implementation, context-gated rules were deferred due to a structural limitation:
 
 Currently, rule evaluation is only context-aware (checking `context_attribute` and `context_value` via `evaluateRuleConditions`) for `enrichment` and `acceptance` rule types. The matching engine's expansion and cross-match helpers — [getExpandedDesired](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L84-L102) and [getCrossMatchedDesired](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L203-L224) — only accept a flat list of desired values and the category, ignoring the rules' `context_attribute` and `context_value` entirely.
 

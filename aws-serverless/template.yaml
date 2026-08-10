@@ -229,6 +229,12 @@ Resources:
   # =========================================================================
   # AWS Lambda Functions (Serverless Compute)
   # =========================================================================
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-express-api'
+      RetentionInDays: 30
+
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -318,6 +324,12 @@ Resources:
           - '@libsql/linux-x64-gnu'
         EntryPoints:
           - aws-serverless/lambda.mjs
+
+  WebSocketFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-websocket-mgr'
+      RetentionInDays: 30
 
   WebSocketFunction:
     Type: AWS::Serverless::Function

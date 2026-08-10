@@ -13,7 +13,7 @@ describe('AboutPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /View Source on GitHub/i })).toHaveAttribute(
       'href',
-      'https://github.com/plthomasva/wishboard'
+      import.meta.env.VITE_GITHUB_REPO
     );
   });
 });

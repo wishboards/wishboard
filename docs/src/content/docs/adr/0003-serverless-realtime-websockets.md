@@ -1,4 +1,4 @@
-# ADR 0003: Serverless real-time via API Gateway WebSockets
+---\ntitle: 0003 Serverless Realtime Websockets\n---\n# ADR 0003: Serverless real-time via API Gateway WebSockets
 
 - **Status:** Accepted — implemented across #185, #186, #187, then hardened to an admin-only `sys:log` channel in #189/#190 (2026-07).
 - **Date:** 2026-07

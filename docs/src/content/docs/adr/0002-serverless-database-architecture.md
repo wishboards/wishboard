@@ -1,4 +1,4 @@
-# ADR 0002: Serverless database architecture (SQLite-on-EFS vs. managed libSQL)
+---\ntitle: 0002 Serverless Database Architecture\n---\n# ADR 0002: Serverless database architecture (SQLite-on-EFS vs. managed libSQL)
 
 - **Status:** Accepted — Option 2 (managed libSQL / Turso). Implemented 2026-07-10 (#136 spike → PR #187).
 - **Date:** 2026-07 (accepted 2026-07-10)
@@ -89,7 +89,7 @@ Independent of the storage choice, a write that does time out now fails **safely
 - [x] **Lambda↔Turso latency** — addressed by co-locating the Turso primary in `us-east-1` (region `iad`), next to the stack (~1–2 ms vs. ~150 ms cross-region for the initial Tokyo default).
 - [x] **`busy_timeout` on the libSQL connection** — moot on Turso: it rejects the PRAGMA as unsupported, and `db.js` applies PRAGMAs individually + best-effort so it's skipped, not fatal. Still applies to the Pi's file DB.
 - [x] **`ReservedConcurrentExecutions: 1`** — not needed; Turso serializes writes server-side, so the EFS multi-writer concern is gone.
-- [ ] **WAL on the single-node (Pi)** — still open (tracked in [#239](https://github.com/plthomasva/wishboard/issues/239)).
+- [ ] **WAL on the single-node (Pi)** — still open (tracked in [#239](https://github.com/wishboards/wishboard/issues/239)).
 
 ## Consequences
 

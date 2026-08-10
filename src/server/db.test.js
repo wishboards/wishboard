@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 let mockClient = {
   execute: vi.fn().mockResolvedValue({ rows: [], rowsAffected: 0 }),
   executeMultiple: vi.fn().mockResolvedValue({}),
+  batch: vi.fn().mockResolvedValue([]),
 };
 
 let mockLocalClient = {
@@ -122,6 +123,17 @@ describe('db initialization', () => {
 
     const rs5 = await db.exec('PRAGMA foreign_keys = ON');
     expect(rs5).toBeUndefined();
+
+    const rs6 = await db.batch(
+      [
+        {
+          sql: 'INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+          args: ['db-test-user-batch', 'db-test-user-batch', 'h', 's', 'user', 'now'],
+        },
+      ],
+      'write'
+    );
+    expect(rs6).toBeDefined();
   });
 
   it('migrates legacy local database to remote database', async () => {
@@ -135,6 +147,7 @@ describe('db initialization', () => {
       rows: [],
       rowsAffected: 1,
     });
+    mockClient.batch = vi.fn().mockResolvedValue([]);
     mockClient.execute = mockExecute;
 
     const mockLocalExecute = vi.fn().mockResolvedValue({
@@ -168,12 +181,15 @@ describe('db initialization', () => {
     const localCalls = mockLocalExecute.mock.calls.map(([arg]) =>
       typeof arg === 'string' ? arg : arg.sql
     );
-    const remoteCalls = mockExecute.mock.calls.map(([arg]) =>
+    const _remoteCalls = mockExecute.mock.calls.map(([arg]) =>
       typeof arg === 'string' ? arg : arg.sql
     );
 
     expect(localCalls.some((c) => c.includes('SELECT * FROM'))).toBe(true);
-    expect(remoteCalls.some((c) => c.includes('INSERT OR IGNORE INTO'))).toBe(true);
+    const remoteBatchCalls = mockClient.batch.mock.calls;
+    expect(remoteBatchCalls.length).toBeGreaterThan(0);
+    const firstBatchStmt = remoteBatchCalls[0][0][0]; // first call, first arg (array), first element
+    expect(firstBatchStmt.sql).toContain('INSERT OR IGNORE INTO');
     expect(writeSpy).toHaveBeenCalled();
 
     // Restore with delete-if-undefined: `process.env.X = undefined` coerces to

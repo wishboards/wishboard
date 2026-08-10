@@ -1,4 +1,4 @@
-# Wishboard Deployment Guide
+---\ntitle: Deployment Guide\n---\n# Wishboard Deployment Guide
 
 This guide is designed for system owners and event managers who want to deploy a fresh instance of Wishboard on a Raspberry Pi using a custom domain.
 
@@ -54,7 +54,7 @@ From your **local developer machine** (not the Pi), run the unified deployment c
 npx wishboard kiosk deploy --host raspberrypi.local --mode prod --domain wishboard.example.com
 ```
 
-Add `--user <name>` if your Pi login isn't `pi`, and `--dry-run` to preview the exact SSH/scp steps without executing them. `--reset-rules` re-seeds the matching rules from the profile defaults (`profiles/**/profiles.yaml`) — rules live in the database `rules` table now, not a file. It clears only the DB `rules` table and preserves uploaded images, users, and wishes (this was corrected in [#194](https://github.com/plthomasva/wishboard/issues/194); it previously wiped the whole `/app/data` volume).
+Add `--user <name>` if your Pi login isn't `pi`, and `--dry-run` to preview the exact SSH/scp steps without executing them. `--reset-rules` re-seeds the matching rules from the profile defaults (`profiles/**/profiles.yaml`) — rules live in the database `rules` table now, not a file. It clears only the DB `rules` table and preserves uploaded images, users, and wishes (this was corrected in [#194](https://github.com/wishboards/wishboard/issues/194); it previously wiped the whole `/app/data` volume).
 
 ### Networking Modes
 
