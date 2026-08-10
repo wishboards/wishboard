@@ -29,17 +29,15 @@ import {
   Tooltip,
 } from 'recharts';
 import {
-  formatShortTime,
-  COLORS as C,
-  gradDef,
-  TICK_STYLE,
   CustomTooltip as ChartTooltip,
   MetricCard,
   NoData,
   SectionTitle,
   Grid,
   MetricsToolbar,
+  GradDef,
 } from './DashboardShared';
+import { formatShortTime, COLORS as C, TICK_STYLE } from './DashboardUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -78,7 +76,7 @@ const CpuCard = ({ samples }: { samples: OsSample[] }) => {
       {samples.length > 1 ? (
         <ResponsiveContainer width="100%" height={70}>
           <AreaChart data={samples} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-            {gradDef('grad-cpu', C.blue)}
+            <GradDef id="grad-cpu" color={C.blue} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="ts"
@@ -122,7 +120,7 @@ const HeapCard = ({ samples }: { samples: OsSample[] }) => {
       {samples.length > 1 ? (
         <ResponsiveContainer width="100%" height={70}>
           <AreaChart data={samples} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-            {gradDef('grad-heap', C.purple)}
+            <GradDef id="grad-heap" color={C.purple} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="ts"
@@ -166,7 +164,7 @@ const RssCard = ({ samples }: { samples: OsSample[] }) => {
       {samples.length > 1 ? (
         <ResponsiveContainer width="100%" height={70}>
           <AreaChart data={samples} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-            {gradDef('grad-rss', C.pink)}
+            <GradDef id="grad-rss" color={C.pink} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="ts"
@@ -205,7 +203,7 @@ const LoadCard = ({ samples }: { samples: OsSample[] }) => {
       {samples.length > 1 ? (
         <ResponsiveContainer width="100%" height={70}>
           <AreaChart data={samples} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-            {gradDef('grad-load', C.teal)}
+            <GradDef id="grad-load" color={C.teal} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="ts"
@@ -248,7 +246,7 @@ const RequestRateCard = ({ samples }: { samples: HttpSample[] }) => {
       {samples.length > 1 ? (
         <ResponsiveContainer width="100%" height={70}>
           <AreaChart data={samples} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-            {gradDef('grad-req', C.green)}
+            <GradDef id="grad-req" color={C.green} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="ts"
@@ -354,7 +352,7 @@ const LatencyCard = ({ samples }: { samples: HttpSample[] }) => {
             data={samples.filter((s) => s.count > 0)}
             margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
           >
-            {gradDef('grad-lat', C.purple)}
+            <GradDef id="grad-lat" color={C.purple} />
             <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
             <XAxis
               dataKey="ts"

@@ -3,17 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import {
-  formatTime,
-  formatShortTime,
-  formatValue,
   CustomTooltip,
   MetricCard,
   NoData,
   SectionTitle,
   Grid,
   MetricsToolbar,
-  gradDef,
+  GradDef,
 } from './DashboardShared';
+import { formatTime, formatShortTime, formatValue } from './DashboardUtils';
 
 describe('formatTime', () => {
   it('formats string timestamp to HH:MM', () => {
@@ -32,33 +30,32 @@ describe('formatTime', () => {
     expect(['', 'Invalid Date']).toContain(timeStr);
   });
 
-  it('returns empty string if toLocaleTimeString throws', () => {
-    const toLocaleTimeStringSpy = vi
-      .spyOn(Date.prototype, 'toLocaleTimeString')
-      .mockImplementation(() => {
-        throw new Error('Mock error');
-      });
-
-    const timeStr = formatTime(1672583400000);
-    expect(timeStr).toBe('');
-
-    toLocaleTimeStringSpy.mockRestore();
+  it('returns empty string when an error is thrown', () => {
+    const badInput = {
+      valueOf: () => {
+        throw new Error('forced throw');
+      },
+    } as any;
+    expect(formatTime(badInput)).toBe('');
   });
 });
 
-describe('gradDef', () => {
-  it('renders a linear gradient with correct ID and colour', () => {
-    const { container } = render(<svg>{gradDef('test-gradient', { stroke: '#ff0000' })}</svg>);
-    const defs = container.querySelector('defs');
-    expect(defs).toBeInTheDocument();
-    const gradient = container.querySelector('linearGradient');
+describe('GradDef', () => {
+  it('renders a linear gradient with correct id and stroke color', () => {
+    render(
+      <svg>
+        <GradDef id="test-grad" color={{ stroke: '#ff0000' }} />
+      </svg>
+    );
+    const gradient = document.querySelector('linearGradient');
     expect(gradient).toBeInTheDocument();
-    expect(gradient).toHaveAttribute('id', 'test-gradient');
-    const stops = container.querySelectorAll('stop');
+    expect(gradient).toHaveAttribute('id', 'test-grad');
+
+    const stops = document.querySelectorAll('stop');
     expect(stops).toHaveLength(2);
-    // React Testing Library usually converts camelCase SVG attributes to lowercase in the DOM
-    expect(stops[0].getAttribute('stop-color')).toBe('#ff0000');
-    expect(stops[1].getAttribute('stop-color')).toBe('#ff0000');
+    // React outputs 'stop-color' for stopColor camelCase attribute
+    expect(stops[0]).toHaveAttribute('stop-color', '#ff0000');
+    expect(stops[1]).toHaveAttribute('stop-color', '#ff0000');
   });
 });
 
