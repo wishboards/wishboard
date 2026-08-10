@@ -1,6 +1,9 @@
-name: Daily Mutation Testing (Stryker)
+name: GitHub Pages (Docs & Stryker)
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 0 * * *' # Run daily at midnight UTC
   workflow_dispatch: # Allow manual trigger
@@ -39,23 +42,37 @@ jobs:
       - name: Build Application
         run: npm run build
 
+      - name: Build Starlight Docs
+        run: |
+          cd docs
+          npm ci --ignore-scripts
+          npm run build
+          cd ..
+
       - name: Run Stryker Mutation Tests
         run: npx --no-install stryker run --concurrency 2
         env:
           STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+          STRYKER_DASHBOARD_PROJECT: github.com/${{ github.repository }}
         continue-on-error: true # Keep deploying the report even if mutants survive and the process exits with an error code
 
       - name: Generate Mutation Summary
         if: always()
         run: node scripts/generate-mutation-summary.js
 
+      - name: Merge Reports into Docs
+        if: always()
+        run: |
+          mkdir -p docs/dist/mutation
+          cp -r reports/mutation/* docs/dist/mutation/ || true
+
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v6
 
-      - name: Upload Report to Pages Artifact
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: './reports/mutation' # The directory Stryker writes the HTML report to
+          path: 'docs/dist' # The directory containing the Starlight site and mutation report
 
   deploy:
     needs: test

@@ -19,6 +19,7 @@ This document outlines the core coding conventions, architectural patterns, envi
 - **Conventional Commits:** Always use conventional commit structures (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`) for git commits and Pull Request titles. These are used to generate release change logs automatically.
 - **Shell Conditionals:** Use `[[` instead of `[` in `#!/bin/bash` scripts. The `[[` construct is safer and more feature-rich. (POSIX `#!/bin/sh` scripts must keep `[`.)
 - **Code Quality & Linter Health:** Prefer extracting reusable helpers over duplicating logic; avoid data clumps (pass structured objects, not long parameter lists). Always check for linter/type errors on modified code blocks.
+- **Optional Chaining:** Prefer optional chaining (`?.`) over traditional chained conditionals (e.g., `a && a.b`) to prevent IDE static analysis warnings and improve code conciseness.
 
 ---
 

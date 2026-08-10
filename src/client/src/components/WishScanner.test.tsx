@@ -1,3 +1,4 @@
+import { delay } from '../utils/testUtils';
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import WishScanner from './WishScanner';
@@ -219,7 +220,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(cardProcessor.detectDocumentContour).toHaveBeenCalledWith(
@@ -271,7 +272,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(mockCtx.fillText).toHaveBeenCalledWith(
@@ -304,7 +305,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(cardProcessor.getDefaultPoly).toHaveBeenCalled();
@@ -322,7 +323,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(mockCtx.fillText).toHaveBeenCalledWith(
@@ -342,7 +343,7 @@ describe('WishScanner', () => {
     // trigger draw to set smoothedCornersRef
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     const takePhotoBtn = screen.getByRole('button', { name: 'Take Photo' });
@@ -356,7 +357,7 @@ describe('WishScanner', () => {
     // Try to trigger drawOverlay again
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(cardProcessor.detectDocumentContour).not.toHaveBeenCalled();
@@ -370,7 +371,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(cardProcessor.detectDocumentContour).not.toHaveBeenCalled();
@@ -385,7 +386,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     expect(cardProcessor.detectDocumentContour).not.toHaveBeenCalled();
@@ -419,7 +420,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     const takePhotoBtn = screen.getByRole('button', { name: 'Take Photo' });
@@ -454,7 +455,7 @@ describe('WishScanner', () => {
 
     await act(async () => {
       fireEvent.play(video);
-      await new Promise((r) => setTimeout(r, 50));
+      await delay(50);
     });
 
     const takePhotoBtn = screen.getByRole('button', { name: 'Take Photo' });

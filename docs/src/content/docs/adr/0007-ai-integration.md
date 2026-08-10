@@ -1,4 +1,4 @@
-# ADR 0007: Decomposable & Optional AI Integration
+---\ntitle: 0007 Ai Integration\n---\n# ADR 0007: Decomposable & Optional AI Integration
 
 - **Status:** Proposed
 - **Date:** 2026-08
