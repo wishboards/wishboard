@@ -1,4 +1,4 @@
-# ADR 0002: Serverless database architecture (SQLite-on-EFS vs. managed libSQL)
+---\ntitle: 0002 Serverless Database Architecture\n---\n# ADR 0002: Serverless database architecture (SQLite-on-EFS vs. managed libSQL)
 
 - **Status:** Accepted — Option 2 (managed libSQL / Turso). Implemented 2026-07-10 (#136 spike → PR #187).
 - **Date:** 2026-07 (accepted 2026-07-10)

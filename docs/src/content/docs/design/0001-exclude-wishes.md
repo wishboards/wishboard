@@ -1,4 +1,4 @@
-# Design 0200: Let a user exclude ("not interested" / hide) a wish
+---\ntitle: 0001 Exclude Wishes\n---\n# Design 0200: Let a user exclude ("not interested" / hide) a wish
 
 - **Status:** Implemented. Tracks [#200](https://github.com/wishboards/wishboard/issues/200).
 - **Date:** 2026-07

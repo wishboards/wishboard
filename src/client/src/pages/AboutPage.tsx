@@ -44,7 +44,7 @@ export default function AboutPage() {
       </p>
       <p>
         <a
-          href="https://github.com/wishboards/wishboard"
+          href={import.meta.env.VITE_GITHUB_REPO}
           target="_blank"
           rel="noopener noreferrer"
           className="secondary-button"
