@@ -1,3 +1,4 @@
+import { delay } from '../utils/testUtils';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
 import EnterWishPage from './EnterWishPage';
@@ -95,7 +96,7 @@ describe('EnterWishPage', () => {
 
     // Flush any pending WishCard layout effects to prevent act() warnings
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
   });
 
@@ -118,7 +119,7 @@ describe('EnterWishPage', () => {
 
     // Flush any pending WishCard layout effects to prevent act() warnings
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
   });
 
@@ -146,7 +147,7 @@ describe('EnterWishPage', () => {
     );
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
   });
 
@@ -165,7 +166,7 @@ describe('EnterWishPage', () => {
     );
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
   });
 
@@ -299,7 +300,7 @@ describe('EnterWishPage', () => {
 
     // Flush any pending layout effects
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
   });
 

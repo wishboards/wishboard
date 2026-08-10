@@ -32,10 +32,33 @@ describe('formatTime', () => {
     expect(['', 'Invalid Date']).toContain(timeStr);
   });
 
-  it('returns empty string when an error is thrown', () => {
-    // Pass an object that causes toLocaleTimeString to throw
-    // Mocking toLocaleTimeString to throw
-    expect(formatTime({ toString: () => { throw new Error('foo'); } } as any)).toBe('');
+  it('returns empty string if toLocaleTimeString throws', () => {
+    const toLocaleTimeStringSpy = vi
+      .spyOn(Date.prototype, 'toLocaleTimeString')
+      .mockImplementation(() => {
+        throw new Error('Mock error');
+      });
+
+    const timeStr = formatTime(1672583400000);
+    expect(timeStr).toBe('');
+
+    toLocaleTimeStringSpy.mockRestore();
+  });
+});
+
+describe('gradDef', () => {
+  it('renders a linear gradient with correct ID and colour', () => {
+    const { container } = render(<svg>{gradDef('test-gradient', { stroke: '#ff0000' })}</svg>);
+    const defs = container.querySelector('defs');
+    expect(defs).toBeInTheDocument();
+    const gradient = container.querySelector('linearGradient');
+    expect(gradient).toBeInTheDocument();
+    expect(gradient).toHaveAttribute('id', 'test-gradient');
+    const stops = container.querySelectorAll('stop');
+    expect(stops).toHaveLength(2);
+    // React Testing Library usually converts camelCase SVG attributes to lowercase in the DOM
+    expect(stops[0].getAttribute('stop-color')).toBe('#ff0000');
+    expect(stops[1].getAttribute('stop-color')).toBe('#ff0000');
   });
 });
 
@@ -253,24 +276,26 @@ describe('CustomTooltip', () => {
 
   it('renders raw label correctly when active and label is undefined', () => {
     const { container } = render(
-      <CustomTooltip
-        active={true}
-        payload={[{ value: 1234, name: 'Foo' }]}
-        label={undefined}
-      />
+      <CustomTooltip active={true} payload={[{ value: 1234, name: 'Foo' }]} label={undefined} />
     );
     expect(screen.getByText('Foo:')).toBeInTheDocument();
     expect(container.firstChild?.firstChild).toBeEmptyDOMElement();
   });
 
   it('renders correctly when payload value and color are missing', () => {
-    const { container } = render(<CustomTooltip active={true} payload={[{ name: 'missing-color' }]} label="2023-01-01T12:00:00Z" />);
+    const { container } = render(
+      <CustomTooltip
+        active={true}
+        payload={[{ name: 'missing-color' }]}
+        label="2023-01-01T12:00:00Z"
+      />
+    );
     expect(screen.getByText('missing-color:')).toBeInTheDocument();
     expect(container.querySelector('div > div:nth-child(2)')).toHaveStyle({ color: '#e5e7eb' });
   });
 
   it('renders correctly when payload name is missing', () => {
-    const { container } = render(
+    render(
       <CustomTooltip
         active={true}
         payload={[{ value: 10, color: 'blue' }]}
@@ -279,19 +304,5 @@ describe('CustomTooltip', () => {
       />
     );
     expect(screen.getByText('10.0ms')).toBeInTheDocument();
-  });
-});
-
-describe('gradDef', () => {
-  it('renders defs and linearGradient correctly', () => {
-    const color = { stroke: '#ff0000' };
-    const { container } = render(<svg>{gradDef('test-grad', color)}</svg>);
-    const gradient = container.querySelector('linearGradient');
-    expect(gradient).toBeInTheDocument();
-    expect(gradient).toHaveAttribute('id', 'test-grad');
-    const stops = container.querySelectorAll('stop');
-    expect(stops).toHaveLength(2);
-    expect(stops[0]).toHaveAttribute('stop-color', '#ff0000');
-    expect(stops[1]).toHaveAttribute('stop-color', '#ff0000');
   });
 });
