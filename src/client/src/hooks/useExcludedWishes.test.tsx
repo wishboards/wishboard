@@ -1,3 +1,4 @@
+import { delay } from '../utils/testUtils';
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useExcludedWishes } from './useExcludedWishes';
@@ -113,7 +114,7 @@ describe('useExcludedWishes', () => {
 
     // Wait for the state update in useEffect
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     expect(result.current.loading).toBe(false);
@@ -136,7 +137,7 @@ describe('useExcludedWishes', () => {
 
     // Wait for initial load
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     // Mock subsequent fetch calls for exclude
@@ -167,7 +168,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     // Mock exclude call to fail
@@ -193,7 +194,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -223,7 +224,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -255,7 +256,7 @@ describe('useExcludedWishes', () => {
     const { result, unmount } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     expect(result.current.loading).toBe(false);
@@ -282,7 +283,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
@@ -312,7 +313,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));

@@ -1,3 +1,4 @@
+import { delay } from '../utils/testUtils';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SearchPage from './SearchPage';
@@ -205,7 +206,7 @@ describe('SearchPage Coverage', () => {
     const deleteBtn = screen.getByTitle('Admin Delete Wish');
     fireEvent.click(deleteBtn);
 
-    await new Promise((r) => setTimeout(r, 10));
+    await delay(10);
     expect(screen.getByText('Test Wish')).toBeInTheDocument();
   });
 });

@@ -12,6 +12,7 @@ import {
   SectionTitle,
   Grid,
   MetricsToolbar,
+  gradDef,
 } from './DashboardShared';
 
 describe('formatTime', () => {
@@ -29,6 +30,35 @@ describe('formatTime', () => {
   it('returns "Invalid Date" or empty string for invalid dates', () => {
     const timeStr = formatTime('invalid-date');
     expect(['', 'Invalid Date']).toContain(timeStr);
+  });
+
+  it('returns empty string if toLocaleTimeString throws', () => {
+    const toLocaleTimeStringSpy = vi
+      .spyOn(Date.prototype, 'toLocaleTimeString')
+      .mockImplementation(() => {
+        throw new Error('Mock error');
+      });
+
+    const timeStr = formatTime(1672583400000);
+    expect(timeStr).toBe('');
+
+    toLocaleTimeStringSpy.mockRestore();
+  });
+});
+
+describe('gradDef', () => {
+  it('renders a linear gradient with correct ID and colour', () => {
+    const { container } = render(<svg>{gradDef('test-gradient', { stroke: '#ff0000' })}</svg>);
+    const defs = container.querySelector('defs');
+    expect(defs).toBeInTheDocument();
+    const gradient = container.querySelector('linearGradient');
+    expect(gradient).toBeInTheDocument();
+    expect(gradient).toHaveAttribute('id', 'test-gradient');
+    const stops = container.querySelectorAll('stop');
+    expect(stops).toHaveLength(2);
+    // React Testing Library usually converts camelCase SVG attributes to lowercase in the DOM
+    expect(stops[0].getAttribute('stop-color')).toBe('#ff0000');
+    expect(stops[1].getAttribute('stop-color')).toBe('#ff0000');
   });
 });
 
