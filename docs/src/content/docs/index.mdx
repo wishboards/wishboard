@@ -1,39 +1,50 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Wishboard
+description: Documentation for Wishboard — deployment, event profiles, the matching engine, and architecture decision records.
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: An event wishboard — attendees post wishes, the matching engine connects them.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Fork & bootstrap
+      link: forking-guide/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+    - text: Deploy it
+      link: deployment-guide/
+      icon: rocket
       variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## Start here
 
 <CardGrid stagger>
-  <Card title="Update content" icon="pencil">
-    Edit `src/content/docs/index.mdx` to see this page change.
+  <Card title="Fork & bootstrap" icon="seti:git">
+    Stand up your own instance from a fork: naming, repository variables, and the first deploy. See
+    the [forking guide](forking-guide/).
   </Card>
-  <Card title="Change page layout" icon="document">
-    Delete `template: splash` in `src/content/docs/index.mdx` to display a sidebar on this page.
+  <Card title="Deploy" icon="rocket">
+    Container, kiosk, and AWS serverless targets, driven by the unified CLI. See the [deployment
+    guide](deployment-guide/).
   </Card>
-  <Card title="Add new content" icon="add-document">
-    Add Markdown or MDX files to `src/content/docs` to create new pages.
+  <Card title="Event profiles" icon="setting">
+    Retheme and retarget an event without touching code — taxonomies, stickers, and seed data. See
+    [event profiles](event-profiles/).
   </Card>
-  <Card title="Configure your site" icon="setting">
-    Edit your `sidebar` and other config in `astro.config.mjs`.
+  <Card title="Matching rules" icon="approve-check">
+    How wishes are matched, the rule types, and how exclusions and conflicts resolve. See [matching
+    rules](matching-rules/).
   </Card>
-  <Card title="Read the docs" icon="open-book">
-    Learn more in [the Starlight Docs](https://starlight.astro.build/).
+</CardGrid>
+
+## Going deeper
+
+<CardGrid>
+  <Card title="Architecture decisions" icon="open-book">
+    The ADRs record why the system is shaped the way it is — the serverless database choice,
+    realtime transport, the extracted rules engine, and more.
+  </Card>
+  <Card title="Quality" icon="magnifier">
+    [Mutation testing](mutation-testing/) explains how the suite is held honest, and the published
+    report lives under [/mutation](mutation/).
   </Card>
 </CardGrid>

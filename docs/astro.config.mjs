@@ -20,7 +20,21 @@ if (process.env.GITHUB_REPOSITORY) {
   githubUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}`;
 }
 
+// GitHub Pages serves a project site from https://<owner>.github.io/<repo>/, so
+// Astro needs `base` set to that subpath. Without it every emitted asset and
+// internal link is root-absolute (/_astro/..., /favicon.svg) and 404s, which
+// renders the site unstyled with dead navigation.
+//
+// Derived from GITHUB_REPOSITORY so a fork publishes correctly with no edits.
+// Override both when serving from a custom domain, where the site lives at the
+// domain root: DOCS_SITE=https://docs.example.com DOCS_BASE=/
+const [ghOwner, ghRepo] = (process.env.GITHUB_REPOSITORY || '').split('/');
+const site = process.env.DOCS_SITE || (ghOwner ? `https://${ghOwner}.github.io` : undefined);
+const base = process.env.DOCS_BASE || (ghRepo ? `/${ghRepo}` : undefined);
+
 export default defineConfig({
+  site,
+  base,
   integrations: [
     starlight({
       title: 'Wishboard Docs',

@@ -18,7 +18,12 @@ import prettier from 'eslint-config-prettier';
 export default tseslint.config(
   {
     ignores: [
-      'dist/**',
+      // Globbed rather than root-anchored: 'dist/**' does not match docs/dist/**,
+      // so building the Starlight docs locally made `npm run lint` report 1600+
+      // errors from minified output. CI never saw it because the lint job does
+      // not build the docs.
+      '**/dist/**',
+      '**/.astro/**',
       'coverage/**',
       'reports/**',
       '.stryker-tmp/**',
