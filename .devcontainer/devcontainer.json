@@ -19,6 +19,9 @@
   ],
 
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  // On every start, not just create: /tmp can come up non-writable depending on
+  // the container runtime, which breaks anything running as the node user.
+  "postStartCommand": "bash .devcontainer/post-start.sh",
 
   // 3000 is playwright's baseURL and the Express server; 4321 is Astro/Starlight.
   "forwardPorts": [3000, 4321],
