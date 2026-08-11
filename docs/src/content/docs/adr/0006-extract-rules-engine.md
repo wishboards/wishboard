@@ -1,6 +1,7 @@
 ---
 title: 0006 Extract Rules Engine
 ---
+
 # ADR 0006: Decoupling and Extracting the Rules Engine
 
 - **Status:** Proposed

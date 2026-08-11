@@ -1,6 +1,7 @@
 ---
 title: Deployment Guide
 ---
+
 # Wishboard Deployment Guide
 
 This guide is designed for system owners and event managers who want to deploy a fresh instance of Wishboard on a Raspberry Pi using a custom domain.

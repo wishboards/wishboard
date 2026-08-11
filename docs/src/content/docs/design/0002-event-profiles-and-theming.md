@@ -1,6 +1,7 @@
 ---
 title: 0002 Event Profiles And Theming
 ---
+
 # Design Document 0002: Event Profiles and Decoupled Theming (Issue #263)
 
 ## Context & Vision

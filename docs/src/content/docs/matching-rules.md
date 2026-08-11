@@ -1,6 +1,7 @@
 ---
 title: Matching Rules
 ---
+
 # Wishboard Matching Engine Rules
 
 The Wishboard matching engine is designed to be inclusive, flexible, and
