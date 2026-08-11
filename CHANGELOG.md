@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.24.3](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.2...wishboard-v1.24.3) (2026-08-11)
+
+
+### Bug Fixes
+
+* **cli:** anchor samconfig override keys on a token boundary ([#374](https://github.com/wishboards/wishboard/issues/374)) ([8d507f8](https://github.com/wishboards/wishboard/commit/8d507f8825c72b0223b6463f57842d6a5c653e42))
+* **docs:** rename forking_guide to forking-guide to match the sidebar slug ([#428](https://github.com/wishboards/wishboard/issues/428)) ([cc77073](https://github.com/wishboards/wishboard/commit/cc77073bef3bbc8bc1234521deb9a854c065198d))
+* **docs:** repair literal \n escapes in generated Starlight frontmatter ([#427](https://github.com/wishboards/wishboard/issues/427)) ([387d2e8](https://github.com/wishboards/wishboard/commit/387d2e82f2a4ce4a96bfe410e3d01b960d4b1e12))
+* escape regex special characters in serverless CLI commands ([#401](https://github.com/wishboards/wishboard/issues/401)) ([0e61d3b](https://github.com/wishboards/wishboard/commit/0e61d3bf095849a02cdbfdbadd4c1375c072ce25))
+
+
+### Performance Improvements
+
+* batch rules seeding to prevent N+1 query issue ([#410](https://github.com/wishboards/wishboard/issues/410)) ([7ce0fd4](https://github.com/wishboards/wishboard/commit/7ce0fd44f732b46c95b88fec4ba8eaa262903ca8))
+* **db:** batch rules reset in the CLI to remove N+1 inserts ([#414](https://github.com/wishboards/wishboard/issues/414)) ([917c6c5](https://github.com/wishboards/wishboard/commit/917c6c5875cc0c6a8c02468baf99ee4a7c86ada9))
+* fix N+1 query in admin rules reset ([#412](https://github.com/wishboards/wishboard/issues/412)) ([1efdc88](https://github.com/wishboards/wishboard/commit/1efdc880390a20e7fe1c3b25840a25fe82767ff1))
+
 ## [1.24.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.1...wishboard-v1.24.2) (2026-08-09)
 
 
