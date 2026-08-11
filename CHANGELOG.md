@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.24.4](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.3...wishboard-v1.24.4) (2026-08-11)
+
+
+### Bug Fixes
+
+* **devcontainer:** repair /tmp permissions on container start ([#438](https://github.com/wishboards/wishboard/issues/438)) ([74967c4](https://github.com/wishboards/wishboard/commit/74967c45097cee6f65d9236de7182422c44acf5c))
+* **docs:** set Astro base so the published site resolves, and remove the Starlight scaffold ([#431](https://github.com/wishboards/wishboard/issues/431)) ([7e777d0](https://github.com/wishboards/wishboard/commit/7e777d0f2f918ec899afcf9a4035a9931f496515))
+
 ## [1.24.3](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.2...wishboard-v1.24.3) (2026-08-11)
 
 
