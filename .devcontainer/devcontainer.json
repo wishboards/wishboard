@@ -1,0 +1,50 @@
+{
+  "name": "Wishboard",
+  "build": { "dockerfile": "Dockerfile" },
+
+  "features": {
+    // gh is used throughout the PR/CI workflow documented in AGENTS.md.
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Needed by the serverless deployment target (`wishboard serverless ...`).
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
+  },
+
+  // node_modules lives on named volumes, NOT the bind mount. This is the whole
+  // point of the container: npm ci across a bind-mounted host filesystem is
+  // pathologically slow (10+ minutes on Windows), while a named volume is fast.
+  // Two volumes, because docs/ is a separate npm project.
+  "mounts": [
+    "source=wishboard-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=wishboard-docs-node-modules,target=${containerWorkspaceFolder}/docs/node_modules,type=volume"
+  ],
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  // 3000 is playwright's baseURL and the Express server; 4321 is Astro/Starlight.
+  "forwardPorts": [3000, 4321],
+  "portsAttributes": {
+    "3000": { "label": "Wishboard app" },
+    "4321": { "label": "Starlight docs" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "vitest.explorer",
+        "ms-playwright.playwright",
+        "astro-build.astro-vscode",
+        "sonarsource.sonarlint-vscode",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "eslint.useFlatConfig": true
+      }
+    }
+  },
+
+  "remoteUser": "node"
+}

@@ -1,5 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
-
 import React from 'react';
 import { formatTime, formatValue } from './DashboardUtils';
 

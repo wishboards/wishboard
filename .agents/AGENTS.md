@@ -58,6 +58,7 @@ This document outlines the core coding conventions, architectural patterns, envi
     npm run test:e2e
     ```
 
+- **Local Environment:** The repository ships a dev container (`.devcontainer/`) providing Node 24, both npm projects' dependencies, Playwright browsers, Husky hooks, `gh`, the AWS CLI, and `gitleaks`. Prefer it — it makes every gate below runnable locally, which is the difference between diagnosing a failure in seconds and round-tripping through CI. See `CONTRIBUTING.md`.
 - **Lint / Type-check / Format:** The project uses ESLint (flat config in `eslint.config.js`) and Prettier. Run these before committing:
 
   ```bash
