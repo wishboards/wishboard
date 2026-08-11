@@ -133,7 +133,7 @@ export async function resetRules(
         rule.context_value,
         rule.target_attribute,
         rule.target_value,
-      ].map(mapArg),
+      ].map((a) => mapArg(a)),
     }));
 
     const BATCH_SIZE = 1000;

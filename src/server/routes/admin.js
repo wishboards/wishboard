@@ -213,7 +213,7 @@ router.post('/reset-rules', requireAdmin, async (req, res) => {
           rule.context_value,
           rule.target_attribute,
           rule.target_value,
-        ].map(mapArg),
+        ].map((a) => mapArg(a)),
       };
     });
 
