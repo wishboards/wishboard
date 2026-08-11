@@ -1,12 +1,20 @@
-name: GitHub Pages (Docs & Stryker)
+name: GitHub Pages (Docs)
 
+# The single GitHub Pages deployer. Builds the Starlight site and folds in the
+# most recent successful mutation report, so the published site always carries
+# both. Mutation testing itself lives in stryker.yml (nightly / on demand) —
+# see ADR 0008.
 on:
   push:
     branches:
       - main
-  schedule:
-    - cron: '0 0 * * *' # Run daily at midnight UTC
   workflow_dispatch: # Allow manual trigger
+  # Republish as soon as a nightly mutation run finishes, so a fresh report goes
+  # live against freshly built docs without either workflow waiting on the other.
+  workflow_run:
+    workflows: ['Daily Mutation Testing (Stryker)']
+    types:
+      - completed
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 concurrency:
@@ -18,14 +26,18 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read # Required to list and download the mutation-report artifact
 
 jobs:
-  test:
+  build:
+    # A failed mutation run has no report worth republishing for.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pages: write
       id-token: write
+      actions: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7.0.1
@@ -36,12 +48,6 @@ jobs:
           node-version: '24' # Use the project's supported node version
           cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Build Application
-        run: npm run build
-
       - name: Build Starlight Docs
         run: |
           cd docs
@@ -49,19 +55,25 @@ jobs:
           npm run build
           cd ..
 
-      - name: Run Stryker Mutation Tests
-        run: npx --no-install stryker run --concurrency 2
+      # Best-effort: the site still publishes if no run has produced a report yet
+      # (or the last one expired), it just won't carry the /mutation section.
+      - name: Fetch Latest Mutation Report
         env:
-          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
-          STRYKER_DASHBOARD_PROJECT: github.com/${{ github.repository }}
-        continue-on-error: true # Keep deploying the report even if mutants survive and the process exits with an error code
-
-      - name: Generate Mutation Summary
-        if: always()
-        run: node scripts/generate-mutation-summary.js
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow stryker.yml \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful stryker.yml run found; publishing docs without a mutation report."
+            exit 0
+          fi
+          echo "Downloading mutation-report from stryker.yml run $RUN_ID"
+          mkdir -p reports/mutation
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name mutation-report --dir reports/mutation \
+            || echo "Artifact unavailable (expired or never uploaded); continuing without it."
 
       - name: Merge Reports into Docs
-        if: always()
         run: |
           mkdir -p docs/dist/mutation
           cp -r reports/mutation/* docs/dist/mutation/ || true
@@ -75,7 +87,7 @@ jobs:
           path: 'docs/dist' # The directory containing the Starlight site and mutation report
 
   deploy:
-    needs: test
+    needs: build
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read

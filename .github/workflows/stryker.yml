@@ -1,0 +1,58 @@
+name: Daily Mutation Testing (Stryker)
+
+# Mutation testing only. A full run takes 2.5-5 hours, so it must never be
+# attached to a push trigger. This workflow publishes nothing itself: it uploads
+# the report as an artifact and the GitHub Pages workflow picks it up, either on
+# its own next run or via the workflow_run trigger that fires when this finishes.
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual trigger
+
+# Deliberately NOT the 'pages' group: this job no longer deploys, so it must not
+# queue behind (or hold up) a docs deployment.
+concurrency:
+  group: 'stryker'
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24' # Use the project's supported node version
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Run Stryker Mutation Tests
+        run: npx --no-install stryker run --concurrency 2
+        env:
+          STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+          STRYKER_DASHBOARD_PROJECT: github.com/${{ github.repository }}
+        continue-on-error: true # Surviving mutants exit non-zero; still publish the report
+
+      - name: Generate Mutation Summary
+        if: always()
+        run: node scripts/generate-mutation-summary.js
+
+      - name: Upload Mutation Report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: mutation-report
+          path: reports/mutation
+          retention-days: 30
+          if-no-files-found: warn
