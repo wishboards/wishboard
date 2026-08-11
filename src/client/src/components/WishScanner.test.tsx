@@ -211,6 +211,59 @@ describe('WishScanner', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
+  it('surfaces a camera error when the getUserMedia API is unavailable', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const mediaDevices = globalThis.navigator.mediaDevices;
+    Object.defineProperty(globalThis.navigator, 'mediaDevices', {
+      value: {},
+      writable: true,
+      configurable: true,
+    });
+
+    render(<WishScanner onCapture={vi.fn()} onCancel={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Camera Error: Camera API not available\. Make sure you are using HTTPS/)
+      ).toBeInTheDocument();
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error accessing camera', expect.any(Error));
+
+    Object.defineProperty(globalThis.navigator, 'mediaDevices', {
+      value: mediaDevices,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  it('surfaces a camera error when permissions are denied', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(globalThis.navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(
+      new Error('Permission denied')
+    );
+
+    render(<WishScanner onCapture={vi.fn()} onCancel={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Camera Error: Permission denied')).toBeInTheDocument();
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error accessing camera', expect.any(Error));
+  });
+
+  it('falls back to a generic message when the camera rejects a non-Error', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(globalThis.navigator.mediaDevices.getUserMedia).mockRejectedValueOnce('nope');
+
+    render(<WishScanner onCapture={vi.fn()} onCancel={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Camera Error: Permissions denied or insecure context')
+      ).toBeInTheDocument();
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error accessing camera', 'nope');
+  });
+
   it('drawOverlay handles tracked-poly state and renders geometry', async () => {
     render(<WishScanner onCapture={vi.fn()} onCancel={vi.fn()} stickerZoneHeightPercentage={30} />);
 
