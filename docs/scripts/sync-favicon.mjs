@@ -1,3 +1,4 @@
+/* global console */
 // Keeps the docs favicon identical to the app's without committing a second copy
 // that can silently drift. Runs from the `predev`/`prebuild` npm hooks, and the
 // generated file is gitignored.
