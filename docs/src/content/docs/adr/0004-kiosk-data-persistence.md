@@ -1,4 +1,7 @@
----\ntitle: 0004 Kiosk Data Persistence\n---\n# ADR 0004: Kiosk data persistence (unified bind mount on the Pi)
+---
+title: 0004 Kiosk Data Persistence
+---
+# ADR 0004: Kiosk data persistence (unified bind mount on the Pi)
 
 - **Status:** Accepted — the clobber guard (#193) and the `--reset-rules` fix (#194 via #204) have landed; the DB-volume ownership shape (#145) is resolved by transitioning to a unified host bind mount.
 - **Date:** 2026-07
