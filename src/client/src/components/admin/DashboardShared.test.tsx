@@ -258,4 +258,48 @@ describe('CustomTooltip', () => {
     expect(screen.getByText('Series C:')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
   });
+
+  it('renders AWS format correctly when payload is undefined', () => {
+    render(
+      <CustomTooltip
+        active={true}
+        payload={[{}]}
+        label="2023-01-01T12:00:00Z"
+        metricLabel="Bytes"
+      />
+    );
+    expect(screen.getByText('0 B')).toBeInTheDocument();
+  });
+
+  it('renders raw label correctly when active and label is undefined', () => {
+    const { container } = render(
+      <CustomTooltip active={true} payload={[{ value: 1234, name: 'Foo' }]} label={undefined} />
+    );
+    expect(screen.getByText('Foo:')).toBeInTheDocument();
+    expect(container.firstChild?.firstChild).toBeEmptyDOMElement();
+  });
+
+  it('renders correctly when payload value and color are missing', () => {
+    const { container } = render(
+      <CustomTooltip
+        active={true}
+        payload={[{ name: 'missing-color' }]}
+        label="2023-01-01T12:00:00Z"
+      />
+    );
+    expect(screen.getByText('missing-color:')).toBeInTheDocument();
+    expect(container.querySelector('div > div:nth-child(2)')).toHaveStyle({ color: '#e5e7eb' });
+  });
+
+  it('renders correctly when payload name is missing', () => {
+    render(
+      <CustomTooltip
+        active={true}
+        payload={[{ value: 10, color: 'blue' }]}
+        label="2023-01-01T12:00:00Z"
+        unit="ms"
+      />
+    );
+    expect(screen.getByText('10.0ms')).toBeInTheDocument();
+  });
 });
