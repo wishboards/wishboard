@@ -59,6 +59,7 @@ import { generatePassphrase } from '../../client/src/passphrase.js';
 import logger from '../logger.js';
 import { getRules } from '../rulesManager.js';
 import { emitNewWish, emitWishFlagged, emitWishDeleted } from '../socket.js';
+import { ensureArray } from '../utils/arrays.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -179,7 +180,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     });
   }
 
-  const parsedContacts = Array.isArray(contacts) ? contacts : [];
+  const parsedContacts = ensureArray(contacts);
   const wme = wishmail_enabled ? 1 : 0;
 
   const now = new Date().toISOString();
@@ -259,6 +260,43 @@ function parseQueryIds(raw) {
 }
 
 /**
+ * Excludes wishes the signed-in user has hidden, via their wish_exclusions rows.
+ * @param {string} sql
+ * @param {any[]} args
+ * @param {object} searcher
+ * @returns {{ sql: string; args: any[] }}
+ */
+function applyUserExclusionFilter(sql, args, searcher) {
+  return {
+    sql:
+      sql +
+      ' AND NOT EXISTS (SELECT 1 FROM wish_exclusions x WHERE x.wish_id = w.id AND x.user_id = ?)',
+    args: [...args, searcher.id],
+  };
+}
+
+/**
+ * Excludes the ids an anonymous caller passes in the query string. Bound as a
+ * single JSON array through json_each rather than N placeholders, matching the
+ * approach taken elsewhere in this module (see #354).
+ * @param {string} sql
+ * @param {any[]} args
+ * @param {string | string[] | undefined} excludeQuery
+ * @returns {{ sql: string; args: any[] }}
+ */
+function applyQueryExclusionFilter(sql, args, excludeQuery) {
+  const excludeIds = parseQueryIds(excludeQuery);
+  if (excludeIds.length === 0) {
+    return { sql, args };
+  }
+
+  return {
+    sql: sql + ' AND w.id NOT IN (SELECT value FROM json_each(?))',
+    args: [...args, JSON.stringify(excludeIds)],
+  };
+}
+
+/**
  * Append exclusion filter clauses to the SQL query.
  * @param {object} params
  * @param {string} params.sql
@@ -268,21 +306,10 @@ function parseQueryIds(raw) {
  * @returns {{ sql: string; args: any[] }}
  */
 function applyExclusionFilter({ sql, args, searcher, excludeQuery }) {
-  let updatedSql = sql;
-  const updatedArgs = [...args];
   if (searcher) {
-    updatedSql +=
-      ' AND NOT EXISTS (SELECT 1 FROM wish_exclusions x WHERE x.wish_id = w.id AND x.user_id = ?)';
-    updatedArgs.push(searcher.id);
-  } else {
-    const excludeIds = parseQueryIds(excludeQuery);
-    if (excludeIds.length > 0) {
-      const placeholders = excludeIds.map(() => '?').join(', ');
-      updatedSql += ` AND w.id NOT IN (${placeholders})`;
-      updatedArgs.push(...excludeIds);
-    }
+    return applyUserExclusionFilter(sql, args, searcher);
   }
-  return { sql: updatedSql, args: updatedArgs };
+  return applyQueryExclusionFilter(sql, args, excludeQuery);
 }
 
 router.get('/', async (req, res) => {
@@ -341,9 +368,8 @@ router.get('/', async (req, res) => {
   if (req.query.ids) {
     const filterIds = parseQueryIds(req.query.ids);
     if (filterIds.length > 0) {
-      const placeholders = filterIds.map(() => '?').join(', ');
-      sql += ` AND w.id IN (${placeholders})`;
-      args.push(...filterIds);
+      sql += ' AND w.id IN (SELECT value FROM json_each(?))';
+      args.push(JSON.stringify(filterIds));
     }
   }
 
@@ -520,7 +546,7 @@ router.post('/:id/manage', async (req, res) => {
 
   if (content?.trim()) {
     const { contacts, wishmail_enabled, new_passphrase } = req.body;
-    const parsedContacts = Array.isArray(contacts) ? contacts : [];
+    const parsedContacts = ensureArray(contacts);
     const wme = wishmail_enabled ? 1 : 0;
     const now = new Date().toISOString();
 

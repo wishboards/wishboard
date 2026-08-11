@@ -337,6 +337,30 @@ describe('serverless commands', () => {
       expect(pov).not.toMatch(/(^|\s)DomainName=''/);
     });
 
+    it('does not resolve a key from the tail of a longer key in parameter_overrides', () => {
+      // "DomainName" is a suffix of "CustomDomainName". Without a token-boundary
+      // anchor the unanchored match hits the longer key first and DomainName
+      // resolves to the wrong value.
+      const samconfig = [
+        'version = 0.1',
+        '[default.deploy.parameters]',
+        'stack_name = "wishboard-serverless-dev"',
+        'parameter_overrides = "ProjectName=\\"wishboard\\" CustomDomainName=\\"wrong.example.com\\" DomainName=\\"demo.wishboards.app\\" HostedZoneId=\\"Z07ABC\\" NodeEnv=\\"development\\""',
+      ].join('\n');
+      vi.mocked(fs.readFileSync).mockReturnValue(samconfig);
+
+      deployServerless({
+        stackName: 'wishboard-serverless-dev',
+        region: 'us-east-1',
+        mode: 'dev',
+        dryRun: true,
+      });
+
+      const pov = overridesOf(findDeploy());
+      expect(pov).toContain("DomainName='demo.wishboards.app'");
+      expect(pov).not.toContain('wrong.example.com');
+    });
+
     it('passes DatabaseUrl and DatabaseAuthTokenSsm from samconfig into the overrides', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readFileSync).mockReturnValue(

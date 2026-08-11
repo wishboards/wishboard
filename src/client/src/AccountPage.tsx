@@ -10,7 +10,7 @@ import PassphraseInput from './components/PassphraseInput';
 import { QRCodeSVG } from 'qrcode.react';
 import ConfirmDeleteAccountModal from './components/ConfirmDeleteAccountModal';
 import { parseAttributesString, fetchConflicts, getConflictWarning } from './utils/conflicts';
-import { useEventProfile } from './EventProfileContext';
+import { useEventProfile, Category } from './EventProfileContext';
 
 function useUsernameExistence(username: string) {
   const [existingUsername, setExistingUsername] = useState(false);
@@ -144,6 +144,74 @@ function ClaimWishForm({
   );
 }
 
+interface IdentityAttributesFieldsProps {
+  categories: Category[];
+  identityAttributes: Record<string, string>;
+  setIdentityAttributes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  regConflicts: Array<{ message: string; target_attribute: string }>;
+}
+
+function IdentityAttributesFields({
+  categories,
+  identityAttributes,
+  setIdentityAttributes,
+  regConflicts,
+}: Readonly<IdentityAttributesFieldsProps>) {
+  return (
+    <>
+      <div className="label-with-info" style={{ marginTop: '12px', marginBottom: '8px' }}>
+        <strong style={{ display: 'block' }}>Identity Attributes</strong>
+        <InfoToggle>
+          These attributes are automatically applied to any wishes you create, and are used by
+          default when you search.
+        </InfoToggle>
+      </div>
+      {categories.map((cat) => {
+        const suggs = cat.suggestions || [];
+        return (
+          <label key={cat.id}>
+            Identity {cat.label}s
+            <AttributeInput
+              category={cat.id}
+              value={identityAttributes[cat.id] || ''}
+              onChange={(val) => setIdentityAttributes((prev) => ({ ...prev, [cat.id]: val }))}
+              placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+              suggestions={suggs}
+              warning={getConflictWarning(regConflicts, cat.id)}
+            />
+          </label>
+        );
+      })}
+    </>
+  );
+}
+
+interface AccountTabsProps {
+  mode: 'login' | 'register';
+  setMode: (mode: 'login' | 'register') => void;
+}
+
+function AccountTabs({ mode, setMode }: Readonly<AccountTabsProps>) {
+  return (
+    <div className="tab-buttons">
+      <button
+        type="button"
+        className={mode === 'login' ? 'nav-button active' : 'nav-button'}
+        onClick={() => setMode('login')}
+      >
+        Login
+      </button>
+      <button
+        type="button"
+        className={mode === 'register' ? 'nav-button active' : 'nav-button'}
+        onClick={() => setMode('register')}
+      >
+        Register
+      </button>
+    </div>
+  );
+}
+
 interface UnauthenticatedAccountViewProps {
   mode: 'login' | 'register';
   setMode: (mode: 'login' | 'register') => void;
@@ -184,22 +252,7 @@ function UnauthenticatedAccountView({
     <section>
       <h1>My Account</h1>
       <p>Create an account to manage multiple wishes, or log in if you already have one.</p>
-      <div className="tab-buttons">
-        <button
-          type="button"
-          className={mode === 'login' ? 'nav-button active' : 'nav-button'}
-          onClick={() => setMode('login')}
-        >
-          Login
-        </button>
-        <button
-          type="button"
-          className={mode === 'register' ? 'nav-button active' : 'nav-button'}
-          onClick={() => setMode('register')}
-        >
-          Register
-        </button>
-      </div>
+      <AccountTabs mode={mode} setMode={setMode} />
       <form className="form-card" onSubmit={effectiveMode === 'login' ? onLogin : onRegister}>
         <label>
           Username{' '}
@@ -223,37 +276,20 @@ function UnauthenticatedAccountView({
           />
         </div>
         {effectiveMode === 'register' && (
-          <>
-            <div className="label-with-info" style={{ marginTop: '12px', marginBottom: '8px' }}>
-              <strong style={{ display: 'block' }}>Identity Attributes</strong>
-              <InfoToggle>
-                These attributes are automatically applied to any wishes you create, and are used by
-                default when you search.
-              </InfoToggle>
-            </div>
-            {categories.map((cat) => {
-              const suggs = cat.suggestions || [];
-              return (
-                <label key={cat.id}>
-                  Identity {cat.label}s
-                  <AttributeInput
-                    category={cat.id}
-                    value={identityAttributes[cat.id] || ''}
-                    onChange={(val) =>
-                      setIdentityAttributes((prev) => ({ ...prev, [cat.id]: val }))
-                    }
-                    placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                    suggestions={suggs}
-                    warning={getConflictWarning(regConflicts, cat.id)}
-                  />
-                </label>
-              );
-            })}
-          </>
+          <IdentityAttributesFields
+            categories={categories}
+            identityAttributes={identityAttributes}
+            setIdentityAttributes={setIdentityAttributes}
+            regConflicts={regConflicts}
+          />
         )}
-        <button type="submit" disabled={effectiveMode === 'register' && isSubmitDisabled}>
-          {effectiveMode === 'login' ? 'Login' : 'Register'}
-        </button>
+        {effectiveMode === 'login' ? (
+          <button type="submit">Login</button>
+        ) : (
+          <button type="submit" disabled={isSubmitDisabled}>
+            Register
+          </button>
+        )}
       </form>
       {effectiveMode === 'register' && isSubmitDisabled && (
         <div className="message error" style={{ marginTop: '12px' }}>

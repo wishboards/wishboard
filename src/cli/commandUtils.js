@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 // npm/npx/sam are .cmd shims on Windows. Since Node's CVE-2024-27980 fix, they
 // can't be spawned directly, and `shell: true` with an args array is flagged
@@ -52,6 +53,19 @@ export function getGitRepoInfo() {
     if (res.status === 0 && res.stdout) {
       const url = res.stdout.trim();
       const match = GITHUB_REMOTE_REGEX.exec(url);
+      if (match) {
+        return { org: match[1], repo: match[2] };
+      }
+    }
+  } catch {
+    // Ignore and fallback
+  }
+
+  try {
+    const pkgPath = new URL('../../package.json', import.meta.url);
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    if (pkg.repository?.url) {
+      const match = GITHUB_REMOTE_REGEX.exec(pkg.repository.url);
       if (match) {
         return { org: match[1], repo: match[2] };
       }

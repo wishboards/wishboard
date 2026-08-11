@@ -1,3 +1,4 @@
+import { delay } from '../utils/testUtils';
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useExcludedWishes } from './useExcludedWishes';
@@ -47,6 +48,28 @@ describe('useExcludedWishes', () => {
     expect(result.current.excludedIds).toEqual([]);
   });
 
+  it('handles localStorage.getItem error gracefully', async () => {
+    mockAuth({ token: null, user: null });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Mock getItem to throw an error
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('localStorage is disabled');
+    });
+
+    const { result } = renderHook(() => useExcludedWishes());
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.excludedIds).toEqual([]);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to load wish exclusions from localStorage:',
+      expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+    getItemSpy.mockRestore();
+  });
+
   it('excludes a wish in localStorage for anonymous users', async () => {
     mockAuth({ token: null, user: null });
 
@@ -91,7 +114,7 @@ describe('useExcludedWishes', () => {
 
     // Wait for the state update in useEffect
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     expect(result.current.loading).toBe(false);
@@ -114,7 +137,7 @@ describe('useExcludedWishes', () => {
 
     // Wait for initial load
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     // Mock subsequent fetch calls for exclude
@@ -145,7 +168,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     // Mock exclude call to fail
@@ -171,7 +194,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -201,7 +224,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -233,7 +256,7 @@ describe('useExcludedWishes', () => {
     const { result, unmount } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     expect(result.current.loading).toBe(false);
@@ -260,7 +283,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
@@ -290,7 +313,7 @@ describe('useExcludedWishes', () => {
     const { result } = renderHook(() => useExcludedWishes());
 
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await delay(0);
     });
 
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));

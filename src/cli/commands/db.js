@@ -1,4 +1,4 @@
-import db from '../../server/db.js';
+import db, { mapArg } from '../../server/db.js';
 import { createSalt, hashPassphrase } from '../../server/auth.js';
 import { promptPassphrase } from './auth.js';
 import { getEventProfile } from '../../server/configManager.js';
@@ -120,23 +120,28 @@ export async function resetRules(
 
     // Re-seed default rules from profile
     const profileRules = getEventProfile().rules;
-    for (const rule of profileRules) {
-      await db
-        .prepare(
-          `INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
-          rule.id,
-          rule.rule_type,
-          rule.trigger_attribute,
-          rule.trigger_value,
-          rule.context_attribute,
-          rule.context_value,
-          rule.target_attribute,
-          rule.target_value
-        );
+
+    const stmts = profileRules.map((rule) => ({
+      sql: `INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        rule.id,
+        rule.rule_type,
+        rule.trigger_attribute,
+        rule.trigger_value,
+        rule.context_attribute,
+        rule.context_value,
+        rule.target_attribute,
+        rule.target_value,
+      ].map((a) => mapArg(a)),
+    }));
+
+    const BATCH_SIZE = 1000;
+    for (let i = 0; i < stmts.length; i += BATCH_SIZE) {
+      const batch = stmts.slice(i, i + BATCH_SIZE);
+      await db.batch(batch, 'write');
     }
+
     consoleLog(`\nSuccess! Matching rules have been reset to defaults.`);
     consoleLog(`Rules re-seeded: ${profileRules.length}\n`);
     return true;

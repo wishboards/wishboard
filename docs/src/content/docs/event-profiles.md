@@ -1,3 +1,7 @@
+---
+title: Event Profiles
+---
+
 # Event Profiles and Deployment Guide in Wishboard
 
 The Wishboard project supports deploying customized event profiles (such as a professional conference or a lifestyle convention) across local kiosks or serverless AWS stacks.

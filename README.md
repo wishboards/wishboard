@@ -84,14 +84,19 @@ SonarQube scan — also run in CI on every push and pull request.
 
 ## Documentation
 
-Detailed guides and documentation can be found in the `docs/` and `aws-serverless/` directories:
+Wishboard features a comprehensive, searchable documentation site powered by Astro Starlight. The documentation is automatically built and deployed to GitHub Pages.
 
-- [**Deployment Guide**](docs/DEPLOYMENT_GUIDE.md) - Instructions for securely deploying Wishboard as a locked-down offline Wi-Fi kiosk on a Raspberry Pi.
-- [**Event Profiles & Multi-Stack Deployments**](docs/EVENT_PROFILES.md) - Guide for managing event profiles (`lifestyle`, `professional`), custom domains, and parallel stacks.
-- [**AWS Deployment Guide**](aws-serverless/deploy-instructions.md) - Instructions and monthly pricing analysis for deploying to AWS as a serverless application.
-- [**Matching Rules**](docs/MATCHING_RULES.md) - A deep dive into how the matchmaking engine implicitly maps, expands, and cross-matches user identities.
-- [**Architecture Decision Records**](docs/adr/) - Technical decisions documenting project choices and trade-offs.
-- [**Design Documents**](docs/design/) - Detailed technical design specifications for major features.
+👉 **[View the Wishboard Documentation](https://wishboards.github.io/wishboard)** _(Note: If you have forked this repository, this will be your fork's GitHub Pages URL)_
+
+The documentation includes:
+
+- **Deployment Guides** - Instructions for local kiosks and AWS Serverless.
+- **Matching Rules** - Deep dive into the identity matchmaking engine.
+- **Event Profiles** - Guide for managing multiple event configurations.
+- **Architecture & Design** - Technical decisions (ADRs) and design documents.
+- **Forking Guide** - Setup instructions for bootstrapping CI pipelines on a fork.
+
+The raw Markdown source files for the documentation are located in `docs/src/content/docs/`.
 
 ## User Interface
 
