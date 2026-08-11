@@ -12,3 +12,8 @@ package-lock.json
 
 # Managed by release-please; its changelog formatting isn't Prettier-compatible.
 CHANGELOG.md
+
+# Astro's generated type/content cache. Prettier only reads this top-level
+# ignore file, not docs/.gitignore, so building the docs locally would otherwise
+# make `npm run format:check` fail on generated files.
+.astro/

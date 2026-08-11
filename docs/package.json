@@ -3,8 +3,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
+    "predev": "node scripts/sync-favicon.mjs",
     "dev": "astro dev",
+    "prestart": "node scripts/sync-favicon.mjs",
     "start": "astro dev",
+    "prebuild": "node scripts/sync-favicon.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
