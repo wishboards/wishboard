@@ -37,12 +37,16 @@ jobs:
       - name: Build Application
         run: npm run build
 
+      # Not continue-on-error: stryker.config.json sets thresholds.break to null,
+      # so surviving mutants already exit 0. A non-zero exit here means the run
+      # genuinely broke (e.g. a failing test in the initial dry run), which must
+      # be visible rather than reported as success. Report upload is guarded by
+      # `if: always()` so a failure still publishes whatever was produced.
       - name: Run Stryker Mutation Tests
         run: npx --no-install stryker run --concurrency 2
         env:
           STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
           STRYKER_DASHBOARD_PROJECT: github.com/${{ github.repository }}
-        continue-on-error: true # Surviving mutants exit non-zero; still publish the report
 
       - name: Generate Mutation Summary
         if: always()

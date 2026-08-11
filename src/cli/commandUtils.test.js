@@ -1,10 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { hasCommand, getGitRepoInfo, execCommand, redactArgs } from './commandUtils.js';
 
 vi.mock('node:child_process', () => {
   const m = {
     spawnSync: vi.fn(),
+  };
+  return {
+    ...m,
+    default: m,
+  };
+});
+
+// getGitRepoInfo falls back to reading package.json when `git remote` fails, so
+// the fallback has to be mocked too or the result depends on where the module is
+// executed from. Under Stryker the module runs from a sandbox whose package.json
+// does resolve a repository.url, which made the "returns null" case pass locally
+// and in CI but fail Stryker's initial dry run.
+vi.mock('node:fs', () => {
+  const m = {
+    readFileSync: vi.fn(),
   };
   return {
     ...m,
@@ -63,12 +79,39 @@ describe('commandUtils', () => {
       expect(info).toEqual({ org: 'anotherorg', repo: 'anotherrepo' });
     });
 
-    it('returns null if command fails', () => {
+    it('falls back to the package.json repository url when git remote fails', () => {
       vi.mocked(spawnSync).mockReturnValue({
         status: 1,
         stdout: '',
         stderr: 'error',
       });
+      vi.mocked(readFileSync).mockReturnValue(
+        JSON.stringify({ repository: { url: 'git+https://github.com/pkgorg/pkgrepo.git' } })
+      );
+
+      expect(getGitRepoInfo()).toEqual({ org: 'pkgorg', repo: 'pkgrepo' });
+    });
+
+    it('returns null if the command fails and package.json is unreadable', () => {
+      vi.mocked(spawnSync).mockReturnValue({
+        status: 1,
+        stdout: '',
+        stderr: 'error',
+      });
+      vi.mocked(readFileSync).mockImplementation(() => {
+        throw new Error('ENOENT');
+      });
+
+      expect(getGitRepoInfo()).toBeNull();
+    });
+
+    it('returns null if the command fails and package.json has no repository', () => {
+      vi.mocked(spawnSync).mockReturnValue({
+        status: 1,
+        stdout: '',
+        stderr: 'error',
+      });
+      vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: 'wishboard' }));
 
       expect(getGitRepoInfo()).toBeNull();
     });
