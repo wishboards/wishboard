@@ -34,3 +34,10 @@ test-results/
 src/client/public/theme.css
 src/client/public/assets/*
 !src/client/public/assets/.gitkeep
+
+# Conflict-resolution and patch artifacts. These have reached PR branches before
+# (patch.diff, patch2.diff, wishes.js.orig) and are never intended deliverables.
+# See AGENTS.md section 5.
+*.orig
+*.rej
+patch*.diff
