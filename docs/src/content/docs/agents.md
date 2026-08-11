@@ -1,4 +1,8 @@
----\ntitle: Agents\n---\n## Development
+---
+title: Agents
+---
+
+## Development
 
 When starting the dev server, use background mode:
 

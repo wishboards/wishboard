@@ -1,4 +1,8 @@
----\ntitle: 0008 Automated Documentation Pipeline\n---\n# ADR 0008: Automated Documentation Pipeline (API, Architecture, UI)
+---
+title: 0008 Automated Documentation Pipeline
+---
+
+# ADR 0008: Automated Documentation Pipeline (API, Architecture, UI)
 
 - **Status:** Accepted (Phase 2 implemented)
 - **Context date:** 2026
