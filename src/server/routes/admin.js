@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import db from '../db.js';
+import db, { mapArg } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { generateDemoData } from '../demoSeeder.js';
 import logger, { stringifyIfNotEmpty } from '../logger.js';
@@ -199,14 +199,6 @@ router.post('/reset-rules', requireAdmin, async (req, res) => {
 
     // Re-seed default rules from profile
     const profileRules = getEventProfile().rules;
-
-    // SQLite boolean mapping (true -> 1, false -> 0, undefined -> null)
-    // Matches the internal mapArg in dbWrapper.
-    const mapArg = (a) => {
-      if (a === undefined) return null;
-      if (typeof a === 'boolean') return a ? 1 : 0;
-      return a;
-    };
 
     const stmts = profileRules.map((rule) => {
       return {
