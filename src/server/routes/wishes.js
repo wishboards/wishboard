@@ -259,6 +259,43 @@ function parseQueryIds(raw) {
 }
 
 /**
+ * Excludes wishes the signed-in user has hidden, via their wish_exclusions rows.
+ * @param {string} sql
+ * @param {any[]} args
+ * @param {object} searcher
+ * @returns {{ sql: string; args: any[] }}
+ */
+function applyUserExclusionFilter(sql, args, searcher) {
+  return {
+    sql:
+      sql +
+      ' AND NOT EXISTS (SELECT 1 FROM wish_exclusions x WHERE x.wish_id = w.id AND x.user_id = ?)',
+    args: [...args, searcher.id],
+  };
+}
+
+/**
+ * Excludes the ids an anonymous caller passes in the query string. Bound as a
+ * single JSON array through json_each rather than N placeholders, matching the
+ * approach taken elsewhere in this module (see #354).
+ * @param {string} sql
+ * @param {any[]} args
+ * @param {string | string[] | undefined} excludeQuery
+ * @returns {{ sql: string; args: any[] }}
+ */
+function applyQueryExclusionFilter(sql, args, excludeQuery) {
+  const excludeIds = parseQueryIds(excludeQuery);
+  if (excludeIds.length === 0) {
+    return { sql, args };
+  }
+
+  return {
+    sql: sql + ' AND w.id NOT IN (SELECT value FROM json_each(?))',
+    args: [...args, JSON.stringify(excludeIds)],
+  };
+}
+
+/**
  * Append exclusion filter clauses to the SQL query.
  * @param {object} params
  * @param {string} params.sql
@@ -268,21 +305,10 @@ function parseQueryIds(raw) {
  * @returns {{ sql: string; args: any[] }}
  */
 function applyExclusionFilter({ sql, args, searcher, excludeQuery }) {
-  let updatedSql = sql;
-  const updatedArgs = [...args];
   if (searcher) {
-    updatedSql +=
-      ' AND NOT EXISTS (SELECT 1 FROM wish_exclusions x WHERE x.wish_id = w.id AND x.user_id = ?)';
-    updatedArgs.push(searcher.id);
-  } else {
-    const excludeIds = parseQueryIds(excludeQuery);
-    if (excludeIds.length > 0) {
-      const placeholders = excludeIds.map(() => '?').join(', ');
-      updatedSql += ` AND w.id NOT IN (${placeholders})`;
-      updatedArgs.push(...excludeIds);
-    }
+    return applyUserExclusionFilter(sql, args, searcher);
   }
-  return { sql: updatedSql, args: updatedArgs };
+  return applyQueryExclusionFilter(sql, args, excludeQuery);
 }
 
 router.get('/', async (req, res) => {
@@ -341,9 +367,8 @@ router.get('/', async (req, res) => {
   if (req.query.ids) {
     const filterIds = parseQueryIds(req.query.ids);
     if (filterIds.length > 0) {
-      const placeholders = filterIds.map(() => '?').join(', ');
-      sql += ` AND w.id IN (${placeholders})`;
-      args.push(...filterIds);
+      sql += ' AND w.id IN (SELECT value FROM json_each(?))';
+      args.push(JSON.stringify(filterIds));
     }
   }
 
