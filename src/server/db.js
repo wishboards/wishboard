@@ -256,7 +256,9 @@ if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migra
   console.log('Migration complete!');
 }
 
-const mapArg = (a) => {
+// SQLite boolean mapping (true -> 1, false -> 0, undefined -> null).
+// Exported so callers building their own batch statements map args identically.
+export const mapArg = (a) => {
   if (a === undefined) return null;
   if (typeof a === 'boolean') return a ? 1 : 0;
   return a;
