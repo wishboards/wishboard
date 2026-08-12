@@ -1,6 +1,7 @@
 import { promisify } from 'node:util';
 import crypto from 'node:crypto';
 import db from './db.js';
+import { ensureArray } from './utils/arrays.js';
 
 const TOKEN_EXPIRY_MS = 1000 * 60 * 60 * 24 * 7;
 
@@ -43,7 +44,7 @@ export const parseJsonArray = (value) => {
   }
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
+    return ensureArray(parsed);
   } catch {
     return [];
   }

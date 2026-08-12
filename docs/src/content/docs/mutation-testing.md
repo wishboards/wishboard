@@ -1,3 +1,7 @@
+---
+title: Mutation Testing
+---
+
 # Mutation Testing with Stryker
 
 Wishboard uses [Stryker](https://stryker-mutator.io/) to perform **mutation testing** on both the frontend and backend codebase. Mutation testing helps us guarantee the robustness of our unit and integration tests by automatically inserting small logic bugs (mutants) into the codebase and verifying that our test suite catches them.

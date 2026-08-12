@@ -1,6 +1,10 @@
+---
+title: 0008 Automated Documentation Pipeline
+---
+
 # ADR 0008: Automated Documentation Pipeline (API, Architecture, UI)
 
-- **Status:** Proposed
+- **Status:** Accepted (Phase 2 implemented)
 - **Context date:** 2026
 
 ## Context
@@ -32,3 +36,8 @@ We will transition Wishboard to a modern, code-first, and mostly automated docum
 - **Cons:**
   - Initial overhead of rewriting existing Express routes to use Zod validation middleware.
   - Adding multiple new tools (Starlight, Storybook, Zod) to the repository dependency tree.
+
+## Tracking
+
+- Phase 2 (Astro Starlight) and dynamic repository identity injection implemented via PR referencing [#344](https://github.com/wishboards/wishboard/issues/344).
+- Phase 1 (REST API Documentation) and Phase 3 (Storybook UI) are deferred and tracked via [#344](https://github.com/wishboards/wishboard/issues/344) and [#398](https://github.com/wishboards/wishboard/issues/398) in BACKLOG.md.

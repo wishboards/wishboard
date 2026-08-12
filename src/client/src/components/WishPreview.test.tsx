@@ -54,4 +54,24 @@ describe('WishPreview', () => {
 
     expect(onOverflowChange).toHaveBeenCalledWith(true);
   });
+
+  it('renders WishCard with isEditorPreview=true and showFlag=false', () => {
+    vi.mocked(useTextFit).mockReturnValueOnce({
+      containerRef: { current: null },
+      contentRef: { current: null },
+      isOverflowing: true,
+    } as unknown as ReturnType<typeof useTextFit>);
+
+    const wish = { id: 'w4', content: 'Editor preview test' };
+    const onOverflowChange = vi.fn();
+    render(<WishPreview wish={wish} onOverflowChange={onOverflowChange} />);
+
+    // Since isEditorPreview is true and isOverflowing is mocked to true, the article should have 'text-overflow-hint' class
+    const article = screen.getByRole('article');
+    expect(article).toHaveClass('text-overflow-hint');
+
+    // Since showFlag is false, top left actions should not be rendered
+    const topActions = document.querySelector('.card-top-left-actions');
+    expect(topActions).not.toBeInTheDocument();
+  });
 });

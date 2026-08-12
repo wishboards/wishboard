@@ -3,16 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
 import {
-  formatTime,
-  formatShortTime,
-  formatValue,
   CustomTooltip,
   MetricCard,
   NoData,
   SectionTitle,
   Grid,
   MetricsToolbar,
+  GradDef,
 } from './DashboardShared';
+import { formatTime, formatShortTime, formatValue } from './DashboardUtils';
 
 describe('formatTime', () => {
   it('formats string timestamp to HH:MM', () => {
@@ -29,6 +28,34 @@ describe('formatTime', () => {
   it('returns "Invalid Date" or empty string for invalid dates', () => {
     const timeStr = formatTime('invalid-date');
     expect(['', 'Invalid Date']).toContain(timeStr);
+  });
+
+  it('returns empty string when an error is thrown', () => {
+    const badInput = {
+      valueOf: () => {
+        throw new Error('forced throw');
+      },
+    } as any;
+    expect(formatTime(badInput)).toBe('');
+  });
+});
+
+describe('GradDef', () => {
+  it('renders a linear gradient with correct id and stroke color', () => {
+    render(
+      <svg>
+        <GradDef id="test-grad" color={{ stroke: '#ff0000' }} />
+      </svg>
+    );
+    const gradient = document.querySelector('linearGradient');
+    expect(gradient).toBeInTheDocument();
+    expect(gradient).toHaveAttribute('id', 'test-grad');
+
+    const stops = document.querySelectorAll('stop');
+    expect(stops).toHaveLength(2);
+    // React outputs 'stop-color' for stopColor camelCase attribute
+    expect(stops[0]).toHaveAttribute('stop-color', '#ff0000');
+    expect(stops[1]).toHaveAttribute('stop-color', '#ff0000');
   });
 });
 
@@ -230,5 +257,49 @@ describe('CustomTooltip', () => {
 
     expect(screen.getByText('Series C:')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('renders AWS format correctly when payload is undefined', () => {
+    render(
+      <CustomTooltip
+        active={true}
+        payload={[{}]}
+        label="2023-01-01T12:00:00Z"
+        metricLabel="Bytes"
+      />
+    );
+    expect(screen.getByText('0 B')).toBeInTheDocument();
+  });
+
+  it('renders raw label correctly when active and label is undefined', () => {
+    const { container } = render(
+      <CustomTooltip active={true} payload={[{ value: 1234, name: 'Foo' }]} label={undefined} />
+    );
+    expect(screen.getByText('Foo:')).toBeInTheDocument();
+    expect(container.firstChild?.firstChild).toBeEmptyDOMElement();
+  });
+
+  it('renders correctly when payload value and color are missing', () => {
+    const { container } = render(
+      <CustomTooltip
+        active={true}
+        payload={[{ name: 'missing-color' }]}
+        label="2023-01-01T12:00:00Z"
+      />
+    );
+    expect(screen.getByText('missing-color:')).toBeInTheDocument();
+    expect(container.querySelector('div > div:nth-child(2)')).toHaveStyle({ color: '#e5e7eb' });
+  });
+
+  it('renders correctly when payload name is missing', () => {
+    render(
+      <CustomTooltip
+        active={true}
+        payload={[{ value: 10, color: 'blue' }]}
+        label="2023-01-01T12:00:00Z"
+        unit="ms"
+      />
+    );
+    expect(screen.getByText('10.0ms')).toBeInTheDocument();
   });
 });

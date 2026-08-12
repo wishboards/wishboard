@@ -875,8 +875,9 @@ describe('AccountPage', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/claim')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/claim')) {
           return {
             ok: false,
             json: async () => ({ error: 'Invalid passphrase for this wish.' }),
@@ -894,8 +895,9 @@ describe('AccountPage', () => {
     // 3. Submit with valid credentials -> success message
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/claim')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/claim')) {
           return {
             ok: true,
             json: async () => ({ success: true }),
@@ -993,8 +995,9 @@ describe('AccountPage', () => {
     // 1. API error handling
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/api/users/me')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/api/users/me')) {
           return {
             ok: false,
             json: async () => ({ error: 'Failed to update profile attributes.' }),
@@ -1012,8 +1015,9 @@ describe('AccountPage', () => {
     // 2. Success handling
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/api/users/me')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/api/users/me')) {
           return {
             ok: true,
             json: async () => ({ success: true }),
@@ -1044,8 +1048,9 @@ describe('AccountPage', () => {
     // 1. Deactivate profile success
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/deactivate')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/deactivate')) {
           return { ok: true, json: async () => ({ success: true }) };
         }
         return { ok: true, json: async () => [] };
@@ -1074,8 +1079,9 @@ describe('AccountPage', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/reactivate')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/reactivate')) {
           return { ok: true, json: async () => ({ success: true }) };
         }
         return { ok: true, json: async () => [] };
@@ -1107,8 +1113,9 @@ describe('AccountPage', () => {
     // 1. Delete preview API failure
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/delete-preview')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/delete-preview')) {
           return { ok: false, json: async () => ({ error: 'Preview failed' }) };
         }
         return { ok: true, json: async () => [] };
@@ -1126,11 +1133,12 @@ describe('AccountPage', () => {
     // 2. Delete preview success -> open modal -> confirm delete -> failure
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/delete-preview')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/delete-preview')) {
           return { ok: true, json: async () => ({ wishesCount: 2, wishmailsCount: 1 }) };
         }
-        if (typeof url === 'string' && url.includes('/delete')) {
+        if (url.includes('/delete')) {
           return { ok: false, json: async () => ({ error: 'Delete failed' }) };
         }
         return { ok: true, json: async () => [] };
@@ -1149,11 +1157,12 @@ describe('AccountPage', () => {
     // 3. Confirm delete success -> calls logout
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/delete-preview')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/delete-preview')) {
           return { ok: true, json: async () => ({ wishesCount: 2, wishmailsCount: 1 }) };
         }
-        if (typeof url === 'string' && url.includes('/delete')) {
+        if (url.includes('/delete')) {
           return { ok: true, json: async () => ({ success: true }) };
         }
         return { ok: true, json: async () => [] };
@@ -1189,8 +1198,9 @@ describe('AccountPage', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(async (url: string) => {
-        if (typeof url === 'string' && url.includes('/me/wishes')) {
+      vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+        const url = extractUrl(input);
+        if (url.includes('/me/wishes')) {
           return {
             ok: true,
             json: async () => [
@@ -1205,7 +1215,7 @@ describe('AccountPage', () => {
             ],
           };
         }
-        if (typeof url === 'string' && url.includes('/exclusions')) {
+        if (url.includes('/exclusions')) {
           return {
             ok: true,
             json: async () => [
@@ -1220,10 +1230,10 @@ describe('AccountPage', () => {
             ],
           };
         }
-        if (typeof url === 'string' && url.includes('/manage')) {
+        if (url.includes('/manage')) {
           return { ok: true, json: async () => ({ success: true }) };
         }
-        if (typeof url === 'string' && url.includes('/exclude')) {
+        if (url.includes('/exclude')) {
           return { ok: true, json: async () => ({ success: true }) };
         }
         return { ok: true, json: async () => [] };

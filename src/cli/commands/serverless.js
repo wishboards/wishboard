@@ -66,8 +66,12 @@ function readTomlValue(key, envName = 'default') {
  */
 function getOverrideValue(key, overrides) {
   const normalized = overrides.replaceAll('\\', '');
+  // Anchor on a token boundary so a shorter key can't match the tail of a longer
+  // one (e.g. DomainName matching CustomDomainName="…" and resolving the wrong
+  // value). parameter_overrides is a space-separated Key="Value" list, so the key
+  // always starts the string or follows whitespace.
   const escapedKey = escapeRegExp(key);
-  const regex = new RegExp(`${escapedKey}="([^"]*)"`);
+  const regex = new RegExp(String.raw`(?<=\s|^)${escapedKey}="([^"]*)"`);
   const match = regex.exec(normalized);
   return match ? match[1] : '';
 }
@@ -80,7 +84,7 @@ function getOverrideValue(key, overrides) {
 function assertNotSilentlyBlanked(key, resolved, tomlOverrides) {
   const normalized = tomlOverrides.replaceAll('\\', '');
   const escapedKey = escapeRegExp(key);
-  const regex = new RegExp(`${escapedKey}="([^"]+)"`);
+  const regex = new RegExp(String.raw`(?<=\s|^)${escapedKey}="([^"]+)"`);
   const raw = regex.exec(normalized);
   if (raw && !resolved) {
     throw new Error(

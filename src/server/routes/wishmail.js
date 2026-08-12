@@ -8,6 +8,7 @@ import {
   parseJsonArray,
 } from '../auth.js';
 import logger from '../logger.js';
+import { ensureArray } from '../utils/arrays.js';
 
 const router = express.Router({ mergeParams: true });
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -72,7 +73,7 @@ router.post('/', async (req, res) => {
 
   const mailId = idGenerator();
   const now = new Date().toISOString();
-  const parsedContacts = Array.isArray(return_contacts) ? JSON.stringify(return_contacts) : '[]';
+  const parsedContacts = JSON.stringify(ensureArray(return_contacts));
 
   await db
     .prepare(
