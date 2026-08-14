@@ -1,10 +1,10 @@
 ---
-title: '0004: Reject Fine-Grained Turso Permissions (Table-Level Only)'
+title: '0009: Reject Fine-Grained Turso Permissions (Table-Level Only)'
 date: 2026-08-14
 status: rejected
 ---
 
-# ADR 0004: Reject Fine-Grained Turso Permissions (Table-Level Only)
+# ADR 0009: Reject Fine-Grained Turso Permissions (Table-Level Only)
 
 ## Context
 
