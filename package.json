@@ -99,7 +99,7 @@
     "tesseract.js": "^7.0.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
-    "vite": "^8.1.4",
+    "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
   "overrides": {
