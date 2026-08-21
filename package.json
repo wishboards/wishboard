@@ -48,7 +48,7 @@
     "@aws-sdk/client-ssm": "^3.1095.0",
     "@codegenie/serverless-express": "^5.0.0",
     "@libsql/client": "^0.17.4",
-    "@wishboards/matching-engine": "^1.0.0",
+    "@wishboards/matching-engine": "^1.1.2",
     "commander": "^15.0.0",
     "cors": "^2.8.5",
     "esbuild": "^0.28.1",
