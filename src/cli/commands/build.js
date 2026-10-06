@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 export const FONTS = [
   {
-    url: 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf',
+    url: 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/fonts/NotoColorEmoji.ttf',
     dest: 'NotoColorEmoji.ttf',
   },
 ];
@@ -25,6 +25,7 @@ export function downloadFile(url, destPath, redirectCount = 0) {
       .get(url, (response) => {
         // Handle HTTP redirection (e.g. 301, 302 status codes)
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          response.resume?.();
           file.close();
           fs.unlink(destPath, () => {}); // Clean up the empty file
           downloadFile(response.headers.location, destPath, redirectCount + 1)
@@ -34,6 +35,9 @@ export function downloadFile(url, destPath, redirectCount = 0) {
         }
 
         if (response.statusCode !== 200) {
+          response.resume?.();
+          file.close();
+          fs.unlink(destPath, () => {});
           reject(new Error(`Failed to download: Status ${response.statusCode}`));
           return;
         }
@@ -44,6 +48,7 @@ export function downloadFile(url, destPath, redirectCount = 0) {
         });
       })
       .on('error', (err) => {
+        file.close();
         fs.unlink(destPath, () => {}); // Clean up partial file
         reject(err);
       });
@@ -108,7 +113,7 @@ export async function downloadFonts(opts = {}) {
       console.log(`Successfully downloaded/updated ${font.dest}`);
     } catch (err) {
       console.warn(`Could not update ${font.dest} from Google APIs: ${err.message}`);
-      if (fs.existsSync(destPath)) {
+      if (fs.existsSync(destPath) && fs.statSync(destPath).size > 0) {
         console.log(`Using cached version of ${font.dest}`);
       } else {
         console.error(`Error: Cached version of ${font.dest} not found and download failed.`);
