@@ -42,15 +42,15 @@ export const initSocket = (httpServer, corsOptions) => {
     socket.on('subscribe', async ({ channel, token } = {}) => {
       if (channel === 'sys:log') {
         const user = await getUserFromToken(token);
-        if (user?.role === 'admin') socket.join('syslog');
+        if (user?.role === 'admin') await socket.join('syslog');
       } else if (channel === 'wish:*') {
-        socket.join('wishes');
+        await socket.join('wishes');
       }
     });
 
-    socket.on('unsubscribe', ({ channel } = {}) => {
-      if (channel === 'sys:log') socket.leave('syslog');
-      else if (channel === 'wish:*') socket.leave('wishes');
+    socket.on('unsubscribe', async ({ channel } = {}) => {
+      if (channel === 'sys:log') await socket.leave('syslog');
+      else if (channel === 'wish:*') await socket.leave('wishes');
     });
 
     socket.on('disconnect', () => {
@@ -108,7 +108,7 @@ const broadcastToApiGateway = async (event, data) => {
     condition = 'WHERE sub_wishes = 1';
   }
   const query = `SELECT connection_id FROM websocket_connections ${condition}`;
-  let rows = [];
+  let rows;
   try {
     rows = await db.prepare(query).all();
   } catch (err) {

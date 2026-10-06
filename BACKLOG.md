@@ -1,4 +1,4 @@
-﻿# Wishboard Backlog
+# Wishboard Backlog
 
 This document tracks feature requests, technical debt, and future improvements that are planned but not yet implemented.
 
@@ -8,7 +8,7 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 
 ### Testing & Quality
 
-- **[#180](https://github.com/wishboards/wishboard/issues/180)** — Upgrade to ESLint 10 once `eslint-plugin-react` supports it (currently pinned to 9.x; Dependabot 10.x updates ignored). A weekly CI watcher (#181) pings this issue when the upstream peers unblock.
+- **[#180](https://github.com/wishboards/wishboard/issues/180)** — Upgrade to ESLint 10. React plugin migrated to `@eslint-react/eslint-plugin`, unblocking the ESLint 10 upgrade. (Still partially blocked by `typescript-eslint` TS 7 peers if tracking TS 7).
 - **[#313](https://github.com/wishboards/wishboard/issues/313)** — Add Playwright E2E tests for `WishScanner` using a fake video stream fixture depicting a 3x5 wish card on a flat surface.
 
 ### Database & Deployment

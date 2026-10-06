@@ -1,15 +1,9 @@
-// Version pin: `eslint` and `@eslint/js` are held on the 9.x line — Dependabot
-// bumps to 10.x were ignored (PRs #114 eslint, #129 @eslint/js). Reason:
-// `eslint-plugin-react` has no ESLint 10 support yet — on v10 it hits a removed
-// RuleContext API (jsx-eslint/eslint-plugin-react#3977; fix in PR #3979). The
-// rest of the toolchain already allows eslint ^10; this plugin is the lone
-// holdout. Lift the pin once it ships a stable release with `eslint ^10` in its
-// peers. (Related: `typescript-eslint` still peers `typescript <6.1.0`, which
-// keeps us on typescript 6.0.x and blocks the Dependabot TS 7 bump — same wait.)
+// `typescript-eslint` still peers `typescript <6.1.0`, which keeps us on
+// typescript 6.0.x and blocks the Dependabot TS 7 bump.
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-import react from 'eslint-plugin-react';
+import eslintReact from '@eslint-react/eslint-plugin';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import prettier from 'eslint-config-prettier';
@@ -61,26 +55,23 @@ export default tseslint.config(
   },
 
   // React client (browser)
+  ...[].concat(eslintReact.configs.recommended).map((config) => ({
+    ...config,
+    files: ['src/client/src/**/*.{ts,tsx,js,jsx}'],
+  })),
   {
     files: ['src/client/src/**/*.{ts,tsx,js,jsx}'],
-    ...react.configs.flat.recommended,
-    ...react.configs.flat['jsx-runtime'],
     languageOptions: {
-      ...react.configs.flat.recommended.languageOptions,
       globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
     },
-    settings: { react: { version: 'detect' } },
     plugins: {
-      react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
     },
     rules: {
-      ...react.configs.flat.recommended.rules,
-      ...react.configs.flat['jsx-runtime'].rules,
-      'react/prop-types': 'off',
-      // Apostrophes/quotes in JSX copy render fine; escaping hurts readability.
-      'react/no-unescaped-entities': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],

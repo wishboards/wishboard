@@ -30,7 +30,7 @@ Here is the triage of the 7 active issues currently tracked in the backlog and G
 | **#238** | Automated database/media backups   | **High**   | **Medium** | **P2**   | Critical for operational resilience, especially for serverless Turso/S3. Low priority for local dev setups.                                                         |
 | **#165** | `WishScanner.tsx` Stryker mutation | **Low**    | **High**   | **P3**   | Requires heavy mocking of OpenCV, Canvas 2D contexts, and rAF loops. High testing debt but low functional impact.                                                   |
 | **#261** | Stryker Mutation Review            | **Low**    | **Medium** | **P3**   | Review Stryker mutation coverage for the generalized rules engine and dynamic identity attributes to ensure logic edge cases are tested.                            |
-| **#180** | Upgrade to ESLint 10               | **Low**    | **Low**    | **P3**   | **Blocked** upstream by `eslint-plugin-react` compatibility and `typescript-eslint` TS 7 peer dependencies. Pinned for now.                                         |
+| **#180** | Upgrade to ESLint 10               | **Low**    | **Low**    | **P3**   | **Partially Blocked** by `typescript-eslint` TS 7 peer dependencies. React plugin migrated to `@eslint-react/eslint-plugin`, unblocking ESLint 10.                  |
 
 ---
 

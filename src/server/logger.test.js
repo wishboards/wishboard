@@ -12,7 +12,11 @@ describe('Logger', () => {
     vi.resetModules();
     vi.restoreAllMocks();
     if (tmpDir) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch {
+        // Ignore EPERM during test cleanup on Windows where log file handle may close asynchronously
+      }
       tmpDir = undefined;
     }
   });
