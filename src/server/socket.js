@@ -108,7 +108,7 @@ const broadcastToApiGateway = async (event, data) => {
     condition = 'WHERE sub_wishes = 1';
   }
   const query = `SELECT connection_id FROM websocket_connections ${condition}`;
-  let rows = [];
+  let rows;
   try {
     rows = await db.prepare(query).all();
   } catch (err) {

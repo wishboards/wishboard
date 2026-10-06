@@ -61,7 +61,7 @@ export const getEventProfile = () => {
 
   const { profileDir, configPath } = resolveProfileDir();
 
-  let fileContents = '';
+  let fileContents;
   try {
     fileContents = fs.readFileSync(configPath, 'utf8');
   } catch (err) {

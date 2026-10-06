@@ -750,7 +750,6 @@ export function destroyServerless(options) {
   assertCommand('sam');
 
   logStep(`Checking for existing stack '${stackName}'...`);
-  let stackStatus = '';
   if (!dryRun) {
     const res = execCommand(
       'aws',
@@ -767,7 +766,7 @@ export function destroyServerless(options) {
       ],
       { stdio: 'pipe' }
     );
-    stackStatus = res.status === 0 ? res.stdout.trim() : '';
+    const stackStatus = res.status === 0 ? res.stdout.trim() : '';
     if (!stackStatus || stackStatus === 'None') {
       logInfo(`Stack '${stackName}' does not exist or is already deleted.`);
       return;

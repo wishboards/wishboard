@@ -322,13 +322,7 @@ export function destroyOidc(options) {
   logStep('Cleaning up GitHub Repository settings...');
 
   if (hasCommand('gh')) {
-    let ghAuth = false;
-    if (dryRun) {
-      ghAuth = true;
-    } else {
-      const authCheck = execCommand('gh', ['auth', 'status'], { stdio: 'pipe' });
-      ghAuth = authCheck.status === 0;
-    }
+    const ghAuth = dryRun || execCommand('gh', ['auth', 'status'], { stdio: 'pipe' }).status === 0;
 
     if (ghAuth) {
       execCommand('gh', ['secret', 'delete', 'AWS_ROLE_TO_ASSUME'], { dryRun, stdio: 'ignore' });

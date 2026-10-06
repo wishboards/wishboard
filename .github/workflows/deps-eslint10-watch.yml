@@ -1,10 +1,8 @@
 name: Watch upstream peers (ESLint 10 / TS 7)
 
-# We pin eslint to 9.x (eslint-plugin-react has no ESLint 10 support) and
-# typescript to 6.0.x (typescript-eslint peers TS <6.1.0). This weekly job
-# checks whether those upstream peer ranges have relaxed and, when they have,
-# comments on the tracking issue (#180) once per condition so we get notified.
-# See eslint.config.js for the pin rationale.
+# We pin typescript to 6.0.x (typescript-eslint peers TS <6.1.0). This weekly job
+# checks whether that upstream peer range has relaxed and, when it has,
+# comments on the tracking issue (#180) once.
 
 on:
   schedule:
@@ -53,15 +51,8 @@ jobs:
               "$marker" "$body" | gh issue comment "$TRACKING_ISSUE" --repo "$REPO" --body-file -
           }
 
-          react=$(satisfies eslint-plugin-react eslint 10.0.0)
           tse=$(satisfies typescript-eslint typescript 7.0.0)
-          echo "eslint-plugin-react vs eslint@10 -> $react"
           echo "typescript-eslint  vs typescript@7 -> $tse"
-
-          case "$react" in
-            yes*) notify '<!-- watch:eslint-plugin-react-eslint10 -->' \
-              "✅ **eslint-plugin-react** now allows \`eslint@10\` (peer: \`${react#yes|}\`). The eslint 9.x pin can be lifted — bump \`eslint\`+\`@eslint/js\`, \`@dependabot unignore\`, and drop the note in \`eslint.config.js\`." ;;
-          esac
           case "$tse" in
             yes*) notify '<!-- watch:typescript-eslint-ts7 -->' \
               "✅ **typescript-eslint** now allows \`typescript@7\` (peer: \`${tse#yes|}\`). The TypeScript 7 bump (#176) is unblocked." ;;
