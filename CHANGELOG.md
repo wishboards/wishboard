@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.24.5](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.4...wishboard-v1.24.5) (2026-10-06)
+
+
+### Bug Fixes
+
+* **build:** update NotoColorEmoji URL and prevent stream leak on failed download ([5de7604](https://github.com/wishboards/wishboard/commit/5de76046ffcea61de251eed9d7de38fe00fdfab2))
+* **socket:** await socket.join and socket.leave promises ([5de7604](https://github.com/wishboards/wishboard/commit/5de76046ffcea61de251eed9d7de38fe00fdfab2))
+
 ## [1.24.4](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.3...wishboard-v1.24.4) (2026-08-11)
 
 
