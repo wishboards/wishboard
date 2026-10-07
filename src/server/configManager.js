@@ -54,27 +54,7 @@ const resolveProfileDir = () => {
   return { profileDir: repoDir, configPath: repoPath };
 };
 
-export const getEventProfile = () => {
-  if (cachedConfig) {
-    return cachedConfig;
-  }
-
-  const { profileDir, configPath } = resolveProfileDir();
-
-  let fileContents;
-  try {
-    fileContents = fs.readFileSync(configPath, 'utf8');
-  } catch (err) {
-    console.error(`Failed to read event profile config at ${configPath}:`, err.message);
-    throw err;
-  }
-
-  const config = yaml.parse(fileContents);
-
-  // --- Merge split YAML files (rules, stickers, demo_seeds) ---
-  // Separate files take precedence over inline keys in the monolithic profile.yaml.
-  // If both exist, log a warning so operators know the inline value was overridden.
-
+const mergeSplitYamlFiles = (config, profileDir) => {
   const rulesFile = loadOptionalYaml(path.join(profileDir, 'rules.yaml'));
   if (rulesFile?.rules) {
     if (config.rules && config.rules.length > 0) {
@@ -106,6 +86,26 @@ export const getEventProfile = () => {
   } else if (!config.demo_seeds) {
     config.demo_seeds = null;
   }
+};
+
+export const getEventProfile = () => {
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  const { profileDir, configPath } = resolveProfileDir();
+
+  let fileContents;
+  try {
+    fileContents = fs.readFileSync(configPath, 'utf8');
+  } catch (err) {
+    console.error(`Failed to read event profile config at ${configPath}:`, err.message);
+    throw err;
+  }
+
+  const config = yaml.parse(fileContents);
+
+  mergeSplitYamlFiles(config, profileDir);
 
   // --- Defaults for missing optional keys ---
   if (!config.rules) {
