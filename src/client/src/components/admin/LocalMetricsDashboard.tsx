@@ -16,7 +16,7 @@
  *   - Mean response time (ms)
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -36,6 +36,8 @@ import {
   Grid,
   MetricsToolbar,
   GradDef,
+  useMetricsFetcher,
+  ErrorBanner,
 } from './DashboardShared';
 import { formatShortTime, COLORS as C, TICK_STYLE } from './DashboardUtils';
 
@@ -393,61 +395,15 @@ interface LocalMetricsDashboardProps {
   authHeader: Record<string, string>;
 }
 
-function useLocalMetrics(authHeader: Record<string, string>) {
-  const [data, setData] = useState<LocalMetricsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fetchMetrics = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/admin/local-metrics', { headers: authHeader });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      setData(await res.json());
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [authHeader]);
-
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
-
-  useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(fetchMetrics, AUTO_REFRESH_MS);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [autoRefresh, fetchMetrics]);
-
-  return {
-    data,
-    loading,
-    error,
-    autoRefresh,
-    setAutoRefresh,
-    fetchMetrics,
-  };
-}
-
 export default function LocalMetricsDashboard({
   authHeader,
 }: Readonly<LocalMetricsDashboardProps>) {
   const { data, loading, error, autoRefresh, setAutoRefresh, fetchMetrics } =
-    useLocalMetrics(authHeader);
+    useMetricsFetcher<LocalMetricsResponse>(
+      '/api/admin/local-metrics',
+      authHeader,
+      AUTO_REFRESH_MS
+    );
 
   return (
     <div style={{ color: '#e5e7eb' }}>
@@ -460,21 +416,7 @@ export default function LocalMetricsDashboard({
         refreshIntervalLabel="10s"
       />
 
-      {error && (
-        <div
-          style={{
-            background: '#1c0a0a',
-            border: '1px solid #7f1d1d',
-            borderRadius: '6px',
-            padding: '12px 16px',
-            color: '#fca5a5',
-            fontSize: '13px',
-            marginBottom: '16px',
-          }}
-        >
-          <strong>Error:</strong> {error}
-        </div>
-      )}
+      {error && <ErrorBanner error={error} />}
 
       {loading && !data && (
         <div style={{ color: '#6b7280', fontSize: '13px', padding: '24px 0' }}>
