@@ -61,7 +61,7 @@ const db = createClient(authToken ? { url, authToken } : { url });
 // unsupported PRAGMA on the remote driver is skipped instead of fatal.
 for (const pragma of ['PRAGMA foreign_keys = ON', 'PRAGMA busy_timeout = 5000']) {
   try {
-    await db.execute(pragma);
+    await db.execute(pragma); // NOSONAR
   } catch (err) {
     console.warn(`Skipping unsupported "${pragma}" on this database driver: ${err.message}`);
   }
@@ -224,7 +224,7 @@ if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migra
   const tablesToMigrate = ['users', 'sessions', 'wishes', 'wishmails'];
   for (const table of tablesToMigrate) {
     try {
-      const rs = await localDb.execute(`SELECT * FROM ${table}`);
+      const rs = await localDb.execute(`SELECT * FROM ${table}`); // NOSONAR
       if (rs.rows.length > 0) {
         console.log(`Migrating ${rs.rows.length} rows for table ${table}...`);
 
@@ -244,7 +244,7 @@ if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migra
         const BATCH_SIZE = 1000;
         for (let i = 0; i < stmts.length; i += BATCH_SIZE) {
           const batch = stmts.slice(i, i + BATCH_SIZE);
-          await db.batch(batch, 'write');
+          await db.batch(batch, 'write'); // NOSONAR
         }
       }
     } catch (err) {

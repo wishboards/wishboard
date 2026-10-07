@@ -18,8 +18,7 @@ function logInfo(msg) {
 function logError(msg) {
   console.error(`\x1b[31mERROR: ${msg}\x1b[0m`);
 }
-
-const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /** Reads a scalar value (e.g. stack_name, region, profile) from samconfig.toml for a given config environment. */
 function readTomlValue(key, envName = 'default') {

@@ -59,7 +59,6 @@ export default function SendWishmailModal({ wishId, onClose }: Readonly<SendWish
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="What would you like to say to the wish creator?"
-                autoFocus
               />
             </label>
 

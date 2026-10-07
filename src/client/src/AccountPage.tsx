@@ -371,7 +371,7 @@ function UnauthenticatedAccountPage() {
   }, [excludedIds]);
 
   useEffect(() => {
-    loadHiddenWishes();
+    void loadHiddenWishes();
   }, [loadHiddenWishes]);
 
   const onLogin = async (event: React.SyntheticEvent<HTMLFormElement>) => {
@@ -537,11 +537,11 @@ function AuthenticatedAccountPage() {
   }, [user, token]);
 
   useEffect(() => {
-    loadWishes();
+    void loadWishes();
   }, [loadWishes]);
 
   useEffect(() => {
-    loadHiddenWishes();
+    void loadHiddenWishes();
   }, [loadHiddenWishes]);
 
   useEffect(() => {
@@ -606,7 +606,7 @@ function AuthenticatedAccountPage() {
       return;
     }
     setMessage('Wish deleted successfully.');
-    loadWishes();
+    void loadWishes();
   };
 
   const unhideWish = async (id: string) => {
@@ -622,7 +622,7 @@ function AuthenticatedAccountPage() {
         return;
       }
       setMessage('Wish is now visible again.');
-      loadHiddenWishes();
+      void loadHiddenWishes();
     } catch {
       setError('Error un-hiding wish.');
     }
@@ -669,7 +669,7 @@ function AuthenticatedAccountPage() {
     }
     setMessage(`Profile ${user?.is_active ? 'deactivated' : 'reactivated'} successfully.`);
     if (refreshUser) await refreshUser();
-    loadWishes();
+    void loadWishes();
   };
 
   if (!user) return null; // Should not happen if correctly gated

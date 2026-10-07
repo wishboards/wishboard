@@ -47,9 +47,9 @@ export function useExcludedWishes() {
     }
 
     if (token && user) {
-      loadServerExclusions();
+      void loadServerExclusions();
     } else {
-      loadLocalExclusions();
+      void loadLocalExclusions();
     }
 
     return () => {

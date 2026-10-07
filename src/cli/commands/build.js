@@ -109,7 +109,7 @@ export async function downloadFonts(opts = {}) {
   for (const font of FONTS) {
     const destPath = path.join(targetDir, font.dest);
     try {
-      await downloadFile(font.url, destPath);
+      await downloadFile(font.url, destPath); // NOSONAR
       console.log(`Successfully downloaded/updated ${font.dest}`);
     } catch (err) {
       console.warn(`Could not update ${font.dest} from Google APIs: ${err.message}`);

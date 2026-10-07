@@ -48,7 +48,7 @@ export default function DisplayPage({ onEnterKiosk, isKiosk }: DisplayPageProps 
   }, [loadWishes]);
 
   useEffect(() => {
-    loadWishes();
+    void loadWishes();
     resetTimer();
     return () => {
       if (timerRef.current) globalThis.clearInterval(timerRef.current);

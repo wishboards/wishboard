@@ -281,7 +281,7 @@ export default function MatchingRulesSection({
   }, [authHeader, setError]);
 
   useEffect(() => {
-    loadRules();
+    void loadRules();
   }, [refreshCounter, loadRules]);
 
   const filteredRules = useMemo(() => {
@@ -322,7 +322,7 @@ export default function MatchingRulesSection({
       return;
     }
     setMessage(`Deleted rule ${id}`);
-    loadRules();
+    void loadRules();
   };
 
   const editRule = (rule: Rule) => {
@@ -365,7 +365,7 @@ export default function MatchingRulesSection({
     setMessage(`Rule ${editingRuleId ? 'updated' : 'created'} successfully.`);
     setNewRule(emptyRule);
     setEditingRuleId(null);
-    loadRules();
+    void loadRules();
   };
 
   return (
