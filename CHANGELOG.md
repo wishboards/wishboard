@@ -3,6 +3,21 @@
 ## [1.25.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.5...wishboard-v1.25.0) (2026-10-07)
 
 
+### Dependencies
+
+* Rollup of dependency, security, and toolchain updates:
+  * **testing:** upgrade `vitest` and `@vitest/coverage-v8` to 5.0.3 ([#468](https://github.com/wishboards/wishboard/issues/468))
+  * **security:** patch `proxy-addr` to 2.0.8 (CVE-2026-90711) and `source-map-js` to 1.2.2 (CVE-2026-93749) ([#463](https://github.com/wishboards/wishboard/issues/463), [#466](https://github.com/wishboards/wishboard/issues/466))
+  * **stryker:** upgrade `@stryker-mutator/core` and `@stryker-mutator/vitest-runner` to 10.0.0 ([#449](https://github.com/wishboards/wishboard/issues/449))
+  * **server:** bump `morgan` to 1.12.1 and `multer` to 2.4.0 ([#466](https://github.com/wishboards/wishboard/issues/466))
+  * **aws-sdk:** bump `@aws-sdk/client-ssm` from 3.1095.0 to 3.1123.0 ([#456](https://github.com/wishboards/wishboard/issues/456))
+  * **eslint:** bump `eslint-plugin-react-refresh` from 0.5.4 to 0.5.5 ([#454](https://github.com/wishboards/wishboard/issues/454))
+  * **toolchain:** bump `globals` from 17.9.0 to 17.13.0 ([#452](https://github.com/wishboards/wishboard/issues/452))
+  * **build:** bump `svgo` ([#457](https://github.com/wishboards/wishboard/issues/457))
+  * **actions:** bump `SonarSource/sonarqube-scan-action` to 8.3.0 ([#460](https://github.com/wishboards/wishboard/issues/460)) and `aws-actions/configure-aws-credentials` to 6.3.0 ([#458](https://github.com/wishboards/wishboard/issues/458))
+  * **transitive:** rollup updates for `moment`, `qs`, `undici`, `fflate`, `ip-address`, `node-releases`, `smol-toml` ([#463](https://github.com/wishboards/wishboard/issues/463), [#466](https://github.com/wishboards/wishboard/issues/466))
+
+
 ### Miscellaneous Chores
 
 * release 1.25.0 ([#465](https://github.com/wishboards/wishboard/issues/465)) ([e24883f](https://github.com/wishboards/wishboard/commit/e24883f00d90750e1a5225c0cf90820363ee0140))
