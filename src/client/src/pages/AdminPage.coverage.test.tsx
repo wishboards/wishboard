@@ -15,7 +15,7 @@ vi.mock('../AuthContext', () => ({
 describe('AdminPage Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.location = { ...globalThis.location, hash: '' } as unknown as Location;
+    globalThis.location.hash = '';
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => [],

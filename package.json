@@ -77,7 +77,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.3",
     "c8": "^12.0.0",
     "concurrently": "^10.0.4",
     "eslint": "^10.0.0",
@@ -100,7 +100,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "debug": "^4.3.4",
