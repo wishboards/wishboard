@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.5...wishboard-v1.25.0) (2026-10-07)
+
+
+### Miscellaneous Chores
+
+* release 1.25.0 ([#465](https://github.com/wishboards/wishboard/issues/465)) ([e24883f](https://github.com/wishboards/wishboard/commit/e24883f00d90750e1a5225c0cf90820363ee0140))
+
 ## [1.24.5](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.4...wishboard-v1.24.5) (2026-10-06)
 
 
