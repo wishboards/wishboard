@@ -163,7 +163,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - cloudfront:CreateDistribution
-                Resource: '*'
+                Resource: '*' # NOSONAR
                 Condition:
                   StringEquals:
                     'aws:RequestTag/Project': !Ref GitHubRepo

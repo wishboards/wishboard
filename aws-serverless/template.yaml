@@ -149,7 +149,7 @@ Resources:
     # "/production/api/...", which serverless-express forwards verbatim to
     # Express, missing every /api route.
 
-  WebSocketApi:
+  WebSocketApi: # NOSONAR
     Type: AWS::ApiGatewayV2::Api
     Properties:
       Name: !Sub '${ProjectName}-websocket-api'

@@ -9,7 +9,7 @@
  * Auto-refreshes every 30 seconds by default.
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -27,6 +27,8 @@ import {
   Grid,
   MetricsToolbar,
   GradDef,
+  useMetricsFetcher,
+  ErrorBanner,
 } from './DashboardShared';
 import {
   DataPoint,
@@ -154,46 +156,8 @@ interface AwsMetricsDashboardProps {
 }
 
 export default function AwsMetricsDashboard({ authHeader }: Readonly<AwsMetricsDashboardProps>) {
-  const [data, setData] = useState<AwsMetricsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const fetchMetrics = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/admin/aws-metrics', { headers: authHeader });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${response.status}`);
-      }
-      setData(await response.json());
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error fetching metrics.';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [authHeader]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
-
-  // Auto-refresh timer
-  useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(fetchMetrics, AUTO_REFRESH_MS);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [autoRefresh, fetchMetrics]);
+  const { data, loading, error, autoRefresh, setAutoRefresh, fetchMetrics } =
+    useMetricsFetcher<AwsMetricsResponse>('/api/admin/aws-metrics', authHeader, AUTO_REFRESH_MS);
 
   return (
     <div style={{ color: '#e5e7eb' }}>
@@ -208,18 +172,7 @@ export default function AwsMetricsDashboard({ authHeader }: Readonly<AwsMetricsD
 
       {/* Error state */}
       {error && (
-        <div
-          style={{
-            background: '#1c0a0a',
-            border: '1px solid #7f1d1d',
-            borderRadius: '6px',
-            padding: '12px 16px',
-            color: '#fca5a5',
-            fontSize: '13px',
-            marginBottom: '16px',
-          }}
-        >
-          <strong>Error:</strong> {error}
+        <ErrorBanner error={error}>
           {error.toLowerCase().includes('iam') ||
           error.toLowerCase().includes('access denied') ||
           error.toLowerCase().includes('not authorized') ? (
@@ -228,7 +181,7 @@ export default function AwsMetricsDashboard({ authHeader }: Readonly<AwsMetricsD
               <code>aws-serverless/template.yaml</code> → <code>ApiFunction.Policies</code>.
             </p>
           ) : null}
-        </div>
+        </ErrorBanner>
       )}
 
       {/* Skeleton / loading on first load */}

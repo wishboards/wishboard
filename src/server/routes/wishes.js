@@ -312,24 +312,39 @@ function applyExclusionFilter({ sql, args, searcher, excludeQuery }) {
   return applyQueryExclusionFilter(sql, args, excludeQuery);
 }
 
-router.get('/', async (req, res) => {
-  const searcher = await getRequestUser(req);
-  const query = (req.query.q || '').trim();
-  const manualAttributes = req.query.attributes ? parseJsonSafe(req.query.attributes) : {};
+function extractSearchAttributes(query) {
+  const manualAttributes = query.attributes ? parseJsonSafe(query.attributes) : {};
   const queryAliasMap = { sg: 'gender', so: 'orientation', sr: 'role' };
   for (const [alias, cat] of Object.entries(queryAliasMap)) {
-    if (req.query[alias] && !manualAttributes[cat]) {
-      manualAttributes[cat] = normalizeArrayInput(req.query[alias]);
+    if (query[alias] && !manualAttributes[cat]) {
+      manualAttributes[cat] = normalizeArrayInput(query[alias]);
     }
   }
-  for (const [key, val] of Object.entries(req.query)) {
-    if (['q', 'sg', 'so', 'sr', 'attributes', 'ignore_attributes', 'page', 'limit'].includes(key))
+  for (const [key, val] of Object.entries(query)) {
+    if (
+      [
+        'q',
+        'sg',
+        'so',
+        'sr',
+        'attributes',
+        'ignore_attributes',
+        'page',
+        'limit',
+        'ids',
+        'exclude',
+        'include_excluded',
+      ].includes(key)
+    )
       continue;
     if (!manualAttributes[key]) {
       manualAttributes[key] = normalizeArrayInput(val);
     }
   }
+  return manualAttributes;
+}
 
+function mergeSearcherAttributes(searcher, manualAttributes) {
   let searcherAttributes = {};
   if (searcher?.identity_attributes) {
     searcherAttributes =
@@ -343,6 +358,15 @@ router.get('/', async (req, res) => {
       searcherAttributes[key] = normalizeArrayInput(value);
     }
   }
+  return searcherAttributes;
+}
+
+router.get('/', async (req, res) => {
+  const searcher = await getRequestUser(req);
+  const query = (req.query.q || '').trim();
+
+  const manualAttributes = extractSearchAttributes(req.query);
+  const searcherAttributes = mergeSearcherAttributes(searcher, manualAttributes);
 
   const ignoreAttributes =
     req.query.ignore_attributes === '1' ||
