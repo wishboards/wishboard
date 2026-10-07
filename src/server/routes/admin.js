@@ -220,7 +220,7 @@ router.post('/reset-rules', requireAdmin, async (req, res) => {
     const BATCH_SIZE = 1000;
     for (let i = 0; i < stmts.length; i += BATCH_SIZE) {
       const batch = stmts.slice(i, i + BATCH_SIZE);
-      await db.batch(batch, 'write');
+      await db.batch(batch, 'write'); // NOSONAR
     }
 
     // Synchronize the memory cache

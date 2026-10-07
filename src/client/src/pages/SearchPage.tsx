@@ -187,7 +187,7 @@ export default function SearchPage() {
 
   const handleExclude = useCallback(
     (id: string) => {
-      excludeWish(id);
+      void excludeWish(id);
       setResults((prev) => prev.filter((w) => w.id !== id));
       setJustExcludedId(id);
       setTimeout(() => {
@@ -199,7 +199,7 @@ export default function SearchPage() {
 
   const handleUndoExclude = useCallback(() => {
     if (justExcludedId) {
-      unexcludeWish(justExcludedId);
+      void unexcludeWish(justExcludedId);
       if (lastSearchParams !== null) {
         fetch(`/api/wishes?${lastSearchParams}`)
           .then((res) => (res.ok ? res.json() : []))

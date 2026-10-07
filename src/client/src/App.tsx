@@ -370,7 +370,6 @@ const ExitKioskModal = React.memo(function ExitKioskModal({
               value={kioskUsername}
               onChange={(e) => setKioskUsername(e.target.value)}
               placeholder="e.g. admin"
-              autoFocus
             />
           </label>
           <label>

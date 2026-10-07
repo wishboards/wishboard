@@ -206,7 +206,7 @@ router.get('/', async (req, res) => {
         ...(nextToken ? { NextToken: nextToken } : {}),
       });
 
-      const response = await client.send(command);
+      const response = await client.send(command); // NOSONAR
       nextToken = response.NextToken;
 
       for (const result of response.MetricDataResults ?? []) {

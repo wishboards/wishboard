@@ -67,8 +67,8 @@ export default function UserAccountsSection({
   };
 
   useEffect(() => {
-    loadUsers();
-    loadConfig();
+    void loadUsers();
+    void loadConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshCounter]);
 
@@ -86,7 +86,7 @@ export default function UserAccountsSection({
       return;
     }
     setMessage(`Updated user role for ${id}`);
-    loadUsers();
+    void loadUsers();
   };
 
   const resetPassphrase = async (id: string) => {
@@ -144,7 +144,7 @@ export default function UserAccountsSection({
       return;
     }
     setMessage(`Deleted user ${id}`);
-    loadUsers();
+    void loadUsers();
   };
 
   return (

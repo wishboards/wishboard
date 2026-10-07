@@ -64,6 +64,7 @@ const migrateLocalStorageExclusions = async (token: string) => {
     if (!Array.isArray(localIds) || localIds.length === 0) return;
     for (const wishId of localIds) {
       await fetch('/api/users/me/exclusions', {
+        // NOSONAR
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -108,7 +109,7 @@ function useRefreshUser({
   }, [token, setToken, setUser]);
 
   useEffect(() => {
-    refreshUser();
+    void refreshUser();
   }, [refreshUser]);
 
   return { refreshUser };

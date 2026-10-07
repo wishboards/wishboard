@@ -33,7 +33,7 @@ function useFlaggedWishes(
   }, [authHeader, setError]);
 
   useEffect(() => {
-    loadFlags();
+    void loadFlags();
   }, [refreshCounter, loadFlags]);
 
   const { socket } = useWebSocket();
@@ -106,7 +106,7 @@ export default function FlaggedWishesSection({
       return;
     }
     setMessage(`Removed wish ${id}`);
-    loadFlags();
+    void loadFlags();
   };
 
   const clearFlag = async (id: string) => {
@@ -121,7 +121,7 @@ export default function FlaggedWishesSection({
       return;
     }
     setMessage(`Cleared flag for wish ${id}`);
-    loadFlags();
+    void loadFlags();
   };
 
   const clearAllFlags = async () => {
@@ -138,7 +138,7 @@ export default function FlaggedWishesSection({
       return;
     }
     setMessage('Cleared all flags successfully.');
-    loadFlags();
+    void loadFlags();
   };
 
   return (

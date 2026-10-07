@@ -211,7 +211,7 @@ export default function WishScanner({
         console.error('Error loading OpenCV', err);
       }
     }
-    loadOpenCV();
+    void loadOpenCV();
     return () => {
       active = false;
     };
@@ -231,7 +231,7 @@ export default function WishScanner({
         handleCameraError(err, setIsProcessing, setProcessingStatus);
       }
     }
-    setupCamera();
+    void setupCamera();
 
     return () => {
       if (activeStream) {
