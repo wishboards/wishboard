@@ -301,6 +301,10 @@ else
         echo "address=/$DOMAIN_NAME/$AP_IP" | sudo tee "/etc/dnsmasq.d/wishboard.conf" > /dev/null
     fi
     sudo systemctl reload NetworkManager || true
+    if nmcli con show --active 2>/dev/null | grep -q "Hotspot"; then
+        sudo nmcli con down Hotspot 2>/dev/null || true
+        sudo nmcli con up Hotspot 2>/dev/null || true
+    fi
     echo "Local DNS redirection enabled."
 fi
 
