@@ -45,12 +45,20 @@ sudo loginctl enable-linger wishboard
 
 echo "Initializing Rootless Docker for wishboard user..."
 # Use machinectl to spawn a proper systemd user session shell and install rootless docker
-sudo machinectl shell wishboard@ /bin/bash -c "PATH=/usr/bin:/sbin:/usr/sbin:\$PATH dockerd-rootless-setuptool.sh install"
+sudo machinectl shell wishboard@ /bin/bash -c "PATH=/usr/bin:/sbin:/usr/sbin:\$PATH dockerd-rootless-setuptool.sh install" || true
+sudo systemctl --user -M wishboard@ restart docker 2>/dev/null || true
 
 echo "Exporting DOCKER_HOST for wishboard user..."
 sudo -u wishboard bash -c 'grep -q "DOCKER_HOST" ~/.bashrc || echo "export DOCKER_HOST=unix:///run/user/\$(id -u)/docker.sock" >> ~/.bashrc'
 
 echo "Configuring Wireless Access Point (Hotspot) for Mode: $MODE..."
+
+# Ensure NetworkManager keeps Wi-Fi power saving disabled on all interfaces
+sudo tee /etc/NetworkManager/conf.d/disable-wifi-powersave.conf > /dev/null << 'EOF'
+[connection]
+wifi.powersave = 2
+EOF
+sudo /sbin/iw dev wlan0 set power_save off 2>/dev/null || true
 
 if [[ "$MODE" = "dev" ]]; then
   echo "Dev Mode: Skipping all network modifications. Using existing connections."
@@ -182,10 +190,13 @@ echo "Configuring DNS and Nginx Reverse Proxy..."
 
 # Always configure Nginx for external port forwarding
 BASE_DOMAIN=$(echo "$DOMAIN_NAME" | grep -oE '[^.]+\.[^.]+$')
-CERT_DIR="/etc/letsencrypt/live/$BASE_DOMAIN"
-if [[ ! -d "$CERT_DIR" ]]; then
+if [[ -d "/etc/letsencrypt/live/$DOMAIN_NAME" ]]; then
+    CERT_DIR="/etc/letsencrypt/live/$DOMAIN_NAME"
+elif [[ -d "/etc/letsencrypt/live/$BASE_DOMAIN" ]]; then
+    CERT_DIR="/etc/letsencrypt/live/$BASE_DOMAIN"
+else
     ALT_DIR=$(ls -d /etc/letsencrypt/live/*/ 2>/dev/null | head -n 1)
-    if [[ ! -z "$ALT_DIR" ]]; then
+    if [[ -n "$ALT_DIR" ]]; then
         CERT_DIR=${ALT_DIR%/}
     fi
 fi
@@ -341,7 +352,7 @@ while ! curl -s http://localhost:3000 > /dev/null; do
   sleep 1
 done
 while true; do
-  chromium --kiosk --noerrdialogs --disable-infobars --app=http://localhost:3000/#display?kiosk=true --disable-translate --disable-features=Translate --fast --fast-start --password-store=basic
+  chromium --kiosk --noerrdialogs --disable-infobars --app=http://localhost:3000/#display?kiosk=true --disable-translate --disable-features=Translate --fast --fast-start --password-store=basic --disk-cache-size=33554432
   sleep 1
 done
 EOF
