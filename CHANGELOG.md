@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.25.0...wishboard-v1.25.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* address multiple SonarCloud code quality issues ([bb98726](https://github.com/wishboards/wishboard/commit/bb9872671697c99bcb92a6e7ddcd93c741dbf158))
+
 ## [1.25.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.24.5...wishboard-v1.25.0) (2026-10-07)
 
 
