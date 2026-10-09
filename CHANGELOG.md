@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.25.1...wishboard-v1.25.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* 🔒 bump matching-engine and patch npm vulnerabilities ([#477](https://github.com/wishboards/wishboard/issues/477)) ([6400974](https://github.com/wishboards/wishboard/commit/640097477c903a366047c370a98e0055a344ada7))
+
 ## [1.25.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.25.0...wishboard-v1.25.1) (2026-10-07)
 
 
