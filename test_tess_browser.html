@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body>
+<input type="file" id="file" />
+<script type="module">
+import Tesseract from 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/tesseract.esm.min.js';
+
+document.getElementById('file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  console.log('File selected:', file.name);
+  const { data: { text } } = await Tesseract.recognize(file, 'eng');
+  console.log('Text:', text);
+});
+</script>
+</body>
+</html>
