@@ -84,7 +84,7 @@ test.describe('Wishboard E2E Smoke Tests', () => {
     }
 
     // 5. Navigate to Admin Panel and login
-    await page.click('button:has-text("Admin")');
+    await page.goto('/#admin');
     await expect(page.locator('h1')).toHaveText('Admin Panel');
 
     // Log in
