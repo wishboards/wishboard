@@ -8,6 +8,11 @@ services:
     volumes:
       - ./data/db:/var/lib/sqld
     restart: unless-stopped
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
     environment:
       - RUST_LOG=info
 
@@ -24,6 +29,11 @@ services:
     volumes:
       - ./data:/app/data
     restart: unless-stopped
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
     environment:
       - NODE_ENV=production
       - DATABASE_URL=http://db:8080
