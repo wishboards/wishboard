@@ -20,6 +20,7 @@ const pages = [
   { id: 'display', label: 'Big Screen', icon: '📺' },
   { id: 'account', label: 'My Account', icon: '👤' },
   { id: 'about', label: 'About', icon: '' },
+  { id: 'admin', label: 'Admin', icon: '' },
 ];
 
 type PageId =

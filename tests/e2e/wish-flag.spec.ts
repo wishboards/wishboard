@@ -34,7 +34,7 @@ test.describe('Wish Flagging & Admin Moderation E2E Tests', () => {
     await expect(wishCard).not.toBeVisible();
 
     // 4. Admin log in
-    await page.click('button:has-text("Admin")');
+    await page.goto('/#admin');
     await page.fill('label:has-text("Admin username") input', 'admin');
     await page.fill('#admin-passphrase', 'e2e-admin-password');
     await page.click('button[type="submit"]:has-text("Login as Admin")');
