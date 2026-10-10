@@ -347,11 +347,15 @@ export async function processCardImage(
   dstTri.delete();
   transform.delete();
 
-  const {
-    data: { text },
-  } = await Tesseract.recognize(finalCanvas.toDataURL('image/jpeg'), 'eng', {
+  const worker = await Tesseract.createWorker('eng', 1, {
     logger: (m) => console.log(m),
   });
+
+  const {
+    data: { text },
+  } = await worker.recognize(finalCanvas.toDataURL('image/jpeg'));
+
+  await worker.terminate();
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     finalCanvas.toBlob(
