@@ -154,14 +154,6 @@ describe('App Coverage', () => {
       expect(globalThis.window.location.hash).toBe('#about');
     }
 
-    fireEvent.click(moreTab);
-    const adminBtn = screen
-      .getAllByText('Admin')
-      .find((el) => el.tagName === 'BUTTON' && el.className.includes('hamburger-item'));
-    if (adminBtn) {
-      fireEvent.click(adminBtn);
-      expect(globalThis.window.location.hash).toBe('#admin');
-    }
   });
 
   it('closes mobile hamburger menu with Escape key', async () => {

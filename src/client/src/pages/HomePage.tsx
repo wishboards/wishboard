@@ -34,9 +34,6 @@ export default function HomePage({ onNavigate }: Readonly<HomePageProps>) {
         <button type="button" onClick={() => onNavigate('about')}>
           About Wishboard
         </button>
-        <button type="button" onClick={() => onNavigate('admin')}>
-          Admin
-        </button>
       </div>
     </section>
   );

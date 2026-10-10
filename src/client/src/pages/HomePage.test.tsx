@@ -7,9 +7,6 @@ describe('HomePage', () => {
     const onNavigate = vi.fn();
     render(<HomePage onNavigate={onNavigate} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Admin/i }));
-    expect(onNavigate).toHaveBeenCalledWith('admin');
-
     fireEvent.click(screen.getByRole('button', { name: /Enter a Wish/i }));
     expect(onNavigate).toHaveBeenCalledWith('enter');
 

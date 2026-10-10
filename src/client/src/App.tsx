@@ -20,7 +20,6 @@ const pages = [
   { id: 'display', label: 'Big Screen', icon: '📺' },
   { id: 'account', label: 'My Account', icon: '👤' },
   { id: 'about', label: 'About', icon: '' },
-  { id: 'admin', label: 'Admin', icon: '' },
 ];
 
 type PageId =
@@ -307,16 +306,6 @@ const MobileHamburgerMenu = React.memo(function MobileHamburgerMenu({
             }}
           >
             About
-          </button>
-          <button
-            type="button"
-            className="hamburger-item"
-            onClick={() => {
-              navigate('admin');
-              setIsMobileMenuOpen(false);
-            }}
-          >
-            Admin
           </button>
           {user && (
             <button
