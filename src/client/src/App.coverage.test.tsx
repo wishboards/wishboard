@@ -153,7 +153,6 @@ describe('App Coverage', () => {
       fireEvent.click(aboutBtn);
       expect(globalThis.window.location.hash).toBe('#about');
     }
-
   });
 
   it('closes mobile hamburger menu with Escape key', async () => {
