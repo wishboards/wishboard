@@ -308,6 +308,16 @@ const MobileHamburgerMenu = React.memo(function MobileHamburgerMenu({
           >
             About
           </button>
+          <button
+            type="button"
+            className="hamburger-item"
+            onClick={() => {
+              navigate('admin');
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            Admin
+          </button>
           {user && (
             <button
               type="button"

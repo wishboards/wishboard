@@ -3,7 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Admin Panel Navigation & Sections E2E Tests', () => {
   test('should login as admin and interact with all admin tabs and sidebar', async ({ page }) => {
     // 1. Visit Admin page
-    await page.goto('/#admin');
+    await page.goto('/');
+    await page.click('button:has-text("Admin")');
     await expect(page.locator('h1')).toHaveText('Admin Panel');
 
     // 2. Log in
