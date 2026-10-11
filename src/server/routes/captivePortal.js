@@ -150,28 +150,30 @@ router.get('/canonical.html', (req, res) => {
   }
 });
 
+function sendAdmittedProbeResponse(host, res) {
+  if (host.includes('apple') || host.includes('firefox')) {
+    return res
+      .status(200)
+      .type('text/html')
+      .send('<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>');
+  }
+  if (host.includes('gstatic') || host.includes('google') || host.includes('android')) {
+    return res.status(204).end();
+  }
+  if (host.includes('msft') || host.includes('microsoft')) {
+    return res.status(200).type('text/plain').send('Microsoft Connect Test');
+  }
+  return null;
+}
+
 export const captivePortalMiddleware = (req, res, next) => {
   const host = req.get('host') || '';
   // If request is targeting a known probe host at root '/'
   if (isProbeHost(host) && (req.path === '/' || req.path === '')) {
     if (isClientAdmitted(req.ip)) {
-      if (host.includes('apple')) {
-        return res
-          .status(200)
-          .type('text/html')
-          .send('<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>');
-      }
-      if (host.includes('gstatic') || host.includes('google') || host.includes('android')) {
-        return res.status(204).end();
-      }
-      if (host.includes('msft') || host.includes('microsoft')) {
-        return res.status(200).type('text/plain').send('Microsoft Connect Test');
-      }
-      if (host.includes('firefox')) {
-        return res
-          .status(200)
-          .type('text/html')
-          .send('<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>');
+      const probeResponse = sendAdmittedProbeResponse(host, res);
+      if (probeResponse) {
+        return probeResponse;
       }
     }
     return res.redirect(302, getPortalUrl(req));

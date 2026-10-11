@@ -14,9 +14,8 @@ export interface ParsedLogEntry {
 
 // eslint-disable-next-line no-control-regex -- intentionally matches ANSI escape sequences
 const ansiRegex = /\u001b?\[[0-9;]*m/g;
-const winstonRegex = /^(?:\[(WS)\]\s*)?(?:\[([^\]]+)\]\s*)?([A-Za-z]+):\s*(.*)$/i;
-const cloudwatchRegex =
-  /^(?:\[(WS)\]\s*)?(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}\S*)\s+(\S+)\s+([A-Z]+)\b\s*(.*)$/i;
+const winstonRegex = /^(?:\[(WS)\]\s*)?(?:\[(?!WS\])([^\]]+)\]\s*)?([a-z]+):\s*(.*)$/i;
+const cloudwatchRegex = /^(?:\[(WS)\]\s*)?(\d{4}-\S+)\s+(\S+)\s+([a-z]+)\b\s*(.*)$/i;
 
 function normalizeLogLevel(raw: string): LogLevel {
   const l = raw.trim().toLowerCase();
@@ -152,7 +151,7 @@ export default function SystemLogsSection({
   }, [authHeader]);
 
   useEffect(() => {
-    void loadLogs();
+    loadLogs().catch(() => {});
   }, [refreshCounter, loadLogs]);
 
   const parsedLogs = useMemo(() => {
