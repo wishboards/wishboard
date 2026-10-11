@@ -89,4 +89,31 @@ describe('WiFiQrCode', () => {
 
     expect(screen.getByText('http://192.168.4.1:3000')).toBeInTheDocument();
   });
+
+  describe('sidebar variant', () => {
+    it('is permanently visible immediately without waiting for timers', () => {
+      render(<WiFiQrCode variant="sidebar" />);
+
+      expect(screen.getByText('Join the Board')).toBeInTheDocument();
+      expect(screen.getByText('Wi-Fi Hotspot')).toBeInTheDocument();
+      expect(screen.getByText('Scan with Camera to Connect')).toBeInTheDocument();
+      expect(screen.getByText('Scan Wi-Fi QR Code')).toBeInTheDocument();
+      expect(screen.getByText('Open Portal')).toBeInTheDocument();
+      expect(screen.getByText('Share Your Wish')).toBeInTheDocument();
+      expect(screen.getByText('Wishboard_WiFi')).toBeInTheDocument();
+
+      // Advancing timer does NOT hide it
+      act(() => {
+        vi.advanceTimersByTime(60000);
+      });
+      expect(screen.getByText('Join the Board')).toBeInTheDocument();
+    });
+
+    it('renders public domain URL in sidebar', () => {
+      setConfig({ domain: 'kiosk.wishboard.org' });
+      render(<WiFiQrCode variant="sidebar" />);
+
+      expect(screen.getByText('https://kiosk.wishboard.org')).toBeInTheDocument();
+    });
+  });
 });

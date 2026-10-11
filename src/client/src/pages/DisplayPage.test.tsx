@@ -209,4 +209,31 @@ describe('DisplayPage', () => {
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Failed to flag the wish.'));
     expect(screen.getByText('Fail flag wish')).toBeInTheDocument();
   });
+
+  describe('kiosk mode split layout and title banner', () => {
+    it('renders split layout with header banner and sidebar in kiosk mode', async () => {
+      render(<DisplayPage isKiosk={true} />);
+
+      await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Wishboard');
+      expect(screen.getByText('Live Community Board')).toBeInTheDocument();
+      expect(screen.getByText(/Live • Auto-rotating/)).toBeInTheDocument();
+
+      expect(screen.getByLabelText('Kiosk Onboarding Panel')).toBeInTheDocument();
+      expect(screen.getByText('Join the Board')).toBeInTheDocument();
+      expect(screen.getByText('Scan Wi-Fi QR Code')).toBeInTheDocument();
+
+      expect(screen.queryByText('Enter Kiosk Mode')).not.toBeInTheDocument();
+    });
+
+    it('renders custom profile title in the header banner when provided', async () => {
+      render(<DisplayPage isKiosk={true} title="Anthrocon 2026 Wishboard" />);
+
+      await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Anthrocon 2026 Wishboard'
+      );
+    });
+  });
 });

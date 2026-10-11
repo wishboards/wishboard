@@ -315,8 +315,8 @@ export default function WishCard({
     HTMLParagraphElement
   >(
     {
-      minFontSize: 10,
-      maxFontSize: cardClass === 'display-card' ? 36 : 18,
+      minFontSize: cardClass === 'display-card' ? 14 : 10,
+      maxFontSize: cardClass === 'display-card' ? 52 : 18,
       step: 1,
       // When shown as an editor preview the rendered card may be much smaller
       // than a real search-result card (especially on mobile). Pass the notional
