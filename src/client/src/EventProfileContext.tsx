@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, use, useEffect, useState } from 'react';
 
 export interface Category {
   id: string;
@@ -43,7 +43,7 @@ const emptyProfile: EventProfile = {
 const EventProfileContext = createContext<EventProfile>(emptyProfile);
 
 // eslint-disable-next-line react-refresh/only-export-components -- Context hook export co-located with provider per idiomatic React pattern
-export const useEventProfile = () => useContext(EventProfileContext);
+export const useEventProfile = () => use(EventProfileContext);
 
 export const EventProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<EventProfile>(emptyProfile);
@@ -71,7 +71,7 @@ export const EventProfileProvider: React.FC<{ children: React.ReactNode }> = ({ 
       <div style={{ padding: '20px', textAlign: 'center' }}>Loading application config...</div>
     );
 
-  return <EventProfileContext.Provider value={profile}>{children}</EventProfileContext.Provider>;
+  return <EventProfileContext value={profile}>{children}</EventProfileContext>;
 };
 
 export default EventProfileContext;

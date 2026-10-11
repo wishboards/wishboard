@@ -1,6 +1,6 @@
 import React, {
   createContext,
-  useContext,
+  use,
   useEffect,
   useMemo,
   useState,
@@ -211,12 +211,12 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     [user, token, login, register, logout, refreshUser, setTokenExternally]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext value={value}>{children}</AuthContext>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- Context hook export co-located with provider per idiomatic React pattern
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = use(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');
   }

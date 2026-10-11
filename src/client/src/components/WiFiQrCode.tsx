@@ -18,12 +18,12 @@ export interface WiFiQrCodeProps {
 
 export default function WiFiQrCode({ variant = 'floating', className = '' }: WiFiQrCodeProps = {}) {
   const isSidebar = variant === 'sidebar';
-  const [isVisible, setIsVisible] = useState(isSidebar);
+  const [isFloatingVisible, setIsFloatingVisible] = useState(false);
+  const isVisible = isSidebar || isFloatingVisible;
   const [position, setPosition] = useState<Position>({ bottom: '2rem', right: '2rem' });
 
   useEffect(() => {
     if (isSidebar) {
-      setIsVisible(true);
       return;
     }
 
@@ -43,11 +43,13 @@ export default function WiFiQrCode({ variant = 'floating', className = '' }: WiF
         { top: '50%', left: '2rem', transform: 'translateY(-50%)' },
         { top: '50%', right: '2rem', transform: 'translateY(-50%)' },
       ];
-      setPosition(corners[Math.floor(Math.random() * corners.length)]); // NOSONAR
-      setIsVisible(true);
+      const randomBuffer = new Uint32Array(1);
+      globalThis.crypto.getRandomValues(randomBuffer);
+      setPosition(corners[randomBuffer[0] % corners.length]);
+      setIsFloatingVisible(true);
 
       timeoutId = setTimeout(() => {
-        setIsVisible(false);
+        setIsFloatingVisible(false);
         timeoutId = setTimeout(cycle, HIDE_DURATION);
       }, SHOW_DURATION);
     };
