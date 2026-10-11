@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.27.0...wishboard-v1.27.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* remove admin button from desktop header navigation ([#498](https://github.com/wishboards/wishboard/issues/498)) ([10c388c](https://github.com/wishboards/wishboard/commit/10c388c5a8b51af3569f1ebb7c3bdeb79be2e02c))
+
 ## [1.27.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.26.0...wishboard-v1.27.0) (2026-10-11)
 
 
