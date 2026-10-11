@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { getServerConfig } from '../serverConfig';
+import { WISHBOARD_COPY } from '../constants';
 
 interface Position {
   top?: string;
@@ -72,9 +73,9 @@ export default function WiFiQrCode({ variant = 'floating', className = '' }: WiF
     return (
       <aside className={`kiosk-sidebar-panel ${className}`} aria-label="Kiosk Onboarding Panel">
         <div className="sidebar-header">
-          <span className="sidebar-badge">Wi-Fi Hotspot</span>
+          <span className="sidebar-badge">{WISHBOARD_COPY.badge}</span>
           <h2 className="sidebar-title">Join the Board</h2>
-          <p className="sidebar-subtitle">Connect your phone to browse or post wishes</p>
+          <p className="sidebar-subtitle">{WISHBOARD_COPY.tagline}</p>
         </div>
 
         <div className="sidebar-qr-wrapper">
@@ -121,6 +122,21 @@ export default function WiFiQrCode({ variant = 'floating', className = '' }: WiF
           <div className="credential-row url-row">
             <span className="credential-label">Or visit URL</span>
             <span className="credential-url">{url}</span>
+          </div>
+        </div>
+
+        <div className="sidebar-explainer">
+          <div className="explainer-item">
+            <strong>🪄 {WISHBOARD_COPY.features.create.title}:</strong>
+            <span>{WISHBOARD_COPY.features.create.desc}</span>
+          </div>
+          <div className="explainer-item">
+            <strong>🔍 {WISHBOARD_COPY.features.match.title}:</strong>
+            <span>{WISHBOARD_COPY.features.match.desc}</span>
+          </div>
+          <div className="explainer-item">
+            <strong>🔒 {WISHBOARD_COPY.features.privacy.title}:</strong>
+            <span>{WISHBOARD_COPY.features.privacy.desc}</span>
           </div>
         </div>
       </aside>

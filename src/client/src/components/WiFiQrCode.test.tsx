@@ -95,12 +95,14 @@ describe('WiFiQrCode', () => {
       render(<WiFiQrCode variant="sidebar" />);
 
       expect(screen.getByText('Join the Board')).toBeInTheDocument();
-      expect(screen.getByText('Wi-Fi Hotspot')).toBeInTheDocument();
+      expect(screen.getByText('Private Wishboard Wi-Fi')).toBeInTheDocument();
       expect(screen.getByText('Scan with Camera to Connect')).toBeInTheDocument();
       expect(screen.getByText('Scan Wi-Fi QR Code')).toBeInTheDocument();
       expect(screen.getByText('Open Portal')).toBeInTheDocument();
       expect(screen.getByText('Share Your Wish')).toBeInTheDocument();
       expect(screen.getByText('Wishboard_WiFi')).toBeInTheDocument();
+      expect(screen.getByText(/Post a wish with your preferences/i)).toBeInTheDocument();
+      expect(screen.getByText(/Browse for compatible wishes to grant/i)).toBeInTheDocument();
 
       // Advancing timer does NOT hide it
       act(() => {

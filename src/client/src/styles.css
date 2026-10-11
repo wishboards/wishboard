@@ -1142,6 +1142,35 @@ button:hover {
   word-break: break-all;
 }
 
+.sidebar-explainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.explainer-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.explainer-item strong {
+  color: #f1f5f9;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.explainer-item span {
+  color: #94a3b8;
+}
+
 /* Card edge contrast & drop shadow (#488) */
 .display-card {
   border: 1.5px solid #d7cbb5;
