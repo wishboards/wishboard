@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.28.0...wishboard-v1.29.0) (2026-10-11)
+
+
+### Features
+
+* **kiosk:** add serverless demo showcase sidebar and full-screen toggle ([#508](https://github.com/wishboards/wishboard/issues/508)) ([c38526b](https://github.com/wishboards/wishboard/commit/c38526bb6c5e7d9a83e37d9a2b43099648d332ed))
+
 ## [1.28.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.27.1...wishboard-v1.28.0) (2026-10-11)
 
 
