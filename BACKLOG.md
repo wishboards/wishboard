@@ -22,6 +22,16 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 - **[#331](https://github.com/wishboards/wishboard/issues/331)** — Rules Engine Extraction Phase 2: Extract internal engine module into a standalone open-source library under the `wishboards` GitHub org / npm (`@wishboards/matching-engine`) (see [ADR 0006](docs/adr/0006-extract-rules-engine.md)).
 - **[#332](https://github.com/wishboards/wishboard/issues/332)** — Decomposable & Optional AI Integration: Implement `InferenceProvider` / `EmbeddingProvider` interfaces, async tagging worker, UX suggestion badges, and optional vector search (see [ADR 0007](docs/adr/0007-ai-integration.md)).
 
+### Kiosk & Big Screen Display
+
+- **[#484](https://github.com/wishboards/wishboard/issues/484)** — Keep Wi-Fi QR code permanently visible on kiosk display (`WiFiQrCode`): prevent cycling off after 30s so attendees can always connect to the hotspot.
+- **[#485](https://github.com/wishboards/wishboard/issues/485)** — Trigger captive portal onboarding on Wi-Fi connection: configure captive portal redirection / RFC 8908 triggers on the hotspot to guide connecting devices directly to the Wishboard web portal.
+- **[#486](https://github.com/wishboards/wishboard/issues/486)** — Proportionally scale typography with card dimensions on big screen display: scale font sizes inside `.display-card` and `.wish-text` dynamically to match card width/height on large monitors.
+- **[#487](https://github.com/wishboards/wishboard/issues/487)** — Split screen layout between cards grid and onboarding instructions: dedicate ~75–80% of kiosk viewport to the active cards grid, and reserve ~20–25% for a persistent sidebar/panel with instructions and QR code.
+- **[#488](https://github.com/wishboards/wishboard/issues/488)** — Increase visual contrast between corkboard background and cards: deepen corkboard tones, define card borders, and enhance drop shadows to ensure cards stand out clearly on high-ambient-light displays.
+- **[#489](https://github.com/wishboards/wishboard/issues/489)** — Enlarge Wi-Fi QR code dimensions for easy scanning: increase the QR code SVG size to 240px–320px so smartphone cameras can reliably scan it from standing viewing distance.
+- **[#490](https://github.com/wishboards/wishboard/issues/490)** — Display event and board title on kiosk display: restore and style an event and board title banner on the kiosk display so viewers have immediate context.
+
 ### Documentation
 
 - **[#434](https://github.com/wishboards/wishboard/issues/434)** — Refresh the matching rules page: it has drifted from the profile-driven implementation, where seed defaults live in `profiles/**/profile.yaml` (see [ADR 0005](docs/src/content/docs/adr/0005-matching-engine-generalization.md)).
