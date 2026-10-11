@@ -1,14 +1,11 @@
 import React from 'react';
+import { WISHBOARD_COPY } from '../constants';
 
 export default function AboutPage() {
   return (
     <section>
       <h1>About Wishboard</h1>
-      <p>
-        Wishboard is a privacy-first, offline-capable digital corkboard designed for conventions,
-        gatherings, and local networks. It allows users to securely post and search for wishes,
-        matching based on identity attributes while keeping all data locally on the device.
-      </p>
+      <p>{WISHBOARD_COPY.description}</p>
       <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
         Version: {import.meta.env.VITE_APP_VERSION || 'dev'}
       </p>

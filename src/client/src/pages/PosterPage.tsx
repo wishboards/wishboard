@@ -1,6 +1,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { getServerConfig } from '../serverConfig';
+import { WISHBOARD_COPY } from '../constants';
 
 export default function PosterPage() {
   // Resolve the domain at runtime. If the poster is being viewed on a real domain
@@ -135,15 +136,19 @@ export default function PosterPage() {
 
         <div style={styles.footerCols}>
           <div style={{ flex: 1 }}>
-            <h3 style={{ fontSize: '1.4rem', color: '#555', margin: '0 0 0.5rem 0' }}>🪄 Create</h3>
+            <h3 style={{ fontSize: '1.4rem', color: '#555', margin: '0 0 0.5rem 0' }}>
+              🪄 {WISHBOARD_COPY.features.create.title}
+            </h3>
             <p style={{ fontSize: '1.1rem', color: '#666', margin: 0 }}>
-              Post a wish with your preferences.
+              {WISHBOARD_COPY.features.create.desc}
             </p>
           </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ fontSize: '1.4rem', color: '#555', margin: '0 0 0.5rem 0' }}>🔍 Match</h3>
+            <h3 style={{ fontSize: '1.4rem', color: '#555', margin: '0 0 0.5rem 0' }}>
+              🔍 {WISHBOARD_COPY.features.match.title}
+            </h3>
             <p style={{ fontSize: '1.1rem', color: '#666', margin: 0 }}>
-              Browse for compatible wishes to grant!
+              {WISHBOARD_COPY.features.match.desc}
             </p>
           </div>
         </div>

@@ -166,4 +166,28 @@ describe('WishCard', () => {
     fireEvent.click(deleteBtn);
     expect(onAdminDelete).toHaveBeenCalledWith('w8');
   });
+
+  it('configures useTextFit with enlarged font size limits when cardClass is display-card', () => {
+    const wish = { id: 'w9', content: 'Big screen text' };
+    render(<WishCard wish={wish} cardClass="display-card" />);
+    expect(useTextFit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        minFontSize: 14,
+        maxFontSize: 52,
+      }),
+      expect.any(Array)
+    );
+  });
+
+  it('configures useTextFit with default font size limits for standard cards', () => {
+    const wish = { id: 'w10', content: 'Standard text' };
+    render(<WishCard wish={wish} />);
+    expect(useTextFit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        minFontSize: 10,
+        maxFontSize: 18,
+      }),
+      expect.any(Array)
+    );
+  });
 });

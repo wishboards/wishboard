@@ -3,6 +3,8 @@ import WishCard from '../components/WishCard';
 import useFlagWish from '../hooks/useFlagWish';
 import SendWishmailModal from '../components/SendWishmailModal';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useEventProfile } from '../EventProfileContext';
+import WiFiQrCode from '../components/WiFiQrCode';
 
 interface Wish {
   id: string;
@@ -15,9 +17,10 @@ interface Wish {
 interface DisplayPageProps {
   onEnterKiosk?: () => void;
   isKiosk?: boolean;
+  title?: string;
 }
 
-export default function DisplayPage({ onEnterKiosk, isKiosk }: DisplayPageProps = {}) {
+export default function DisplayPage({ onEnterKiosk, isKiosk, title }: DisplayPageProps = {}) {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [pinnedWishes, setPinnedWishes] = useState<{ wish: Wish; pinnedAt: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -133,30 +136,79 @@ export default function DisplayPage({ onEnterKiosk, isKiosk }: DisplayPageProps 
     return [...activePins, ...randomWishes].slice(0, currentLimit);
   }, [wishes, pinnedWishes, capacity, isKiosk]);
 
+  const profile = useEventProfile();
+  const boardTitle = useMemo(() => {
+    if (title) return title;
+    if (profile?.title) return profile.title;
+    if (profile?.profile) {
+      const capitalized = profile.profile.charAt(0).toUpperCase() + profile.profile.slice(1);
+      return `${capitalized} Wishboard`;
+    }
+    return 'Wishboard';
+  }, [title, profile?.title, profile?.profile]);
+
   return (
-    <section className="display-section">
-      <div className="display-header-bar">
-        <h1>Big Screen Display</h1>
-        {!isKiosk && onEnterKiosk && (
-          <button type="button" className="kiosk-btn secondary-button" onClick={onEnterKiosk}>
-            Enter Kiosk Mode
-          </button>
-        )}
-      </div>
-      <p>This screen refreshes automatically with rotated wishes.</p>
-      {error && <div className="message error">{error}</div>}
-      <div className="display-grid" ref={gridRef}>
-        {displayWishes.map((wish) => (
-          <WishCard
-            key={wish.id}
-            wish={wish}
-            cardClass="display-card"
-            showFlag={!isKiosk}
-            onFlag={handleFlag}
-            onSendMail={setMailWishId}
-          />
-        ))}
-      </div>
+    <section className={`display-section ${isKiosk ? 'kiosk-display-mode' : ''}`}>
+      {isKiosk ? (
+        <div className="kiosk-split-layout">
+          <div className="kiosk-main-panel">
+            <header className="kiosk-header-banner">
+              <div className="kiosk-title-group">
+                <h1 className="kiosk-board-title">{boardTitle}</h1>
+                <span className="kiosk-board-subtitle">Live Community Board</span>
+              </div>
+              <div className="kiosk-live-badge">
+                <span className="live-dot" aria-hidden="true" />
+                <span>Live • Auto-rotating</span>
+              </div>
+            </header>
+
+            {error && <div className="message error">{error}</div>}
+
+            <div className="display-grid" ref={gridRef}>
+              {displayWishes.map((wish) => (
+                <WishCard
+                  key={wish.id}
+                  wish={wish}
+                  cardClass="display-card"
+                  showFlag={false}
+                  onFlag={handleFlag}
+                  onSendMail={setMailWishId}
+                />
+              ))}
+            </div>
+          </div>
+
+          <aside className="kiosk-sidebar-container">
+            <WiFiQrCode variant="sidebar" />
+          </aside>
+        </div>
+      ) : (
+        <>
+          <div className="display-header-bar">
+            <h1>Big Screen Display</h1>
+            {onEnterKiosk && (
+              <button type="button" className="kiosk-btn secondary-button" onClick={onEnterKiosk}>
+                Enter Kiosk Mode
+              </button>
+            )}
+          </div>
+          <p>This screen refreshes automatically with rotated wishes.</p>
+          {error && <div className="message error">{error}</div>}
+          <div className="display-grid" ref={gridRef}>
+            {displayWishes.map((wish) => (
+              <WishCard
+                key={wish.id}
+                wish={wish}
+                cardClass="display-card"
+                showFlag={true}
+                onFlag={handleFlag}
+                onSendMail={setMailWishId}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {mailWishId && <SendWishmailModal wishId={mailWishId} onClose={() => setMailWishId(null)} />}
     </section>

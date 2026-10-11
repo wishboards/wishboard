@@ -10,7 +10,6 @@ import AccountPage from './AccountPage';
 import ManageWishPage from './pages/ManageWishPage';
 import WishmailDashboard from './pages/WishmailDashboard';
 import AboutPage from './pages/AboutPage';
-import WiFiQrCode from './components/WiFiQrCode';
 import PosterPage from './pages/PosterPage';
 
 const pages = [
@@ -188,7 +187,6 @@ const AppMain = React.memo(function AppMain({
     return (
       <main className="kiosk-content">
         <DisplayPage onEnterKiosk={() => setIsKiosk(true)} isKiosk={true} />
-        <WiFiQrCode />
       </main>
     );
   }

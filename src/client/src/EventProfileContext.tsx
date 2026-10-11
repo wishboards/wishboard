@@ -9,6 +9,7 @@ export interface Category {
 
 export interface EventProfile {
   profile: string;
+  title?: string;
   contact_methods: string[];
   categories: Category[];
   stickers?: Record<
