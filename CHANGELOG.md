@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.27.1...wishboard-v1.28.0) (2026-10-11)
+
+
+### Features
+
+* **kiosk:** enhance kiosk display with split layout, persistent QR, contrast, and scaling ([#504](https://github.com/wishboards/wishboard/issues/504)) ([74bc099](https://github.com/wishboards/wishboard/commit/74bc09951017336b7692ee8391669bac626c0b56))
+
 ## [1.27.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.27.0...wishboard-v1.27.1) (2026-10-11)
 
 
