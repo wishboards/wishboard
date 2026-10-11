@@ -9,14 +9,15 @@ const setConfig = (cfg: Record<string, unknown> | undefined) => {
 describe('PosterPage', () => {
   afterEach(() => setConfig(undefined));
 
-  it('renders the poster with Wi-Fi and URL instructions', () => {
+  it('renders the poster with Wi-Fi instructions for kiosk/local mode', () => {
     render(<PosterPage />);
 
     expect(screen.getByText('Wishboard')).toBeInTheDocument();
-    expect(screen.getByText('Step 1: Join Wi-Fi')).toBeInTheDocument();
-    expect(screen.getByText('Step 2: Scan to Visit')).toBeInTheDocument();
+    expect(screen.getByText('Scan to Connect')).toBeInTheDocument();
     expect(screen.getByText('Wishboard_WiFi')).toBeInTheDocument();
     expect(screen.getByText(['wishboard', '2026'].join(''))).toBeInTheDocument();
+    expect(screen.getByText(/Wishboard opens automatically upon connecting/)).toBeInTheDocument();
+    expect(screen.getByText('wishboard.painless-computing.com')).toBeInTheDocument();
 
     // Checks that the two action sections render
     expect(screen.getByText('🪄 Create')).toBeInTheDocument();
@@ -36,10 +37,10 @@ describe('PosterPage', () => {
     expect(screen.getByText('wishboard.painless-computing.com')).toBeInTheDocument();
   });
 
-  it('hides Wi-Fi instructions when in serverless mode', () => {
+  it('hides Wi-Fi instructions and shows Scan to Visit when in serverless mode', () => {
     setConfig({ isServerless: true });
     render(<PosterPage />);
-    expect(screen.queryByText('Step 1: Join Wi-Fi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scan to Connect')).not.toBeInTheDocument();
     expect(screen.getByText('Scan to Visit')).toBeInTheDocument();
   });
 });
