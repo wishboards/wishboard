@@ -50,16 +50,20 @@ export const EventProfileProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch('/api/config')
+    const controller = new AbortController();
+    fetch('/api/config', { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         setProfile((prev) => ({ ...prev, ...data }));
         setLoaded(true);
       })
       .catch((e) => {
-        console.error('Failed to load event profile config:', e);
-        setLoaded(true);
+        if (e.name !== 'AbortError') {
+          console.error('Failed to load event profile config:', e);
+          setLoaded(true);
+        }
       });
+    return () => controller.abort();
   }, []);
 
   if (!loaded)

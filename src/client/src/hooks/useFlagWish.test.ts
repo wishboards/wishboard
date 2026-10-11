@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import useFlagWish from './useFlagWish';
 
 describe('useFlagWish', () => {
@@ -20,8 +21,8 @@ describe('useFlagWish', () => {
 
   it('aborts if user cancels confirmation', async () => {
     confirmSpy.mockReturnValue(false);
-    const flagWish = useFlagWish(onSuccessMock);
-    await flagWish('wish-123');
+    const { result } = renderHook(() => useFlagWish(onSuccessMock));
+    await result.current('wish-123');
 
     expect(confirmSpy).toHaveBeenCalledWith(
       'Are you sure you want to flag this wish as inappropriate?'
@@ -31,8 +32,8 @@ describe('useFlagWish', () => {
   });
 
   it('calls fetch and onSuccess when confirmed and successful', async () => {
-    const flagWish = useFlagWish(onSuccessMock);
-    await flagWish('wish-456');
+    const { result } = renderHook(() => useFlagWish(onSuccessMock));
+    await result.current('wish-456');
 
     expect(confirmSpy).toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalledWith('/api/wishes/wish-456/flag', { method: 'POST' });
@@ -42,8 +43,8 @@ describe('useFlagWish', () => {
   it('alerts error if response is not ok', async () => {
     fetchSpy.mockResolvedValue({ ok: false } as any);
 
-    const flagWish = useFlagWish(onSuccessMock);
-    await flagWish('wish-789');
+    const { result } = renderHook(() => useFlagWish(onSuccessMock));
+    await result.current('wish-789');
 
     expect(fetchSpy).toHaveBeenCalled();
     expect(onSuccessMock).not.toHaveBeenCalled();
@@ -53,8 +54,8 @@ describe('useFlagWish', () => {
   it('alerts error if fetch throws', async () => {
     fetchSpy.mockRejectedValue(new Error('Network error'));
 
-    const flagWish = useFlagWish(onSuccessMock);
-    await flagWish('wish-999');
+    const { result } = renderHook(() => useFlagWish(onSuccessMock));
+    await result.current('wish-999');
 
     expect(fetchSpy).toHaveBeenCalled();
     expect(onSuccessMock).not.toHaveBeenCalled();

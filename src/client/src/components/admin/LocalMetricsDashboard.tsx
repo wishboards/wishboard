@@ -36,9 +36,9 @@ import {
   Grid,
   MetricsToolbar,
   GradDef,
-  useMetricsFetcher,
   ErrorBanner,
 } from './DashboardShared';
+import useMetricsFetcher from './useMetricsFetcher';
 import { formatShortTime, COLORS as C, TICK_STYLE } from './DashboardUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────

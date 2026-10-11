@@ -36,6 +36,7 @@ export default function ContactEditor({
     <>
       {contacts.map((contact, index) => (
         <div
+          // eslint-disable-next-line @eslint-react/no-array-index-key
           key={`${contact.type}-${index}`}
           style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}
         >

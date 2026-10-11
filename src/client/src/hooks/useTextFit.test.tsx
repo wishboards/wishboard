@@ -29,16 +29,18 @@ describe('useTextFit', () => {
       });
 
       // Mock overflowing properties
-      if (containerRef.current) {
-        Object.defineProperty(containerRef.current, 'scrollHeight', {
-          value: 200,
-          configurable: true,
-        });
-        Object.defineProperty(containerRef.current, 'clientHeight', {
-          value: 100,
-          configurable: true,
-        });
-      }
+      React.useLayoutEffect(() => {
+        if (containerRef.current) {
+          Object.defineProperty(containerRef.current, 'scrollHeight', {
+            value: 200,
+            configurable: true,
+          });
+          Object.defineProperty(containerRef.current, 'clientHeight', {
+            value: 100,
+            configurable: true,
+          });
+        }
+      });
 
       return (
         <div ref={containerRef as React.Ref<HTMLDivElement>} data-testid="container">

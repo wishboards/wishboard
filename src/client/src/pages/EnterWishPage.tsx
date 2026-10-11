@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../AuthContext';
 import { useEventProfile } from '../EventProfileContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -172,13 +172,25 @@ export default function EnterWishPage() {
     }
   });
 
+  const previewImageUrl = useMemo(() => {
+    return imageBlob ? URL.createObjectURL(imageBlob) : undefined;
+  }, [imageBlob]);
+
+  useEffect(() => {
+    return () => {
+      if (previewImageUrl) {
+        URL.revokeObjectURL(previewImageUrl);
+      }
+    };
+  }, [previewImageUrl]);
+
   const previewWish = {
     id: 'preview',
     content: content || 'Your wish text will appear here',
     creator_attributes: user ? user.attributes : parsedCreatorAttributes,
     contacts: contacts.filter((c) => c.value.trim()),
     wishmail_enabled: wishmailEnabled,
-    image_url: imageBlob ? URL.createObjectURL(imageBlob) : undefined,
+    image_url: previewImageUrl,
   };
 
   const renderUploadSection = () => {
