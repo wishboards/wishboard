@@ -218,10 +218,22 @@ map \$http_upgrade \$connection_upgrade {
 }
 
 server {
-    listen 80;
-    listen [::]:80;
-    server_name $DOMAIN_NAME;
-    return 301 https://\$host\$request_uri;
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    # Proxy to Node.js for captive portal probes and seamless HTTP redirection
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \$connection_upgrade;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
 }
 
 server {
@@ -286,26 +298,33 @@ fi
 sudo systemctl reload nginx || true
 echo "Nginx reverse proxy for $DOMAIN_NAME configured."
 
-# Configure local DNS hijacking only in prod/dual
+# Configure local DNS hijacking and captive portal triggers only in prod/dual
 if [[ "$MODE" = "dev" ]]; then
     echo "Dev Mode: Disabling local DNS redirection..."
     sudo rm -f "/etc/NetworkManager/dnsmasq-shared.d/wishboard.conf"
     sudo systemctl reload NetworkManager || true
     echo "Local DNS redirection disabled."
 else
-    echo "Prod/Dual Mode: Configuring local DNS redirection for domain $DOMAIN_NAME at IP $AP_IP..."
+    echo "Prod/Dual Mode: Configuring local DNS redirection and captive portal triggers for domain $DOMAIN_NAME at IP $AP_IP..."
     DNS_CONF="/etc/NetworkManager/dnsmasq-shared.d/wishboard.conf"
+    CAPTIVE_CONF="address=/$DOMAIN_NAME/$AP_IP
+address=/captive.apple.com/$AP_IP
+address=/connectivitycheck.gstatic.com/$AP_IP
+address=/detectportal.firefox.com/$AP_IP
+address=/msftconnecttest.com/$AP_IP
+dhcp-option=114,\"https://$DOMAIN_NAME/api/captive-portal\""
+
     if [[ -d "/etc/NetworkManager/dnsmasq-shared.d" ]]; then
-        echo "address=/$DOMAIN_NAME/$AP_IP" | sudo tee "$DNS_CONF" > /dev/null
+        echo "$CAPTIVE_CONF" | sudo tee "$DNS_CONF" > /dev/null
     elif [[ -d "/etc/dnsmasq.d" ]]; then
-        echo "address=/$DOMAIN_NAME/$AP_IP" | sudo tee "/etc/dnsmasq.d/wishboard.conf" > /dev/null
+        echo "$CAPTIVE_CONF" | sudo tee "/etc/dnsmasq.d/wishboard.conf" > /dev/null
     fi
     sudo systemctl reload NetworkManager || true
     if nmcli con show --active 2>/dev/null | grep -q "Hotspot"; then
         sudo nmcli con down Hotspot 2>/dev/null || true
         sudo nmcli con up Hotspot 2>/dev/null || true
     fi
-    echo "Local DNS redirection enabled."
+    echo "Local DNS redirection and captive portal triggers enabled."
 fi
 
 # 3. (Systemd Node Service Removed in favor of Docker --restart always)

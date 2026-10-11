@@ -18,7 +18,6 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 ### Kiosk & Big Screen Display
 
 - **[#484](https://github.com/wishboards/wishboard/issues/484)** — Keep Wi-Fi QR code permanently visible on kiosk display (`WiFiQrCode`): prevent cycling off after 30s so attendees can always connect to the hotspot.
-- **[#485](https://github.com/wishboards/wishboard/issues/485)** — Trigger captive portal onboarding on Wi-Fi connection: configure captive portal redirection / RFC 8908 triggers on the hotspot to guide connecting devices directly to the Wishboard web portal.
 - **[#486](https://github.com/wishboards/wishboard/issues/486)** — Proportionally scale typography with card dimensions on big screen display: scale font sizes inside `.display-card` and `.wish-text` dynamically to match card width/height on large monitors.
 - **[#487](https://github.com/wishboards/wishboard/issues/487)** — Split screen layout between cards grid and onboarding instructions: dedicate ~75–80% of kiosk viewport to the active cards grid, and reserve ~20–25% for a persistent sidebar/panel with instructions and QR code.
 - **[#488](https://github.com/wishboards/wishboard/issues/488)** — Increase visual contrast between corkboard background and cards: deepen corkboard tones, define card borders, and enhance drop shadows to ensure cards stand out clearly on high-ambient-light displays.

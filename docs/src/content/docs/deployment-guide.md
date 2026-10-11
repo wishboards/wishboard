@@ -62,9 +62,9 @@ Add `--user <name>` if your Pi login isn't `pi`, and `--dry-run` to preview the 
 
 ### Networking Modes
 
-- `prod`: The Pi creates an isolated `Wishboard_WiFi` hotspot and hijacks DNS for your custom domain.
-- `dual`: The Pi stays connected to your home Wi-Fi but broadcasts a virtual hotspot for testing.
-- `dev`: Standard mode without Wi-Fi AP manipulation.
+- `prod`: The Pi creates an isolated `Wishboard_WiFi` hotspot, serves RFC 8908 via DHCP Option 114, and intercepts standard OS captive portal probes to automatically guide attendees directly to the Wishboard web portal without requiring a second QR code or manual URL typing.
+- `dual`: The Pi stays connected to your home Wi-Fi but broadcasts a virtual hotspot for testing with captive portal triggers enabled.
+- `dev`: Standard development mode without Wi-Fi AP manipulation or DNS redirection.
 
 ---
 
