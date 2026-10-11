@@ -123,7 +123,7 @@ export const getSocket = (): WishboardSocket => {
 };
 
 export const useWebSocket = () => {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(() => getSocket().connected);
 
   useEffect(() => {
     const socket = getSocket();
@@ -133,9 +133,6 @@ export const useWebSocket = () => {
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
-
-    // Initial state
-    setIsConnected(socket.connected);
 
     return () => {
       socket.off('connect', onConnect);

@@ -3,13 +3,49 @@ import { useAuth } from '../AuthContext';
 
 const LOCAL_STORAGE_KEY = 'wishboard.excludedWishes';
 
+function getInitialLocalExclusions(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      const ids = JSON.parse(raw);
+      if (Array.isArray(ids)) {
+        return ids;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load wish exclusions from localStorage:', err);
+  }
+  return [];
+}
+
 export function useExcludedWishes() {
   const { token, user } = useAuth();
-  const [excludedIds, setExcludedIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const isAuthenticated = Boolean(token && user);
+  const [prevAuthenticated, setPrevAuthenticated] = useState(isAuthenticated);
+
+  const [excludedIds, setExcludedIds] = useState<string[]>(() => {
+    if (!token || !user) {
+      return getInitialLocalExclusions();
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => Boolean(token && user));
+
+  if (isAuthenticated !== prevAuthenticated) {
+    setPrevAuthenticated(isAuthenticated);
+    if (!isAuthenticated) {
+      setExcludedIds(getInitialLocalExclusions());
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   // Load initial exclusions
   useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
     let active = true;
 
     async function loadServerExclusions() {
@@ -30,27 +66,7 @@ export function useExcludedWishes() {
       }
     }
 
-    function loadLocalExclusions() {
-      try {
-        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (raw && active) {
-          const ids = JSON.parse(raw);
-          if (Array.isArray(ids)) {
-            setExcludedIds(ids);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load wish exclusions from localStorage:', err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    if (token && user) {
-      void loadServerExclusions();
-    } else {
-      void loadLocalExclusions();
-    }
+    void loadServerExclusions();
 
     return () => {
       active = false;

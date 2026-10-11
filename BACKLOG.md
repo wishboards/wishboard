@@ -9,7 +9,6 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 ### Testing & Quality
 
 - **[#492](https://github.com/wishboards/wishboard/issues/492)** — Upgrade to TypeScript 7 once `typescript-eslint` widens its peer dependency range (`>=4.8.4 <6.1.0`), unblocking the Dependabot TS 7 bump.
-- **[#511](https://github.com/wishboards/wishboard/issues/511)** — Eliminate remaining React lint warnings and state-sync effects: Systematic phased reduction of `@eslint-react` warnings, cascading re-renders, and storage/network synchronization anti-patterns.
 
 ### Features & Enhancements
 
