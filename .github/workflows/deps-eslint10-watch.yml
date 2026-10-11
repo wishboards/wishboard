@@ -1,8 +1,8 @@
-name: Watch upstream peers (ESLint 10 / TS 7)
+name: Watch upstream peers (TS 7)
 
 # We pin typescript to 6.0.x (typescript-eslint peers TS <6.1.0). This weekly job
 # checks whether that upstream peer range has relaxed and, when it has,
-# comments on the tracking issue (#180) once.
+# comments on the tracking issue (#492) once.
 
 on:
   schedule:
@@ -13,7 +13,7 @@ permissions:
   issues: write
 
 env:
-  TRACKING_ISSUE: '180'
+  TRACKING_ISSUE: '492'
 
 jobs:
   check:
