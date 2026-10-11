@@ -33,6 +33,7 @@ vi.mock('recharts', () => ({
       payload: [{ value: 42.5, name: 'cpu', color: '#60a5fa' }],
       label: Date.now(),
     };
+    // eslint-disable-next-line @eslint-react/no-clone-element
     const el = typeof content === 'function' ? content(props) : React.cloneElement(content, props);
     return el ?? null;
   },

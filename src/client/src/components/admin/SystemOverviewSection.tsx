@@ -17,6 +17,7 @@ export default function SystemOverviewSection({
 
   // Detect deployment mode from /api/config
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/web-api-no-leaked-fetch
     fetch('/api/config')
       .then((r) => r.json())
       .then((cfg) => setIsServerlessMode(cfg.realtimeProvider === 'apigateway'))

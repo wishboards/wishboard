@@ -264,7 +264,7 @@ export default function SystemLogsSection({
         }}
       >
         {parsedLogs.some((line) => line.raw) ? (
-          parsedLogs.map((line, idx) => {
+          parsedLogs.map((line) => {
             if (!line.raw) return null;
 
             let levelColor = '#a1a1aa';
@@ -282,7 +282,9 @@ export default function SystemLogsSection({
 
             return (
               <div
-                key={line.id || idx}
+                key={
+                  line.id || (line.timestamp ? `${line.timestamp}-${line.message || ''}` : line.raw)
+                }
                 style={{
                   display: 'flex',
                   padding: '2px 4px',

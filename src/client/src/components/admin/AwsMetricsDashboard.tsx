@@ -27,9 +27,9 @@ import {
   Grid,
   MetricsToolbar,
   GradDef,
-  useMetricsFetcher,
   ErrorBanner,
 } from './DashboardShared';
+import useMetricsFetcher from './useMetricsFetcher';
 import {
   DataPoint,
   MetricSeries,

@@ -143,8 +143,8 @@ function WishBottomActions({
     <>
       {wish.contacts && wish.contacts.length > 0 && (
         <div className="wish-contacts-list">
-          {wish.contacts.map((c, i) => (
-            <span key={`${c.type}-${i}`} className="wish-contact-item">
+          {wish.contacts.map((c) => (
+            <span key={`${c.type}-${c.value}`} className="wish-contact-item">
               <strong>{c.type}:</strong> {c.value}
             </span>
           ))}

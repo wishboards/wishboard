@@ -69,7 +69,7 @@ export default function UserAccountsSection({
   useEffect(() => {
     void loadUsers();
     void loadConfig();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps, @eslint-react/exhaustive-deps
   }, [refreshCounter]);
 
   const updateRole = async (id: string, role: string) => {
