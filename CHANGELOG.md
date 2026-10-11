@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.26.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.25.2...wishboard-v1.26.0) (2026-10-11)
+
+
+### Features
+
+* remove admin button and navigation from all screens ([#480](https://github.com/wishboards/wishboard/issues/480)) ([738297f](https://github.com/wishboards/wishboard/commit/738297ff207f8d394c6f46b26b3d958e6d763015))
+
+
+### Bug Fixes
+
+* ensure kiosk setup scripts are fully idempotent ([#483](https://github.com/wishboards/wishboard/issues/483)) ([9ccb9bf](https://github.com/wishboards/wishboard/commit/9ccb9bfa2d19325d9e0da81475a934edaa60c1e3))
+* harden kiosk deployment, cert paths, and log limits ([#479](https://github.com/wishboards/wishboard/issues/479)) ([81b96c9](https://github.com/wishboards/wishboard/commit/81b96c9c1f9db0e674a964a1c43fc06d3687e835))
+* properly instantiate Tesseract worker in processCardImage ([#482](https://github.com/wishboards/wishboard/issues/482)) ([1c049bf](https://github.com/wishboards/wishboard/commit/1c049bfc03eb729b2f19fed1996d0990b99f36d0))
+
 ## [1.25.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.25.1...wishboard-v1.25.2) (2026-10-09)
 
 
