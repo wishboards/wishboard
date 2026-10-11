@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.29.0...wishboard-v1.29.1) (2026-10-11)
+
+
+### Code Refactoring
+
+* **client:** resolve remaining hook warnings to reach zero lint warnings ([3060dde](https://github.com/wishboards/wishboard/commit/3060ddef5bb7a9bfa9c48a86a663e02955a2c4b1)), closes [#511](https://github.com/wishboards/wishboard/issues/511)
+
 ## [1.29.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.28.0...wishboard-v1.29.0) (2026-10-11)
 
 
