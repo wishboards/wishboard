@@ -16,12 +16,15 @@ import logger from './logger.js';
 import { metricsMiddleware, startCollector } from './metricsCollector.js';
 import { initSocket } from './socket.js';
 import { jsonErrorHandler } from './errorHandler.js';
+import captivePortalRouter, { captivePortalMiddleware } from './routes/captivePortal.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy (e.g. nginx) so req.ip uses X-Forwarded-For
 app.disable('x-powered-by');
+app.use(captivePortalMiddleware);
+app.use(captivePortalRouter);
 
 const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
   ? process.env.CORS_ALLOWED_ORIGINS.split(',')

@@ -94,7 +94,9 @@ export default function WiFiQrCode() {
           <strong>Password:</strong> {wifiPass}
         </p>
         <p style={{ margin: 0, fontSize: '0.9rem', color: '#94a3b8' }}>
-          Then visit:
+          Portal opens automatically upon connecting.
+          <br />
+          Or visit:
           <br />
           <strong style={{ color: '#38bdf8', fontSize: '1.1rem' }}>{url}</strong>
         </p>
