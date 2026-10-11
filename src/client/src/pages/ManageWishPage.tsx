@@ -5,8 +5,38 @@ import WishFormFields from '../components/WishFormFields';
 import { useAuth } from '../AuthContext';
 import PassphraseInput from '../components/PassphraseInput';
 
+function parseInitialManageParams(): {
+  initialError: string | null;
+  wishId: string | null;
+  secret: string;
+} {
+  const hashIndex = globalThis.location.hash.indexOf('?');
+  if (hashIndex === -1) {
+    return { initialError: 'No wish ID provided.', wishId: null, secret: '' };
+  }
+
+  const params = new URLSearchParams(globalThis.location.hash.substring(hashIndex));
+  const wishId = params.get('id');
+  const wishSecret = params.get('secret') || '';
+
+  if (wishSecret && !/^[a-zA-Z0-9_-]+$/.test(wishSecret)) {
+    return { initialError: 'Invalid secret format.', wishId: null, secret: '' };
+  }
+
+  if (!wishId) {
+    return { initialError: 'No wish ID provided.', wishId: null, secret: wishSecret };
+  }
+
+  if (!/^[a-zA-Z0-9-]+$/.test(wishId)) {
+    return { initialError: 'Invalid wish ID format.', wishId: null, secret: wishSecret };
+  }
+
+  return { initialError: null, wishId, secret: wishSecret };
+}
+
 export default function ManageWishPage() {
   const { token, user } = useAuth();
+  const [initialParams] = useState(parseInitialManageParams);
   const [wish, setWish] = useState<{
     id: string;
     content: string;
@@ -21,42 +51,21 @@ export default function ManageWishPage() {
   const [contacts, setContacts] = useState<{ type: string; value: string }[]>([]);
   const [wishmailEnabled, setWishmailEnabled] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [secret, setSecret] = useState('');
-  const [newPassphrase, setNewPassphrase] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [secret, setSecret] = useState(initialParams.secret);
+  const [newPassphrase, setNewPassphrase] = useState(initialParams.secret);
+  const [error, setError] = useState<string | null>(initialParams.initialError);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const hashIndex = globalThis.location.hash.indexOf('?');
-    if (hashIndex === -1) {
-      setError('No wish ID provided.');
+    if (!initialParams.wishId || initialParams.initialError) {
       return;
     }
 
-    const params = new URLSearchParams(globalThis.location.hash.substring(hashIndex));
-    const wishId = params.get('id');
-    const wishSecret = params.get('secret');
+    const controller = new AbortController();
 
-    if (wishSecret) {
-      if (!/^[a-zA-Z0-9_-]+$/.test(wishSecret)) {
-        setError('Invalid secret format.');
-        return;
-      }
-      setSecret(wishSecret);
-      setNewPassphrase(wishSecret);
-    }
-
-    if (!wishId) {
-      setError('No wish ID provided.');
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9-]+$/.test(wishId)) {
-      setError('Invalid wish ID format.');
-      return;
-    }
-
-    fetch(`/api/wishes/${encodeURIComponent(wishId)}`)
+    fetch(`/api/wishes/${encodeURIComponent(initialParams.wishId)}`, {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error('Wish not found');
@@ -68,9 +77,13 @@ export default function ManageWishPage() {
         setWishmailEnabled(data.wishmail_enabled || false);
       })
       .catch((err) => {
-        setError(err.message);
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+        }
       });
-  }, []);
+
+    return () => controller.abort();
+  }, [initialParams.wishId, initialParams.initialError]);
 
   const handleUpdate = async (e: React.SyntheticEvent) => {
     e.preventDefault();

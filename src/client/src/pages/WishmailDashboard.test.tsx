@@ -66,6 +66,18 @@ describe('WishmailDashboard', () => {
     expect(screen.getByText('No wish ID provided.')).toBeInTheDocument();
   });
 
+  it('displays error if wish ID format is invalid', () => {
+    globalThis.window.location.hash = '#wishmail?id=invalid!id&secret=sec123';
+    render(<WishmailDashboard />);
+    expect(screen.getByText('Invalid wish ID format.')).toBeInTheDocument();
+  });
+
+  it('displays error if secret format is invalid', () => {
+    globalThis.window.location.hash = '#wishmail?id=w1&secret=invalid!secret';
+    render(<WishmailDashboard />);
+    expect(screen.getByText('Invalid secret format.')).toBeInTheDocument();
+  });
+
   it('marks wishmail as read', async () => {
     const mockMails = [
       {

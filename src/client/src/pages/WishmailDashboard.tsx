@@ -10,54 +10,70 @@ interface Wishmail {
   created_at: string;
 }
 
+function parseInitialWishmailParams(): {
+  initialError: string | null;
+  wishId: string | null;
+  secret: string | null;
+} {
+  const hashIndex = globalThis.location.hash.indexOf('?');
+  if (hashIndex === -1) {
+    return { initialError: 'No wish ID provided.', wishId: null, secret: null };
+  }
+
+  const params = new URLSearchParams(globalThis.location.hash.substring(hashIndex));
+  const wId = params.get('id');
+  const wSecret = params.get('secret');
+
+  if (!wId) {
+    return { initialError: 'No wish ID provided.', wishId: null, secret: null };
+  }
+
+  if (!/^[a-zA-Z0-9-]+$/.test(wId)) {
+    return { initialError: 'Invalid wish ID format.', wishId: null, secret: null };
+  }
+
+  if (wSecret && !/^[a-zA-Z0-9_-]+$/.test(wSecret)) {
+    return { initialError: 'Invalid secret format.', wishId: null, secret: null };
+  }
+
+  return { initialError: null, wishId: wId, secret: wSecret };
+}
+
 export default function WishmailDashboard() {
   const { token } = useAuth();
+  const [initialParams] = useState(parseInitialWishmailParams);
   const [mails, setMails] = useState<Wishmail[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [wishId, setWishId] = useState<string | null>(null);
-  const [secret, setSecret] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialParams.initialError);
+  const [wishId] = useState<string | null>(initialParams.wishId);
+  const [secret] = useState<string | null>(initialParams.secret);
 
   useEffect(() => {
-    const hashIndex = globalThis.location.hash.indexOf('?');
-    if (hashIndex === -1) {
-      setError('No wish ID provided.');
+    if (!wishId || initialParams.initialError) {
       return;
     }
 
-    const params = new URLSearchParams(globalThis.location.hash.substring(hashIndex));
-    const wId = params.get('id');
-    const wSecret = params.get('secret');
-
-    if (!wId) {
-      setError('No wish ID provided.');
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9-]+$/.test(wId)) {
-      setError('Invalid wish ID format.');
-      return;
-    }
-
-    if (wSecret && !/^[a-zA-Z0-9_-]+$/.test(wSecret)) {
-      setError('Invalid secret format.');
-      return;
-    }
-
-    setWishId(wId);
-    setSecret(wSecret);
-
+    const controller = new AbortController();
     const headers: Record<string, string> = {};
     if (token) headers.Authorization = `Bearer ${token}`;
-    if (wSecret) headers['x-wish-secret'] = wSecret;
+    if (secret) headers['x-wish-secret'] = secret;
 
-    fetch(`/api/wishes/${encodeURIComponent(wId)}/mail`, { headers })
+    fetch(`/api/wishes/${encodeURIComponent(wishId)}/mail`, {
+      headers,
+      signal: controller.signal,
+    })
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error('Not authorized to view wishmail for this wish, or wish not found.');
       })
       .then((data) => setMails(data))
-      .catch((err) => setError(err.message));
-  }, [token]);
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+        }
+      });
+
+    return () => controller.abort();
+  }, [token, wishId, secret, initialParams.initialError]);
 
   const markRead = async (mailId: string) => {
     if (!wishId || !/^[a-zA-Z0-9-]+$/.test(wishId) || !/^[a-zA-Z0-9-]+$/.test(mailId)) return;
