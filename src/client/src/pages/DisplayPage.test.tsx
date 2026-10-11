@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import DisplayPage from './DisplayPage';
+import { useEventProfile } from '../EventProfileContext';
 
 // Mock ResizeObserver for jsdom
 class ResizeObserverMock {
@@ -45,6 +46,23 @@ describe('DisplayPage', () => {
 
     await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/wishes/random?limit=12');
+  });
+
+  it('calls onEnterKiosk when Enter Kiosk Mode button is clicked', async () => {
+    const onEnterKiosk = vi.fn();
+    render(<DisplayPage isKiosk={false} onEnterKiosk={onEnterKiosk} />);
+
+    await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+    const btn = screen.getByRole('button', { name: 'Enter Kiosk Mode' });
+    fireEvent.click(btn);
+    expect(onEnterKiosk).toHaveBeenCalled();
+  });
+
+  it('cleans up rotation timer on unmount', async () => {
+    const { unmount } = render(<DisplayPage isKiosk={false} />);
+    await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+    unmount();
+    expect(globalThis.clearInterval).toHaveBeenCalled();
   });
 
   it('displays an error message when the API fetch fails', async () => {
@@ -234,6 +252,63 @@ describe('DisplayPage', () => {
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
         'Anthrocon 2026 Wishboard'
       );
+    });
+
+    it('renders profile title from EventProfileContext in header banner', async () => {
+      const mockProfile = {
+        profile: 'default',
+        title: 'Spring Festival Wishboard',
+        contact_methods: ['Phone'],
+        categories: [],
+        realtimeProvider: 'socketio',
+        apIp: '',
+        isServerless: false,
+      };
+      vi.mocked(useEventProfile).mockReturnValue(mockProfile as any);
+
+      render(<DisplayPage isKiosk={true} />);
+
+      await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Spring Festival Wishboard'
+      );
+    });
+
+    it('renders capitalized profile wishboard title when only profile.profile is set', async () => {
+      const mockProfile = {
+        profile: 'anthro',
+        contact_methods: ['Phone'],
+        categories: [],
+        realtimeProvider: 'socketio',
+        apIp: '',
+        isServerless: false,
+      };
+      vi.mocked(useEventProfile).mockReturnValue(mockProfile as any);
+
+      render(<DisplayPage isKiosk={true} />);
+
+      await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Anthro Wishboard');
+    });
+
+    it('renders error message in kiosk mode when fetch fails', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+      }) as any;
+
+      render(<DisplayPage isKiosk={true} />);
+
+      await waitFor(() => expect(screen.getByText('Unable to load wishes.')).toBeInTheDocument());
+    });
+
+    it('calculates capacity on large screens (innerWidth >= 1600)', async () => {
+      const originalInnerWidth = globalThis.innerWidth;
+      globalThis.innerWidth = 1920;
+
+      render(<DisplayPage isKiosk={true} />);
+
+      await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+      globalThis.innerWidth = originalInnerWidth;
     });
   });
 });

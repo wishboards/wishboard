@@ -131,5 +131,41 @@ describe('DisplayPage WebSocket', () => {
 
     expect(socket.emit).toHaveBeenCalledWith('unsubscribe', { channel: 'wish:*' });
     expect(socket.off).toHaveBeenCalledWith('wish:created', expect.any(Function));
+    expect(socket.off).toHaveBeenCalledWith('wish:deleted', expect.any(Function));
+  });
+
+  it('removes deleted wish from active wishes and pinned wishes when wish:deleted is received', async () => {
+    render(<DisplayPage isKiosk={false} />);
+    await waitFor(() => expect(screen.getByText('Existing wish')).toBeInTheDocument());
+
+    const socket = getMockSocket();
+    const wishCreatedHandler = (socket.on as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([event]) => event === 'wish:created'
+    )?.[1];
+    const wishDeletedHandler = (socket.on as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([event]) => event === 'wish:deleted'
+    )?.[1];
+
+    expect(wishDeletedHandler).toBeDefined();
+
+    // Pin a live wish
+    act(() => {
+      wishCreatedHandler({
+        id: 'pinned-1',
+        content: 'Pinned wish to delete',
+      });
+    });
+    await waitFor(() => expect(screen.getByText('Pinned wish to delete')).toBeInTheDocument());
+
+    // Delete both the existing wish and the pinned wish
+    act(() => {
+      wishDeletedHandler('pinned-1');
+      wishDeletedHandler('w1');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Pinned wish to delete')).not.toBeInTheDocument();
+      expect(screen.queryByText('Existing wish')).not.toBeInTheDocument();
+    });
   });
 });
