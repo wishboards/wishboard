@@ -49,7 +49,7 @@ sudo machinectl shell wishboard@ /bin/bash -c "PATH=/usr/bin:/sbin:/usr/sbin:\$P
 sudo systemctl --user -M wishboard@ restart docker 2>/dev/null || true
 
 echo "Exporting DOCKER_HOST for wishboard user..."
-sudo -u wishboard bash -c 'grep -q "DOCKER_HOST" ~/.bashrc || echo "export DOCKER_HOST=unix:///run/user/\$(id -u)/docker.sock" >> ~/.bashrc'
+sudo -u wishboard bash -c 'grep -q "DOCKER_HOST" ~/.bashrc 2>/dev/null || echo "export DOCKER_HOST=unix:///run/user/\$(id -u)/docker.sock" >> ~/.bashrc'
 
 echo "Configuring Wireless Access Point (Hotspot) for Mode: $MODE..."
 
