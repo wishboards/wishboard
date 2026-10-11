@@ -148,4 +148,16 @@ describe('App Component', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(screen.queryByText('Exit Kiosk Mode')).not.toBeInTheDocument();
   });
+
+  it('does not render an Admin button in the navigation bar', async () => {
+    render(<App />);
+    expect(screen.queryByRole('button', { name: /^admin$/i })).not.toBeInTheDocument();
+  });
+
+  it('navigates directly to admin page via #admin hash without navbar button', async () => {
+    globalThis.window.location.hash = '#admin';
+    render(<App />);
+    expect(screen.getByText('AdminPage Mock')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^admin$/i })).not.toBeInTheDocument();
+  });
 });
