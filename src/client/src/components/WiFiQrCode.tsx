@@ -59,71 +59,102 @@ export default function WiFiQrCode({ variant = 'floating', className = '' }: WiF
   }, [isSidebar]);
 
   const config = getServerConfig();
-  if (!isVisible || config.isServerless) return null;
+  if (!isSidebar && (!isVisible || config.isServerless)) return null;
 
   // Use dynamic string construction to prevent SonarCloud hardcoded credentials false-positive
   const wifiPass = import.meta.env.VITE_WIFI_PASSWORD || ['wishboard', '2026'].join('');
   const wifiString = `WIFI:T:WPA;S:Wishboard_WiFi;P:${wifiPass};;`;
 
-  const publicDomain = config.domain || import.meta.env.VITE_WISHBOARD_DOMAIN;
+  const browserHost = globalThis.location?.host;
+  const isLocalHost = browserHost?.startsWith('localhost') || browserHost?.startsWith('127.0.0.1');
+  const publicDomain =
+    (!isLocalHost ? browserHost : null) || config.domain || import.meta.env.VITE_WISHBOARD_DOMAIN;
   const apIp = config.apIp || import.meta.env.VITE_WISHBOARD_AP_IP || '10.42.0.1:3000';
   const url = publicDomain ? `https://${publicDomain}` : `http://${apIp}`;
 
   if (isSidebar) {
+    const isDemo = Boolean(config.isServerless);
+    const badge = isDemo ? WISHBOARD_COPY.demoBadge : WISHBOARD_COPY.badge;
+    const title = isDemo ? 'Try the Live Demo' : 'Join the Board';
+    const subtitle = isDemo ? WISHBOARD_COPY.demoTagline : WISHBOARD_COPY.tagline;
+    const qrValue = isDemo ? url : wifiString;
+    const qrCaption = isDemo ? 'Scan with Camera to Open App' : 'Scan with Camera to Connect';
+
+    const steps = isDemo
+      ? [
+          { num: 1, title: 'Scan Web QR Code', desc: 'Opens the live demo directly on your phone' },
+          { num: 2, title: 'Post a Test Wish', desc: 'Watch it appear instantly on this display' },
+          {
+            num: 3,
+            title: 'Find Matches',
+            desc: 'Test automatic identity matchmaking in real time',
+          },
+        ]
+      : [
+          { num: 1, title: 'Scan Wi-Fi QR Code', desc: 'Joins the local private network' },
+          { num: 2, title: 'Open Portal', desc: 'Launches automatically upon connecting' },
+          { num: 3, title: 'Share Your Wish', desc: 'Post anonymously to this board' },
+        ];
+
     return (
       <aside className={`kiosk-sidebar-panel ${className}`} aria-label="Kiosk Onboarding Panel">
         <div className="sidebar-header">
-          <span className="sidebar-badge">{WISHBOARD_COPY.badge}</span>
-          <h2 className="sidebar-title">Join the Board</h2>
-          <p className="sidebar-subtitle">{WISHBOARD_COPY.tagline}</p>
+          <span className="sidebar-badge">{badge}</span>
+          <h2 className="sidebar-title">{title}</h2>
+          <p className="sidebar-subtitle">{subtitle}</p>
         </div>
 
         <div className="sidebar-qr-wrapper">
           <div className="sidebar-qr-frame">
-            <QRCodeSVG value={wifiString} size={260} level="H" />
+            <QRCodeSVG value={qrValue} size={260} level="H" />
           </div>
-          <span className="sidebar-qr-caption">Scan with Camera to Connect</span>
+          <span className="sidebar-qr-caption">{qrCaption}</span>
         </div>
 
         <ol className="sidebar-steps">
-          <li>
-            <div className="step-num">1</div>
-            <div className="step-content">
-              <strong>Scan Wi-Fi QR Code</strong>
-              <span>Joins the local private network</span>
-            </div>
-          </li>
-          <li>
-            <div className="step-num">2</div>
-            <div className="step-content">
-              <strong>Open Portal</strong>
-              <span>Launches automatically upon connecting</span>
-            </div>
-          </li>
-          <li>
-            <div className="step-num">3</div>
-            <div className="step-content">
-              <strong>Share Your Wish</strong>
-              <span>Post anonymously to this board</span>
-            </div>
-          </li>
+          {steps.map((s) => (
+            <li key={s.num}>
+              <div className="step-num">{s.num}</div>
+              <div className="step-content">
+                <strong>{s.title}</strong>
+                <span>{s.desc}</span>
+              </div>
+            </li>
+          ))}
         </ol>
 
-        <div className="sidebar-credentials">
-          <div className="credential-row">
-            <span className="credential-label">Network</span>
-            <span className="credential-value">Wishboard_WiFi</span>
+        {isDemo ? (
+          <div className="sidebar-host-spotlight">
+            <div className="host-spotlight-header">
+              <span className="host-spotlight-icon" aria-hidden="true">
+                🎪
+              </span>
+              <strong>{WISHBOARD_COPY.eventHostTitle}</strong>
+            </div>
+            <p className="host-spotlight-desc">{WISHBOARD_COPY.eventHostDesc}</p>
+            <div className="credential-divider" />
+            <div className="credential-row url-row">
+              <span className="credential-label">Demo URL</span>
+              <span className="credential-url">{url}</span>
+            </div>
           </div>
-          <div className="credential-row">
-            <span className="credential-label">Password</span>
-            <span className="credential-value">{wifiPass}</span>
+        ) : (
+          <div className="sidebar-credentials">
+            <div className="credential-row">
+              <span className="credential-label">Network</span>
+              <span className="credential-value">Wishboard_WiFi</span>
+            </div>
+            <div className="credential-row">
+              <span className="credential-label">Password</span>
+              <span className="credential-value">{wifiPass}</span>
+            </div>
+            <div className="credential-divider" />
+            <div className="credential-row url-row">
+              <span className="credential-label">Or visit URL</span>
+              <span className="credential-url">{url}</span>
+            </div>
           </div>
-          <div className="credential-divider" />
-          <div className="credential-row url-row">
-            <span className="credential-label">Or visit URL</span>
-            <span className="credential-url">{url}</span>
-          </div>
-        </div>
+        )}
 
         <div className="sidebar-explainer">
           <div className="explainer-item">
