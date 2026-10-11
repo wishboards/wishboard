@@ -322,4 +322,30 @@ describe('EnterWishPage', () => {
       expect(screen.getByText(/OCR Engine Failed/i)).toBeInTheDocument();
     });
   });
+
+  it('updates contacts and wishmailEnabled when user logs in dynamically', () => {
+    let authUser: any = null;
+    vi.mocked(AuthContext.useAuth).mockImplementation(
+      () =>
+        ({
+          token: authUser ? 'tok' : null,
+          user: authUser,
+        }) as any
+    );
+
+    const { rerender } = render(<EnterWishPage />);
+    expect(screen.queryByDisplayValue('bob@example.com')).not.toBeInTheDocument();
+
+    authUser = {
+      id: 'u2',
+      username: 'bob',
+      role: 'user',
+      attributes: {},
+      contacts: [{ type: 'Email', value: 'bob@example.com' }],
+      wishmail_enabled: true,
+      is_active: true,
+    };
+    rerender(<EnterWishPage />);
+    expect(screen.getByDisplayValue('bob@example.com')).toBeInTheDocument();
+  });
 });

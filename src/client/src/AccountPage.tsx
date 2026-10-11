@@ -494,8 +494,6 @@ function AuthenticatedAccountPage() {
   const { user, token, logout, refreshUser } = useAuth();
   const { categories } = useEventProfile();
 
-  const currentUserId = user?.id ?? user?.username ?? null;
-  const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>(() =>
     getInitialProfileAttributes(user)
   );
@@ -503,17 +501,6 @@ function AuthenticatedAccountPage() {
     () => user?.contacts || []
   );
   const [wishmailEnabled, setWishmailEnabled] = useState(() => user?.wishmail_enabled || false);
-
-  if (currentUserId !== prevUserId) {
-    setPrevUserId(currentUserId);
-    if (user) {
-      if (user.attributes) {
-        setEditIdentityAttributes(getInitialProfileAttributes(user));
-      }
-      setContacts(user.contacts || []);
-      setWishmailEnabled(user.wishmail_enabled || false);
-    }
-  }
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wishes, setWishes] = useState<Wish[]>([]);
@@ -1016,5 +1003,5 @@ export default function AccountPage() {
     return <UnauthenticatedAccountPage />;
   }
 
-  return <AuthenticatedAccountPage />;
+  return <AuthenticatedAccountPage key={user.id} />;
 }

@@ -283,4 +283,20 @@ describe('SearchPage', () => {
       expect(screen.queryByRole('button', { name: /Undo/i })).not.toBeInTheDocument()
     );
   });
+
+  it('updates useProfileAttributes when user logs in dynamically', () => {
+    mockUser = null;
+    const { rerender } = render(<SearchPage />);
+    expect(
+      screen.queryByLabelText(/Filter results by my profile attributes/i)
+    ).not.toBeInTheDocument();
+
+    mockUser = { id: 'u1', username: 'carol', role: 'user', attributes: {} };
+    rerender(<SearchPage />);
+    const checkbox = screen.getByLabelText(
+      /Filter results by my profile attributes/i
+    ) as HTMLInputElement;
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox.checked).toBe(true);
+  });
 });
