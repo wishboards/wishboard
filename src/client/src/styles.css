@@ -880,6 +880,12 @@ button:hover {
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  transition: flex 0.2s ease;
+}
+
+.kiosk-split-layout.no-sidebar .kiosk-main-panel {
+  flex: 1 1 100%;
+  width: 100%;
 }
 
 .kiosk-mode .display-grid {
@@ -940,6 +946,38 @@ button:hover {
   padding: 4px 12px;
   border-radius: 20px;
   border: 1px solid #166534;
+}
+
+.kiosk-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kiosk-sidebar-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kiosk-sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.kiosk-sidebar-toggle-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
 }
 
 .live-dot {
@@ -1140,6 +1178,38 @@ button:hover {
   font-weight: 700;
   font-size: 0.85rem;
   word-break: break-all;
+}
+
+/* Serverless Demo Showcase Spotlight (#507) */
+.sidebar-host-spotlight {
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.host-spotlight-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #38bdf8;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.host-spotlight-icon {
+  font-size: 1.1rem;
+}
+
+.host-spotlight-desc {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.45;
+  font-size: 0.78rem;
 }
 
 .sidebar-explainer {

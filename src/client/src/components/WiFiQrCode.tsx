@@ -59,17 +59,93 @@ export default function WiFiQrCode({ variant = 'floating', className = '' }: WiF
   }, [isSidebar]);
 
   const config = getServerConfig();
-  if (!isVisible || config.isServerless) return null;
+  if (!isSidebar && (!isVisible || config.isServerless)) return null;
 
   // Use dynamic string construction to prevent SonarCloud hardcoded credentials false-positive
   const wifiPass = import.meta.env.VITE_WIFI_PASSWORD || ['wishboard', '2026'].join('');
   const wifiString = `WIFI:T:WPA;S:Wishboard_WiFi;P:${wifiPass};;`;
 
-  const publicDomain = config.domain || import.meta.env.VITE_WISHBOARD_DOMAIN;
+  const browserHost = globalThis.location?.host;
+  const isLocalHost = browserHost?.startsWith('localhost') || browserHost?.startsWith('127.0.0.1');
+  const publicDomain =
+    (!isLocalHost ? browserHost : null) || config.domain || import.meta.env.VITE_WISHBOARD_DOMAIN;
   const apIp = config.apIp || import.meta.env.VITE_WISHBOARD_AP_IP || '10.42.0.1:3000';
   const url = publicDomain ? `https://${publicDomain}` : `http://${apIp}`;
 
   if (isSidebar) {
+    if (config.isServerless) {
+      return (
+        <aside className={`kiosk-sidebar-panel ${className}`} aria-label="Kiosk Onboarding Panel">
+          <div className="sidebar-header">
+            <span className="sidebar-badge">{WISHBOARD_COPY.demoBadge}</span>
+            <h2 className="sidebar-title">Try the Live Demo</h2>
+            <p className="sidebar-subtitle">{WISHBOARD_COPY.demoTagline}</p>
+          </div>
+
+          <div className="sidebar-qr-wrapper">
+            <div className="sidebar-qr-frame">
+              <QRCodeSVG value={url} size={260} level="H" />
+            </div>
+            <span className="sidebar-qr-caption">Scan with Camera to Open App</span>
+          </div>
+
+          <ol className="sidebar-steps">
+            <li>
+              <div className="step-num">1</div>
+              <div className="step-content">
+                <strong>Scan Web QR Code</strong>
+                <span>Opens the live demo directly on your phone</span>
+              </div>
+            </li>
+            <li>
+              <div className="step-num">2</div>
+              <div className="step-content">
+                <strong>Post a Test Wish</strong>
+                <span>Watch it appear instantly on this display</span>
+              </div>
+            </li>
+            <li>
+              <div className="step-num">3</div>
+              <div className="step-content">
+                <strong>Find Matches</strong>
+                <span>Test automatic identity matchmaking in real time</span>
+              </div>
+            </li>
+          </ol>
+
+          <div className="sidebar-host-spotlight">
+            <div className="host-spotlight-header">
+              <span className="host-spotlight-icon" aria-hidden="true">
+                🎪
+              </span>
+              <strong>{WISHBOARD_COPY.eventHostTitle}</strong>
+            </div>
+            <p className="host-spotlight-desc">{WISHBOARD_COPY.eventHostDesc}</p>
+            <div className="credential-divider" />
+            <div className="credential-row url-row">
+              <span className="credential-label">Demo URL</span>
+              <span className="credential-url">{url}</span>
+            </div>
+          </div>
+
+          <div className="sidebar-explainer">
+            <div className="explainer-item">
+              <strong>🪄 {WISHBOARD_COPY.features.create.title}:</strong>
+              <span>{WISHBOARD_COPY.features.create.desc}</span>
+            </div>
+            <div className="explainer-item">
+              <strong>🔍 {WISHBOARD_COPY.features.match.title}:</strong>
+              <span>{WISHBOARD_COPY.features.match.desc}</span>
+            </div>
+            <div className="explainer-item">
+              <strong>🔒 {WISHBOARD_COPY.features.privacy.title}:</strong>
+              <span>{WISHBOARD_COPY.features.privacy.desc}</span>
+            </div>
+          </div>
+        </aside>
+      );
+    }
+
     return (
       <aside className={`kiosk-sidebar-panel ${className}`} aria-label="Kiosk Onboarding Panel">
         <div className="sidebar-header">

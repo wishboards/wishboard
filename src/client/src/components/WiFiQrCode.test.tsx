@@ -117,5 +117,51 @@ describe('WiFiQrCode', () => {
 
       expect(screen.getByText('https://kiosk.wishboard.org')).toBeInTheDocument();
     });
+
+    it('renders interactive demo showcase panel in serverless mode', () => {
+      setConfig({ isServerless: true, domain: 'demo.wishboards.app' });
+      render(<WiFiQrCode variant="sidebar" />);
+
+      expect(screen.getByText('Interactive Demo')).toBeInTheDocument();
+      expect(screen.getByText('Try the Live Demo')).toBeInTheDocument();
+      expect(screen.getByText('Scan with Camera to Open App')).toBeInTheDocument();
+      expect(screen.getByText('Planning an In-Person Gathering?')).toBeInTheDocument();
+      expect(screen.getByText(/At live conventions and events/i)).toBeInTheDocument();
+      expect(screen.getByText('https://demo.wishboards.app')).toBeInTheDocument();
+      expect(screen.getByText('Scan Web QR Code')).toBeInTheDocument();
+      expect(screen.getByText('Post a Test Wish')).toBeInTheDocument();
+      expect(screen.getByText('Find Matches')).toBeInTheDocument();
+      expect(screen.getByText(/Post a wish with your preferences/i)).toBeInTheDocument();
+
+      // Ensure Wi-Fi credentials are not rendered
+      expect(screen.queryByText('Wishboard_WiFi')).not.toBeInTheDocument();
+    });
+
+    it('does not render floating variant in serverless mode even after timer elapses', () => {
+      setConfig({ isServerless: true });
+      const { container } = render(<WiFiQrCode variant="floating" />);
+
+      act(() => {
+        vi.advanceTimersByTime(20000);
+      });
+
+      expect(container.firstChild).toBeNull();
+    });
+
+    it('uses browser host when not on localhost or 127.0.0.1', () => {
+      setConfig({ isServerless: true });
+      const originalLocation = globalThis.location;
+      // @ts-expect-error Mocking location.host
+      delete globalThis.location;
+      globalThis.location = {
+        ...originalLocation,
+        host: 'live-event.wishboards.org',
+      } as Location;
+
+      render(<WiFiQrCode variant="sidebar" />);
+      expect(screen.getByText('https://live-event.wishboards.org')).toBeInTheDocument();
+
+      globalThis.location = originalLocation;
+    });
   });
 });

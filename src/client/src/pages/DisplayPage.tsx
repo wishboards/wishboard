@@ -26,6 +26,7 @@ export default function DisplayPage({ onEnterKiosk, isKiosk, title }: DisplayPag
   const [error, setError] = useState<string | null>(null);
   const [capacity, setCapacity] = useState<number>(12);
   const [mailWishId, setMailWishId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState<boolean>(true);
   const gridRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
   const { socket } = useWebSocket();
@@ -150,16 +151,27 @@ export default function DisplayPage({ onEnterKiosk, isKiosk, title }: DisplayPag
   return (
     <section className={`display-section ${isKiosk ? 'kiosk-display-mode' : ''}`}>
       {isKiosk ? (
-        <div className="kiosk-split-layout">
+        <div className={`kiosk-split-layout ${showSidebar ? '' : 'no-sidebar'}`}>
           <div className="kiosk-main-panel">
             <header className="kiosk-header-banner">
               <div className="kiosk-title-group">
                 <h1 className="kiosk-board-title">{boardTitle}</h1>
                 <span className="kiosk-board-subtitle">Live Community Board</span>
               </div>
-              <div className="kiosk-live-badge">
-                <span className="live-dot" aria-hidden="true" />
-                <span>Live • Auto-rotating</span>
+              <div className="kiosk-header-actions">
+                <button
+                  type="button"
+                  className="kiosk-sidebar-toggle-btn"
+                  onClick={() => setShowSidebar((prev) => !prev)}
+                  title={showSidebar ? 'Hide Sidebar' : 'Show Sidebar'}
+                  aria-label={showSidebar ? 'Hide Sidebar' : 'Show Sidebar'}
+                >
+                  {showSidebar ? '◧ Hide Sidebar' : '◨ Show Sidebar'}
+                </button>
+                <div className="kiosk-live-badge">
+                  <span className="live-dot" aria-hidden="true" />
+                  <span>Live • Auto-rotating</span>
+                </div>
               </div>
             </header>
 
@@ -179,9 +191,11 @@ export default function DisplayPage({ onEnterKiosk, isKiosk, title }: DisplayPag
             </div>
           </div>
 
-          <aside className="kiosk-sidebar-container">
-            <WiFiQrCode variant="sidebar" />
-          </aside>
+          {showSidebar && (
+            <aside className="kiosk-sidebar-container">
+              <WiFiQrCode variant="sidebar" />
+            </aside>
+          )}
         </div>
       ) : (
         <>

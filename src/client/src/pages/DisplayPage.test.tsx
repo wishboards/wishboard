@@ -310,5 +310,21 @@ describe('DisplayPage', () => {
       await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
       globalThis.innerWidth = originalInnerWidth;
     });
+
+    it('toggles sidebar visibility and layout class when toggle button is clicked', async () => {
+      render(<DisplayPage isKiosk={true} />);
+
+      await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+      expect(screen.getByLabelText('Kiosk Onboarding Panel')).toBeInTheDocument();
+
+      const toggleBtn = screen.getByRole('button', { name: 'Hide Sidebar' });
+      fireEvent.click(toggleBtn);
+
+      expect(screen.queryByLabelText('Kiosk Onboarding Panel')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Show Sidebar' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show Sidebar' }));
+      expect(screen.getByLabelText('Kiosk Onboarding Panel')).toBeInTheDocument();
+    });
   });
 });
