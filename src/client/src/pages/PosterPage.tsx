@@ -87,48 +87,50 @@ export default function PosterPage() {
         <p style={styles.subtitle}>
           {config.isServerless
             ? 'Welcome! Scan the QR code below to connect to the Wishboard and start making matches.'
-            : 'Welcome! Follow the two steps below to connect to the Wishboard and start making matches.'}
+            : 'Welcome! Scan the QR code below to connect to the Wishboard Wi-Fi. The portal will open automatically on your device.'}
         </p>
 
         <div style={styles.stepsContainer}>
-          {/* Step 1: WiFi */}
-          {!config.isServerless && (
+          {config.isServerless ? (
             <div style={styles.stepCol}>
-              <h2 style={styles.stepTitle}>Step 1: Join Wi-Fi</h2>
+              <h2 style={styles.stepTitle}>Scan to Visit</h2>
               <div style={styles.qrWrapper}>
-                <QRCodeSVG value={wifiString} size={240} level="H" />
+                <QRCodeSVG value={url} size={260} level="H" />
+              </div>
+              <p
+                style={{
+                  fontSize: '1.4rem',
+                  fontWeight: 'bold',
+                  margin: '0.5rem 0',
+                  color: '#1a73e8',
+                }}
+              >
+                {domain}
+              </p>
+              <p style={{ fontSize: '1.1rem', margin: '0', color: '#666' }}>
+                (Or type this URL into your browser)
+              </p>
+            </div>
+          ) : (
+            <div style={styles.stepCol}>
+              <h2 style={styles.stepTitle}>Scan to Connect</h2>
+              <div style={styles.qrWrapper}>
+                <QRCodeSVG value={wifiString} size={260} level="H" />
               </div>
               <p style={{ fontSize: '1.2rem', margin: '0.5rem 0' }}>
                 <strong>Network:</strong> Wishboard_WiFi
               </p>
-              <p style={{ fontSize: '1.2rem', margin: '0' }}>
+              <p style={{ fontSize: '1.2rem', margin: '0 0 0.5rem 0' }}>
                 <strong>Password:</strong> {wifiPass}
+              </p>
+              <p style={{ fontSize: '1.05rem', margin: '0.5rem 0 0 0', color: '#666' }}>
+                Wishboard opens automatically upon connecting.
+              </p>
+              <p style={{ fontSize: '1.05rem', margin: '0.25rem 0 0 0', color: '#666' }}>
+                Or visit: <strong style={{ color: '#1a73e8' }}>{domain}</strong>
               </p>
             </div>
           )}
-
-          {/* Step 2: URL */}
-          <div style={styles.stepCol}>
-            <h2 style={styles.stepTitle}>
-              {config.isServerless ? 'Scan to Visit' : 'Step 2: Scan to Visit'}
-            </h2>
-            <div style={styles.qrWrapper}>
-              <QRCodeSVG value={url} size={240} level="H" />
-            </div>
-            <p
-              style={{
-                fontSize: '1.4rem',
-                fontWeight: 'bold',
-                margin: '0.5rem 0',
-                color: '#1a73e8',
-              }}
-            >
-              {domain}
-            </p>
-            <p style={{ fontSize: '1.1rem', margin: '0', color: '#666' }}>
-              (Or type this URL into your browser)
-            </p>
-          </div>
         </div>
 
         <div style={styles.footerCols}>
