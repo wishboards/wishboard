@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.27.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.26.0...wishboard-v1.27.0) (2026-10-11)
+
+
+### Features
+
+* **kiosk:** trigger captive portal onboarding on Wi-Fi connection ([#495](https://github.com/wishboards/wishboard/issues/495)) ([83cdbcf](https://github.com/wishboards/wishboard/commit/83cdbcf92861efe0aef1f11a176181cf979ddec8))
+* **poster:** streamline poster to single QR code for captive portal onboarding ([#497](https://github.com/wishboards/wishboard/issues/497)) ([6ded184](https://github.com/wishboards/wishboard/commit/6ded184ded28971b0084542a02ac7e8ba86abcda))
+
 ## [1.26.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.25.2...wishboard-v1.26.0) (2026-10-11)
 
 
