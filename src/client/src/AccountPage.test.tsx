@@ -206,6 +206,26 @@ describe('AccountPage', () => {
     await screen.findByText('Invalid username or passphrase.');
   });
 
+  it('resets to register mode when username is typed and then cleared', () => {
+    useAuthMock.mockReturnValue({
+      user: null,
+      token: null,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+
+    render(<AccountPage />);
+    const usernameInput = screen.getByLabelText('Username');
+    fireEvent.change(usernameInput, { target: { value: 'alice' } });
+    fireEvent.change(usernameInput, { target: { value: '' } });
+    const submitButtons = screen
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('type') === 'submit');
+    expect(submitButtons[0]).toHaveTextContent('Register');
+  });
+
   it('lets logged-in users edit and save profile attributes', async () => {
     const refreshUser = vi.fn();
     const fetchMock = vi.fn((input, init) => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth, AuthUser } from './AuthContext';
 import { useExcludedWishes } from './hooks/useExcludedWishes';
 import { generatePassphrase } from './passphrase.js';
 import InfoToggle from './components/InfoToggle';
@@ -15,16 +15,24 @@ import { useEventProfile, Category } from './EventProfileContext';
 function useUsernameExistence(username: string) {
   const [existingUsername, setExistingUsername] = useState(false);
   const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [prevUsername, setPrevUsername] = useState(username);
+
+  const trimmed = username.trim();
+  if (username !== prevUsername) {
+    setPrevUsername(username);
+    if (!trimmed) {
+      setExistingUsername(false);
+      setMode('register');
+    }
+  }
 
   useEffect(() => {
     const name = username.trim();
-    let active = true;
-
     if (!name) {
-      setExistingUsername(false);
-      setMode('register');
       return;
     }
+
+    let active = true;
 
     const timer = globalThis.setTimeout(async () => {
       try {
@@ -471,13 +479,28 @@ function UnauthenticatedAccountPage() {
   );
 }
 
+function getInitialProfileAttributes(user: AuthUser | null): Record<string, string> {
+  if (!user?.attributes) return {};
+  const initialAttributes: Record<string, string> = {};
+  Object.keys(user.attributes).forEach((key) => {
+    if (Array.isArray(user.attributes[key])) {
+      initialAttributes[key] = user.attributes[key].join(', ');
+    }
+  });
+  return initialAttributes;
+}
+
 function AuthenticatedAccountPage() {
   const { user, token, logout, refreshUser } = useAuth();
   const { categories } = useEventProfile();
 
-  const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>({});
-  const [contacts, setContacts] = useState<Array<{ type: string; value: string }>>([]);
-  const [wishmailEnabled, setWishmailEnabled] = useState(false);
+  const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>(() =>
+    getInitialProfileAttributes(user)
+  );
+  const [contacts, setContacts] = useState<Array<{ type: string; value: string }>>(
+    () => user?.contacts || []
+  );
+  const [wishmailEnabled, setWishmailEnabled] = useState(() => user?.wishmail_enabled || false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wishes, setWishes] = useState<Wish[]>([]);
@@ -543,23 +566,6 @@ function AuthenticatedAccountPage() {
   useEffect(() => {
     void loadHiddenWishes();
   }, [loadHiddenWishes]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-    if (user.attributes) {
-      const initialAttributes: Record<string, string> = {};
-      Object.keys(user.attributes).forEach((key) => {
-        if (Array.isArray(user.attributes[key])) {
-          initialAttributes[key] = user.attributes[key].join(', ');
-        }
-      });
-      setEditIdentityAttributes(initialAttributes);
-    }
-    setContacts(user.contacts || []);
-    setWishmailEnabled(user.wishmail_enabled || false);
-  }, [user]);
 
   const saveProfile = async () => {
     setError(null);
@@ -997,5 +1003,5 @@ export default function AccountPage() {
     return <UnauthenticatedAccountPage />;
   }
 
-  return <AuthenticatedAccountPage />;
+  return <AuthenticatedAccountPage key={user.id} />;
 }

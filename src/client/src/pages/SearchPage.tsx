@@ -84,8 +84,15 @@ export default function SearchPage() {
   const [results, setResults] = useState<Wish[]>([]);
   const [justExcludedId, setJustExcludedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const currentUserId = user?.id ?? user?.username ?? null;
+  const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [useProfileAttributes, setUseProfileAttributes] = useState<boolean>(Boolean(user));
   const [manualAttributes, setManualAttributes] = useState<Record<string, string>>({});
+
+  if (currentUserId !== prevUserId) {
+    setPrevUserId(currentUserId);
+    setUseProfileAttributes(Boolean(user));
+  }
   const { categories } = useEventProfile();
   const [mailWishId, setMailWishId] = useState<string | null>(null);
   const [lastSearchParams, setLastSearchParams] = useState<string | null>(null);
@@ -129,10 +136,6 @@ export default function SearchPage() {
       socket.off('wish:deleted', handleDeletedWish);
     };
   }, [socket, handleNewWish, handleDeletedWish]);
-
-  useEffect(() => {
-    setUseProfileAttributes(Boolean(user));
-  }, [user]);
 
   const search = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();

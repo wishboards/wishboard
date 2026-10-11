@@ -39,8 +39,12 @@ export default function EnterWishPage() {
   const [creatorAttributes, setCreatorAttributes] = useState<Record<string, string>>({});
   const [desiredAttributes, setDesiredAttributes] = useState<Record<string, string>>({});
 
-  const [contacts, setContacts] = useState<{ type: string; value: string }[]>([]);
-  const [wishmailEnabled, setWishmailEnabled] = useState(false);
+  const currentUserId = user?.id ?? user?.username ?? null;
+  const [prevUserId, setPrevUserId] = useState(currentUserId);
+  const [contacts, setContacts] = useState<{ type: string; value: string }[]>(
+    () => user?.contacts || []
+  );
+  const [wishmailEnabled, setWishmailEnabled] = useState(() => user?.wishmail_enabled || false);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
@@ -48,12 +52,13 @@ export default function EnterWishPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
 
-  useEffect(() => {
+  if (currentUserId !== prevUserId) {
+    setPrevUserId(currentUserId);
     if (user) {
       setContacts(user.contacts || []);
       setWishmailEnabled(user.wishmail_enabled || false);
     }
-  }, [user]);
+  }
 
   const [result, setResult] = useState<{ id: string; secret?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
