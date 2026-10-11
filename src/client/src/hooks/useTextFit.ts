@@ -26,7 +26,6 @@ export function useTextFit<
 ) {
   const containerRef = useRef<T>(null);
   const contentRef = useRef<U>(null);
-  const [fontSize, setFontSize] = useState(maxFontSize);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   useLayoutEffect(() => {
@@ -82,8 +81,8 @@ export function useTextFit<
           container.scrollWidth > container.clientWidth;
       }
 
+      // eslint-disable-next-line @eslint-react/set-state-in-effect -- DOM measurement in useLayoutEffect requires updating layout state
       setIsOverflowing(isStillOverflowing);
-      setFontSize(currentFontSize);
     };
 
     performFit();
@@ -103,8 +102,8 @@ export function useTextFit<
     return () => {
       observer.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Custom hook accepts dynamic caller dependency list to re-trigger layout fit
+    // eslint-disable-next-line react-hooks/exhaustive-deps, @eslint-react/exhaustive-deps -- Custom hook accepts dynamic caller dependency list to re-trigger layout fit
   }, [minFontSize, maxFontSize, step, notionalSize, ...deps]);
 
-  return { containerRef, contentRef, fontSize, isOverflowing };
+  return { containerRef, contentRef, isOverflowing };
 }
