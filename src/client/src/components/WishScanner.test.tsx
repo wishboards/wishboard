@@ -303,6 +303,40 @@ describe('WishScanner', () => {
     expect(mockCtx.moveTo).toHaveBeenCalledWith((10 / 1920) * 800, (10 / 1080) * 600);
   });
 
+  it('suppresses sticker zone overlay when stickerCount is 0', async () => {
+    render(<WishScanner onCapture={vi.fn()} onCancel={vi.fn()} stickerCount={0} />);
+
+    const video = document.querySelector('video') as HTMLVideoElement;
+    Object.defineProperty(video, 'videoWidth', { get: () => 1920, configurable: true });
+    Object.defineProperty(video, 'videoHeight', { get: () => 1080, configurable: true });
+
+    await act(async () => {
+      fireEvent.play(video);
+      await delay(50);
+    });
+
+    expect(mockCtx.fillText).not.toHaveBeenCalledWith(
+      expect.stringContaining('sticker'),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('renders dynamic sticker zone overlay correlated with stickerCount at top-right', async () => {
+    render(<WishScanner onCapture={vi.fn()} onCancel={vi.fn()} stickerCount={2} />);
+
+    const video = document.querySelector('video') as HTMLVideoElement;
+    Object.defineProperty(video, 'videoWidth', { get: () => 1920, configurable: true });
+    Object.defineProperty(video, 'videoHeight', { get: () => 1080, configurable: true });
+
+    await act(async () => {
+      fireEvent.play(video);
+      await delay(50);
+    });
+
+    expect(mockCtx.fillText).toHaveBeenCalledWith('2 stickers here', 0, 0);
+  });
+
   it('drawOverlay handles fallback-contour state', async () => {
     vi.mocked(cardProcessor.detectDocumentContour).mockReturnValue({
       src: { delete: vi.fn() },

@@ -503,6 +503,7 @@ export default function EnterWishPage() {
         >
           <React.Suspense fallback={<div style={{ color: 'white' }}>Loading scanner...</div>}>
             <WishScanner
+              attributes={previewWish.creator_attributes}
               onCapture={(ocrContent, blob) => {
                 if (ocrContent) setContent(ocrContent);
                 setImageBlob(blob);

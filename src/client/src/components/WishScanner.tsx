@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import cvPromise from '@techstark/opencv-js';
 import {
   Point,
@@ -9,11 +9,22 @@ import {
   applyTemporalSmoothing,
   processCardImage,
 } from '../cardProcessor';
+import { useEventProfile } from '../EventProfileContext';
+import { countMatchingStickers } from '../utils/stickers';
+
+export interface StickerZoneConfig {
+  visible: boolean;
+  width: number;
+  height: number;
+  label: string;
+}
 
 interface WishScannerProps {
   onCapture: (content: string, imageBlob: Blob) => void;
   onCancel: () => void;
   stickerZoneHeightPercentage?: number;
+  attributes?: Record<string, string[]>;
+  stickerCount?: number;
 }
 
 interface DrawConfig {
@@ -31,7 +42,7 @@ function renderOverlay(
   video: HTMLVideoElement,
   pts: Point[],
   draw: DrawConfig,
-  stickerZoneHeightPercentage: number
+  stickerConfig: StickerZoneConfig
 ) {
   const mapPt = (p: Point) => ({
     x: draw.x + (p.x / video.videoWidth) * draw.w,
@@ -44,7 +55,9 @@ function renderOverlay(
   const p3 = mapPt(pts[3]);
 
   drawDocumentOutline(ctx, canvas, p0, p1, p2, p3);
-  drawStickerZone(cv, ctx, p0, p1, p2, p3, stickerZoneHeightPercentage);
+  if (stickerConfig.visible) {
+    drawStickerZone(cv, ctx, p0, p1, p2, p3, stickerConfig);
+  }
 }
 
 function drawDocumentOutline(
@@ -85,7 +98,7 @@ function drawStickerZone(
   p1: Point,
   p2: Point,
   p3: Point,
-  stickerZoneHeightPercentage: number
+  config: StickerZoneConfig
 ) {
   const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, 1000, 0, 1000, 600, 0, 600]);
   const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
@@ -101,12 +114,12 @@ function drawStickerZone(
   const transform = cv.getPerspectiveTransform(srcTri, dstTri);
 
   const pad = 20;
-  const szW = 1000 * (stickerZoneHeightPercentage / 100);
-  const szH = 600 * 0.15;
+  const szW = config.width;
+  const szH = config.height;
   const szX1 = 1000 - szW - pad;
-  const szY1 = 600 - szH - pad;
+  const szY1 = pad;
   const szX2 = 1000 - pad;
-  const szY2 = 600 - pad;
+  const szY2 = pad + szH;
 
   const zonePtsMat = cv.matFromArray(4, 1, cv.CV_32FC2, [
     szX1,
@@ -149,7 +162,7 @@ function drawStickerZone(
   ctx.save();
   ctx.translate(zcx, zcy);
   ctx.rotate(angle);
-  ctx.fillText('Stickers go here', 0, 0);
+  ctx.fillText(config.label, 0, 0);
   ctx.restore();
 
   srcTri.delete();
@@ -183,12 +196,53 @@ export default function WishScanner({
   onCapture,
   onCancel,
   stickerZoneHeightPercentage = 30,
+  attributes,
+  stickerCount,
 }: Readonly<WishScannerProps>) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+
+  const profile = useEventProfile();
+
+  const stickerConfig: StickerZoneConfig = useMemo(() => {
+    const effectiveCount =
+      stickerCount !== undefined
+        ? stickerCount
+        : attributes !== undefined
+          ? countMatchingStickers(attributes, profile?.stickers)
+          : undefined;
+
+    if (effectiveCount !== undefined) {
+      if (effectiveCount === 0) {
+        return { visible: false, width: 0, height: 0, label: '' };
+      }
+      return {
+        visible: true,
+        width: Math.min(500, Math.max(120, effectiveCount * 80 + 20)),
+        height: 600 * 0.12,
+        label: effectiveCount === 1 ? '1 sticker here' : `${effectiveCount} stickers here`,
+      };
+    }
+
+    if (stickerZoneHeightPercentage <= 0) {
+      return { visible: false, width: 0, height: 0, label: '' };
+    }
+
+    return {
+      visible: true,
+      width: 1000 * (stickerZoneHeightPercentage / 100),
+      height: 600 * 0.15,
+      label: 'Stickers go here',
+    };
+  }, [stickerCount, attributes, profile?.stickers, stickerZoneHeightPercentage]);
+
+  const stickerConfigRef = useRef(stickerConfig);
+  useEffect(() => {
+    stickerConfigRef.current = stickerConfig;
+  }, [stickerConfig]);
 
   const smoothedCornersRef = useRef<{ x: number; y: number }[] | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -311,7 +365,7 @@ export default function WishScanner({
         video,
         smoothedCornersRef.current,
         { x: drawX, y: drawY, w: drawW, h: drawH },
-        stickerZoneHeightPercentage
+        stickerConfigRef.current
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
