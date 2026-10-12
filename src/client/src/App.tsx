@@ -33,26 +33,38 @@ type PageId =
   | 'wishmail-dashboard'
   | 'poster';
 
+const VALID_PAGES: readonly PageId[] = [
+  'home',
+  'enter',
+  'search',
+  'display',
+  'account',
+  'about',
+  'admin',
+  'manage-wish',
+  'wishmail-dashboard',
+  'poster',
+];
+
 const getHashPage = (): PageId => {
-  if (typeof globalThis === 'undefined') {
+  if (typeof globalThis === 'undefined' || !globalThis.location) {
     return 'home';
   }
   const hashPart = globalThis.location.hash.split('?')[0].replace(/^#/, '');
-  const validPages = [
-    'home',
-    'enter',
-    'search',
-    'display',
-    'account',
-    'about',
-    'admin',
-    'manage-wish',
-    'wishmail-dashboard',
-    'poster',
-  ];
-  if (validPages.includes(hashPart)) {
+  if (VALID_PAGES.includes(hashPart as PageId)) {
     return hashPart as PageId;
   }
+
+  // Friendly URL support: inspect pathname if no valid hash is specified
+  const pathPart = globalThis.location.pathname?.replace(/^\/+|\/+$/g, '').split('/')[0];
+  if (VALID_PAGES.includes(pathPart as PageId)) {
+    const search = globalThis.location.search || '';
+    if (globalThis.history?.replaceState) {
+      globalThis.history.replaceState({}, '', `/#${pathPart}${search}`);
+    }
+    return pathPart as PageId;
+  }
+
   return 'home';
 };
 

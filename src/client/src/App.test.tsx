@@ -155,9 +155,72 @@ describe('App Component', () => {
   });
 
   it('navigates directly to admin page via #admin hash without navbar button', async () => {
-    globalThis.window.location.hash = '#admin';
+    globalThis.location.hash = '#admin';
     render(<App />);
     expect(screen.getByText('AdminPage Mock')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^admin$/i })).not.toBeInTheDocument();
+  });
+
+  it('navigates directly to page via friendly URL pathname and normalizes URL to hash route', async () => {
+    globalThis.location.hash = '';
+    globalThis.history.replaceState({}, '', '/display');
+    const replaceSpy = vi.spyOn(globalThis.history, 'replaceState');
+
+    render(<App />);
+
+    expect(screen.getByText('DisplayPage Mock')).toBeInTheDocument();
+    expect(screen.getByText('Is Kiosk: No')).toBeInTheDocument();
+    expect(replaceSpy).toHaveBeenCalledWith({}, '', '/#display');
+
+    // Clean up
+    replaceSpy.mockRestore();
+    globalThis.history.replaceState({}, '', '/');
+    globalThis.location.hash = '#home';
+  });
+
+  it('preserves query parameters when rewriting friendly URL pathname to hash route', async () => {
+    globalThis.location.hash = '';
+    globalThis.history.replaceState({}, '', '/display?kiosk=true');
+    const replaceSpy = vi.spyOn(globalThis.history, 'replaceState');
+
+    render(<App />);
+
+    expect(screen.getByText('DisplayPage Mock')).toBeInTheDocument();
+    expect(screen.getByText('Is Kiosk: Yes')).toBeInTheDocument();
+    expect(replaceSpy).toHaveBeenCalledWith({}, '', '/#display?kiosk=true');
+
+    // Clean up
+    replaceSpy.mockRestore();
+    globalThis.history.replaceState({}, '', '/');
+    globalThis.location.hash = '#home';
+  });
+
+  it('falls back to home page for unknown pathname without rewriting URL', async () => {
+    globalThis.location.hash = '';
+    globalThis.history.replaceState({}, '', '/unknown-nonexistent-route');
+    const replaceSpy = vi.spyOn(globalThis.history, 'replaceState');
+
+    render(<App />);
+
+    expect(screen.getByText('HomePage Mock')).toBeInTheDocument();
+    expect(replaceSpy).not.toHaveBeenCalledWith({}, '', expect.stringContaining('#unknown'));
+
+    // Clean up
+    replaceSpy.mockRestore();
+    globalThis.history.replaceState({}, '', '/');
+    globalThis.location.hash = '#home';
+  });
+
+  it('prefers explicit hash over friendly URL pathname if both are present', async () => {
+    globalThis.history.replaceState({}, '', '/display');
+    globalThis.location.hash = '#search';
+
+    render(<App />);
+
+    expect(screen.getByText('SearchPage Mock')).toBeInTheDocument();
+
+    // Clean up
+    globalThis.history.replaceState({}, '', '/');
+    globalThis.location.hash = '#home';
   });
 });
