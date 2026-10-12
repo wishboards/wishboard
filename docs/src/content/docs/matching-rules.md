@@ -5,24 +5,32 @@ title: Matching Rules
 # Wishboard Matching Engine Rules
 
 The Wishboard matching engine is designed to be inclusive, flexible, and
-powerful. It leverages four types of rules to create connections between users
-based on their identities (gender, orientation, role) and their desired matches.
+powerful. It leverages five types of rules to create connections between users
+based on their profile attributes (such as gender, orientation, role, or professional goals)
+and their desired matches.
 
 ## Where rules live and how to edit them
 
-At runtime the rules live in a **`rules` table in the database** — Turso on the
-serverless target, the embedded libSQL container on the Pi — so they persist across
-restarts and cold starts and are shared across all Lambda instances. Edit them
-through the **admin Rules page**; changes propagate to the matching engine within a
-short cache TTL (`RULES_CACHE_TTL_MS`, default 60s).
+At runtime, matching rules live in a **`rules` table in the database** — Turso on the
+serverless target, the embedded libSQL container on the Pi, or local SQLite for development.
+This ensures they persist across restarts and cold starts and are shared across all Lambda instances.
+Administrators can create, edit, and delete rules live through the **admin Rules page**;
+changes propagate to the in-memory matching cache within a short cache TTL
+(`RULES_CACHE_TTL_MS`, default 60s) without requiring a server restart or redeploy.
 
-The default rule set is defined inside each event profile's `profile.yaml` (e.g., [`profiles/lifestyle/profile.yaml`](../profiles/lifestyle/profile.yaml)),
-which seeds the database `rules` table on first boot based on the active event profile. A pre-existing legacy `rules.yaml` (from before
-the DB migration, [ADR 0002](adr/0002-serverless-database-architecture.md)) is
-migrated once and then the database is the single source of truth — there is no
-longer a `data/rules.yaml` runtime file.
+Default rules are bundled with each event profile (e.g. in `profiles/<profile>/rules.yaml`
+or inline within `profiles/<profile>/profile.yaml` — see [Event Profiles](event-profiles.md)).
+On first boot, if the database `rules` table is empty, the application automatically seeds it
+from the active profile's default rules. After initial seeding, the database is the authoritative
+source of truth.
 
-Identity attributes are dynamically configured via domain settings (e.g. `domain.yaml`, [ADR 0005](adr/0005-matching-engine-generalization.md)) and stored in unified `attributes` JSON fields on users and wishes. All legacy hardcoded column fallbacks (`creator_genders`, `desired_genders`, etc.) and helper logic (`getIdentityAttributes`) have been completely removed from backend routes.
+Identity attributes are completely dynamic and defined by the active event profile's
+`categories` schema (see [ADR 0005](adr/0005-matching-engine-generalization.md) and
+[Event Profiles](event-profiles.md)). Attributes are stored in unified `attributes`
+JSON structures on users and wishes rather than hardcoded database columns. For instance,
+while the default `lifestyle` profile configures `gender`, `orientation`, and `role`, the
+`professional` profile configures networking goals (`Hiring`, `Job Seeking`, `Mentoring`),
+and rules can evaluate any attribute defined by the profile.
 
 ## 1. Enrichment (Implicit Attribute Mapping)
 
@@ -124,7 +132,7 @@ explicit rules for every combination!
 
 _(Note: Cross-match rules can optionally be evaluated with context to prevent unintended cross-community matching. This context-gated evaluation was implemented in [ADR 0005](adr/0005-matching-engine-generalization.md).)_
 
-> The bundled defaults seed multiple role relationships and their respective expansions:
+> In the default `lifestyle` profile, bundled defaults seed role relationships and their respective expansions:
 >
 > - **Pet / Handler**: `handler ↔ pet` (with `pet` expanding to `pup, puppy, kitten, kitty, pony`)
 > - **Top / Bottom**: `top ↔ bottom` (along with `switch ↔ top` and `switch ↔ bottom`)
@@ -136,6 +144,11 @@ _(Note: Cross-match rules can optionally be evaluated with context to prevent un
 > - **Caregiver / Little**: `caregiver ↔ little` (with `caregiver` expanding to `caregiver, daddy, mommy, mummy`)
 > - **Brat-tamer / Brat**: `brat-tamer ↔ brat`
 > - **Versatile / Vers**: `vers ↔ versatile` (synonyms)
+>
+> In the `professional` profile, bundled cross-match rules connect complementary networking goals:
+>
+> - **Hiring / Job Seeking**: `Hiring ↔ Job Seeking`
+> - **Mentoring**: `Mentoring ↔ Seeking Mentor`
 
 ---
 
