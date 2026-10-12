@@ -1,8 +1,9 @@
-name: Watch upstream peers (TS 7)
+name: Watch upstream peers (TS 7, Vitest 5)
 
-# We pin typescript to 6.0.x (typescript-eslint peers TS <6.1.0). This weekly job
-# checks whether that upstream peer range has relaxed and, when it has,
-# comments on the tracking issue (#492) once.
+# We pin typescript to 6.0.x (typescript-eslint peers TS <6.1.0) and vitest to 4.x
+# (@stryker-mutator/vitest-runner <=10.0.0 lacks Vitest 5 separator compatibility).
+# This weekly job checks whether those upstream blockers have resolved and comments
+# on the respective tracking issues (#492 and #519) once.
 
 on:
   schedule:
@@ -11,9 +12,6 @@ on:
 
 permissions:
   issues: write
-
-env:
-  TRACKING_ISSUE: '492'
 
 jobs:
   check:
@@ -41,21 +39,28 @@ jobs:
 
           # Comment on the tracking issue once per condition (marker-guarded).
           notify() {
-            local marker="$1" body="$2"
-            if gh issue view "$TRACKING_ISSUE" --repo "$REPO" --json comments \
+            local issue="$1" marker="$2" body="$3"
+            if gh issue view "$issue" --repo "$REPO" --json comments \
                  --jq '.comments[].body' 2>/dev/null | grep -qF "$marker"; then
-              echo "Already notified for $marker."
+              echo "Already notified on #$issue for $marker."
               return
             fi
             printf '%s\n%b\n\n_Auto-detected by the weekly upstream-peer watcher._' \
-              "$marker" "$body" | gh issue comment "$TRACKING_ISSUE" --repo "$REPO" --body-file -
+              "$marker" "$body" | gh issue comment "$issue" --repo "$REPO" --body-file -
           }
 
           tse=$(satisfies typescript-eslint typescript 7.0.0)
-          echo "typescript-eslint  vs typescript@7 -> $tse"
+          echo "typescript-eslint vs typescript@7 -> $tse"
           case "$tse" in
-            yes*) notify '<!-- watch:typescript-eslint-ts7 -->' \
+            yes*) notify '492' '<!-- watch:typescript-eslint-ts7 -->' \
               "✅ **typescript-eslint** now allows \`typescript@7\` (peer: \`${tse#yes|}\`). The TypeScript 7 bump (#176) is unblocked." ;;
           esac
+
+          runner_ver=$(npm view "@stryker-mutator/vitest-runner@latest" version 2>/dev/null || true)
+          echo "stryker-vitest-runner latest -> $runner_ver"
+          if [ -n "$runner_ver" ] && npx --yes semver -r ">10.0.0" "$runner_ver" >/dev/null 2>&1; then
+            notify '519' '<!-- watch:stryker-vitest-runner -->' \
+              "✅ **@stryker-mutator/vitest-runner** has published \`v$runner_ver\` (>10.0.0). Check release notes for Vitest 5 testNamePattern separator compatibility (stryker-mutator/stryker-js#6210 / #6214) to unblock the Vitest 5 bump (#519)."
+          fi
 
           echo "Done."

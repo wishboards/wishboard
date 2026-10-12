@@ -9,6 +9,7 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 ### Testing & Quality
 
 - **[#492](https://github.com/wishboards/wishboard/issues/492)** — Upgrade to TypeScript 7 once `typescript-eslint` widens its peer dependency range (`>=4.8.4 <6.1.0`), unblocking the Dependabot TS 7 bump.
+- **[#519](https://github.com/wishboards/wishboard/issues/519)** — Upgrade to Vitest 5 once `@stryker-mutator/vitest-runner` supports Vitest 5's testNamePattern separator (`>`), unblocking the Dependabot Vitest 5 bump.
 
 ### Features & Enhancements
 
