@@ -153,6 +153,8 @@ if (globalThis.window !== undefined) {
     })),
   });
 
+  // TODO(#531): Remove this Web Storage polyfill once upstream JSDOM/Vitest handles Node 25+
+  // uninitialized globalThis.localStorage, or when Node 24 support is dropped allowing --no-webstorage.
   // Node 25/26 defines a native localStorage getter on globalThis that evaluates to undefined,
   // causing JSDOM to skip initializing Web Storage. Implement Storage on Storage.prototype and attach to globalThis/window.
   const store = new Map<string, string>();
