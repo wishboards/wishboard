@@ -21,19 +21,7 @@ const pages = [
   { id: 'about', label: 'About', icon: '' },
 ];
 
-type PageId =
-  | 'home'
-  | 'enter'
-  | 'search'
-  | 'display'
-  | 'account'
-  | 'about'
-  | 'admin'
-  | 'manage-wish'
-  | 'wishmail-dashboard'
-  | 'poster';
-
-const VALID_PAGES: readonly PageId[] = [
+const VALID_PAGES = [
   'home',
   'enter',
   'search',
@@ -44,25 +32,30 @@ const VALID_PAGES: readonly PageId[] = [
   'manage-wish',
   'wishmail-dashboard',
   'poster',
-];
+] as const;
+
+type PageId = (typeof VALID_PAGES)[number];
+
+const isValidPage = (page: string): page is PageId =>
+  (VALID_PAGES as readonly string[]).includes(page);
 
 const getHashPage = (): PageId => {
   if (typeof globalThis === 'undefined' || !globalThis.location) {
     return 'home';
   }
   const hashPart = globalThis.location.hash.split('?')[0].replace(/^#/, '');
-  if (VALID_PAGES.includes(hashPart as PageId)) {
-    return hashPart as PageId;
+  if (isValidPage(hashPart)) {
+    return hashPart;
   }
 
   // Friendly URL support: inspect pathname if no valid hash is specified
   const pathPart = globalThis.location.pathname?.replace(/^\/+|\/+$/g, '').split('/')[0];
-  if (VALID_PAGES.includes(pathPart as PageId)) {
+  if (isValidPage(pathPart)) {
     const search = globalThis.location.search || '';
     if (globalThis.history?.replaceState) {
       globalThis.history.replaceState({}, '', `/#${pathPart}${search}`);
     }
-    return pathPart as PageId;
+    return pathPart;
   }
 
   return 'home';
