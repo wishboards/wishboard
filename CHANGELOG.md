@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.30.0...wishboard-v1.30.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **router:** rewrite friendly url paths to hash routes on entry ([#528](https://github.com/wishboards/wishboard/issues/528)) ([999a36f](https://github.com/wishboards/wishboard/commit/999a36f0246b1686cac104990127337bd6ff98b7))
+
 ## [1.30.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.29.2...wishboard-v1.30.0) (2026-10-12)
 
 
