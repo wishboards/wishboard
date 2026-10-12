@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.29.1...wishboard-v1.29.2) (2026-10-12)
+
+
+### Code Refactoring
+
+* resolve SonarCloud cognitive complexity and code smell warnings ([15de97a](https://github.com/wishboards/wishboard/commit/15de97a86d8dab9504766c69eec593c56c63ee79))
+
 ## [1.29.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.29.0...wishboard-v1.29.1) (2026-10-11)
 
 
