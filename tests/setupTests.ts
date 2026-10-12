@@ -153,18 +153,52 @@ if (globalThis.window !== undefined) {
     })),
   });
 
-  // Node 25/26 provides an unconfigured built-in localStorage on globalThis that shadows JSDOM.
-  // Bridge globalThis storage to JSDOM window storage for clean cross-version compatibility.
-  if (globalThis.window.localStorage) {
-    Object.defineProperty(globalThis, 'localStorage', {
-      value: globalThis.window.localStorage,
+  // Node 25/26 defines a native localStorage getter on globalThis that evaluates to undefined,
+  // causing JSDOM to skip initializing Web Storage. Implement Storage on Storage.prototype and attach to globalThis/window.
+  const store = new Map<string, string>();
+  Storage.prototype.getItem = function (key: string) {
+    return store.get(String(key)) ?? null;
+  };
+  Storage.prototype.setItem = function (key: string, value: string) {
+    store.set(String(key), String(value));
+  };
+  Storage.prototype.removeItem = function (key: string) {
+    store.delete(String(key));
+  };
+  Storage.prototype.clear = function () {
+    store.clear();
+  };
+  Object.defineProperty(Storage.prototype, 'length', {
+    get: function () {
+      return store.size;
+    },
+    configurable: true,
+  });
+  Storage.prototype.key = function (index: number) {
+    return Array.from(store.keys())[index] ?? null;
+  };
+
+  const storageInstance = Object.create(Storage.prototype) as Storage;
+
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: storageInstance,
+    configurable: true,
+    writable: true,
+  });
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: storageInstance,
+    configurable: true,
+    writable: true,
+  });
+
+  if (globalThis.window !== undefined) {
+    Object.defineProperty(globalThis.window, 'localStorage', {
+      value: storageInstance,
       configurable: true,
       writable: true,
     });
-  }
-  if (globalThis.window.sessionStorage) {
-    Object.defineProperty(globalThis, 'sessionStorage', {
-      value: globalThis.window.sessionStorage,
+    Object.defineProperty(globalThis.window, 'sessionStorage', {
+      value: storageInstance,
       configurable: true,
       writable: true,
     });
