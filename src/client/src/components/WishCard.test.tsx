@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import WishCard from './WishCard';
 import React from 'react';
+import EventProfileContext from '../EventProfileContext';
 
 import { useTextFit } from '../hooks/useTextFit';
 
@@ -189,5 +190,80 @@ describe('WishCard', () => {
       }),
       expect.any(Array)
     );
+  });
+
+  describe('sticker rendering', () => {
+    const mockProfile = {
+      profile: 'lifestyle',
+      contact_methods: ['Phone', 'Email'],
+      categories: [],
+      stickers: {
+        orientation: {
+          gay: { type: 'heart', class: 'flag-rainbow' },
+        },
+        gender: {
+          woman: { type: 'icon', class: 'female-icon', iconType: 'female' },
+        },
+      },
+      realtimeProvider: 'socketio',
+      apIp: '',
+      isServerless: false,
+    };
+
+    it('renders identity stickers for text wishes with creator attributes', () => {
+      const wish = {
+        id: 'w-stickers-text',
+        content: 'Wish with stickers',
+        creator_attributes: {
+          orientation: ['gay'],
+          gender: ['woman'],
+        },
+      };
+      const { container } = render(
+        <EventProfileContext value={mockProfile}>
+          <WishCard wish={wish} />
+        </EventProfileContext>
+      );
+
+      const stickerContainer = container.querySelector('.identity-stickers');
+      expect(stickerContainer).toBeInTheDocument();
+      expect(container.querySelectorAll('.sticker-heart-shadow')).toHaveLength(1);
+      expect(container.querySelectorAll('.sticker-icon')).toHaveLength(1);
+    });
+
+    it('renders identity stickers on image cards positioned in the top-right overlay', () => {
+      const wish = {
+        id: 'w-stickers-img',
+        content: 'Image with stickers',
+        image_id: 'card.png',
+        creator_attributes: {
+          orientation: ['gay'],
+        },
+      };
+      const { container } = render(
+        <EventProfileContext value={mockProfile}>
+          <WishCard wish={wish} />
+        </EventProfileContext>
+      );
+
+      const stickerContainer = container.querySelector('.identity-stickers');
+      expect(stickerContainer).toBeInTheDocument();
+      expect(container.querySelectorAll('.sticker-heart-shadow')).toHaveLength(1);
+      expect(container.querySelector('.card-has-image')).toBeInTheDocument();
+    });
+
+    it('does not render identity stickers container when creator_attributes is missing or empty', () => {
+      const wish = {
+        id: 'w-no-stickers',
+        content: 'No stickers',
+      };
+      const { container } = render(
+        <EventProfileContext value={mockProfile}>
+          <WishCard wish={wish} />
+        </EventProfileContext>
+      );
+
+      expect(container.querySelector('.identity-stickers')).toBeNull();
+    });
   });
 });

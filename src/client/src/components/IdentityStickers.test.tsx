@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import IdentityStickers from './IdentityStickers';
+import { countMatchingStickers } from '../utils/stickers';
 import * as EventProfileContext from '../EventProfileContext';
 
 vi.mock('../EventProfileContext', () => ({
@@ -78,5 +79,24 @@ describe('IdentityStickers', () => {
     const imgs = container.querySelectorAll('img');
     expect(imgs[0].getAttribute('src')).toBe('/assets/presenter.png');
     expect(imgs[1].getAttribute('src')).toBe('/assets/attendee.png');
+  });
+
+  describe('countMatchingStickers', () => {
+    it('returns 0 for undefined or empty attributes or stickers', () => {
+      expect(countMatchingStickers(undefined, mockDefaultProfile.stickers)).toBe(0);
+      expect(countMatchingStickers({}, mockDefaultProfile.stickers)).toBe(0);
+      expect(countMatchingStickers({ orientation: ['straight'] }, undefined)).toBe(0);
+    });
+
+    it('returns exact count of matching stickers', () => {
+      const count = countMatchingStickers(
+        {
+          orientation: ['straight', 'gay', 'nonexistent'],
+          gender: ['woman', 'unknown'],
+        },
+        mockDefaultProfile.stickers
+      );
+      expect(count).toBe(3); // straight, gay, woman
+    });
   });
 });

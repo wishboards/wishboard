@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import DisplayPage from './DisplayPage';
-import { useEventProfile } from '../EventProfileContext';
+import EventProfileContext, { useEventProfile } from '../EventProfileContext';
 
 // Mock ResizeObserver for jsdom
 class ResizeObserverMock {
@@ -46,6 +46,41 @@ describe('DisplayPage', () => {
 
     await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/wishes/random?limit=12');
+  });
+
+  it('renders identity stickers on cards when wishes have creator_attributes', async () => {
+    const profileWithStickers = {
+      profile: 'lifestyle',
+      contact_methods: ['Phone', 'Email'],
+      categories: [],
+      stickers: {
+        orientation: { gay: { type: 'heart', class: 'flag-rainbow' } },
+      },
+      realtimeProvider: 'socketio',
+      apIp: '',
+      isServerless: false,
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: 'wish-stickers',
+          content: 'Wish with gay sticker',
+          creator_attributes: { orientation: ['gay'] },
+        },
+      ],
+    }) as any;
+
+    const { container } = render(
+      <EventProfileContext value={profileWithStickers}>
+        <DisplayPage isKiosk={false} />
+      </EventProfileContext>
+    );
+
+    await waitFor(() => expect(screen.getByText('Wish with gay sticker')).toBeInTheDocument());
+    expect(container.querySelector('.identity-stickers')).toBeInTheDocument();
+    expect(container.querySelector('.sticker-heart-shadow')).toBeInTheDocument();
   });
 
   it('calls onEnterKiosk when Enter Kiosk Mode button is clicked', async () => {

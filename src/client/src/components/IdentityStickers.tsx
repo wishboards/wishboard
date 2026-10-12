@@ -1,5 +1,6 @@
 import React from 'react';
 import { useEventProfile } from '../EventProfileContext';
+import { findMatchingStickerKey } from '../utils/stickers';
 
 interface Props {
   attributes?: Record<string, string[]>;
@@ -15,11 +16,7 @@ export default function IdentityStickers({ attributes }: Readonly<Props>) {
     const catStickers = stickers[cat] || {};
 
     // Find the first matching sticker rule
-    const matchKey = Object.keys(catStickers).find((k) => {
-      const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-      const regex = new RegExp(String.raw`\b${escapedKey}\b`);
-      return regex.test(valLower);
-    });
+    const matchKey = findMatchingStickerKey(catStickers, valLower);
     if (!matchKey) return null;
 
     const rule = catStickers[matchKey];

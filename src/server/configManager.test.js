@@ -80,6 +80,41 @@ describe('configManager', () => {
     expect(readSpy).toHaveBeenCalledWith(bundledPath, 'utf8');
   });
 
+  it('loads split stickers.yaml and rules.yaml from bundled directory when repoPath does not exist', () => {
+    const repoPath = path.resolve(process.cwd(), 'profiles', 'lifestyle', 'profile.yaml');
+    const bundledProfile = path.resolve(__dirname, 'profile.yaml');
+    const bundledStickers = path.resolve(__dirname, 'stickers.yaml');
+    const bundledRules = path.resolve(__dirname, 'rules.yaml');
+
+    const originalExistsSync = fs.existsSync;
+    vi.spyOn(fs, 'existsSync').mockImplementation((p) => {
+      if (p === repoPath) return false;
+      if (p === bundledProfile || p === bundledStickers || p === bundledRules) return true;
+      return originalExistsSync(p);
+    });
+
+    const originalReadFileSync = fs.readFileSync;
+    vi.spyOn(fs, 'readFileSync').mockImplementation((p, enc) => {
+      if (p === bundledProfile) {
+        return 'profile: bundled\ncontact_methods:\n  - Email\n';
+      }
+      if (p === bundledStickers) {
+        return 'stickers:\n  orientation:\n    gay: { type: heart, class: flag-rainbow }\n';
+      }
+      if (p === bundledRules) {
+        return 'rules:\n  - id: bundled_rule\n    rule_type: expansion\n    trigger_attribute: test\n    trigger_value: test\n    target_attribute: test\n    target_value: test\n';
+      }
+      return originalReadFileSync(p, enc);
+    });
+
+    const config = getEventProfile();
+    expect(config.profile).toBe('bundled');
+    expect(config.stickers).toBeDefined();
+    expect(config.stickers?.orientation?.gay).toEqual({ type: 'heart', class: 'flag-rainbow' });
+    expect(config.rules).toHaveLength(1);
+    expect(config.rules[0].id).toBe('bundled_rule');
+  });
+
   it('populates default rules and contact_methods if missing in YAML', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue('profile: minimal\n');
 
