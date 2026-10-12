@@ -66,7 +66,7 @@ export function useExcludedWishes() {
       }
     }
 
-    void loadServerExclusions();
+    loadServerExclusions().catch(() => {});
 
     return () => {
       active = false;

@@ -16,6 +16,121 @@ export interface WiFiQrCodeProps {
   className?: string;
 }
 
+interface WiFiSidebarPanelProps {
+  className: string;
+  isDemo: boolean;
+  url: string;
+  wifiString: string;
+  wifiPass: string;
+}
+
+function WiFiSidebarPanel({
+  className,
+  isDemo,
+  url,
+  wifiString,
+  wifiPass,
+}: Readonly<WiFiSidebarPanelProps>) {
+  const badge = isDemo ? WISHBOARD_COPY.demoBadge : WISHBOARD_COPY.badge;
+  const title = isDemo ? 'Try the Live Demo' : 'Join the Board';
+  const subtitle = isDemo ? WISHBOARD_COPY.demoTagline : WISHBOARD_COPY.tagline;
+  const qrValue = isDemo ? url : wifiString;
+  const qrCaption = isDemo ? 'Scan with Camera to Open App' : 'Scan with Camera to Connect';
+
+  const steps = isDemo
+    ? [
+        { num: 1, title: 'Scan Web QR Code', desc: 'Opens the live demo directly on your phone' },
+        { num: 2, title: 'Post a Test Wish', desc: 'Watch it appear instantly on this display' },
+        {
+          num: 3,
+          title: 'Find Matches',
+          desc: 'Test automatic identity matchmaking in real time',
+        },
+      ]
+    : [
+        { num: 1, title: 'Scan Wi-Fi QR Code', desc: 'Joins the local private network' },
+        { num: 2, title: 'Open Portal', desc: 'Launches automatically upon connecting' },
+        { num: 3, title: 'Share Your Wish', desc: 'Post anonymously to this board' },
+      ];
+
+  return (
+    <aside className={`kiosk-sidebar-panel ${className}`} aria-label="Kiosk Onboarding Panel">
+      <div className="sidebar-header">
+        <span className="sidebar-badge">{badge}</span>
+        <h2 className="sidebar-title">{title}</h2>
+        <p className="sidebar-subtitle">{subtitle}</p>
+      </div>
+
+      <div className="sidebar-qr-wrapper">
+        <div className="sidebar-qr-frame">
+          <QRCodeSVG value={qrValue} size={260} level="H" />
+        </div>
+        <span className="sidebar-qr-caption">{qrCaption}</span>
+      </div>
+
+      <ol className="sidebar-steps">
+        {steps.map((s) => (
+          <li key={s.num}>
+            <div className="step-num">{s.num}</div>
+            <div className="step-content">
+              <strong>{s.title}</strong>
+              <span>{s.desc}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      {isDemo ? (
+        <div className="sidebar-host-spotlight">
+          <div className="host-spotlight-header">
+            <span className="host-spotlight-icon" aria-hidden="true">
+              🎪
+            </span>
+            <strong>{WISHBOARD_COPY.eventHostTitle}</strong>
+          </div>
+          <p className="host-spotlight-desc">{WISHBOARD_COPY.eventHostDesc}</p>
+          <div className="credential-divider" />
+          <div className="credential-row url-row">
+            <span className="credential-label">Demo URL</span>
+            <span className="credential-url">{url}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="sidebar-credentials">
+          <div className="credential-row">
+            <span className="credential-label">Network</span>
+            <span className="credential-value">Wishboard_WiFi</span>
+          </div>
+          <div className="credential-row">
+            <span className="credential-label">Password</span>
+            <span className="credential-value">{wifiPass}</span>
+          </div>
+          <div className="credential-divider" />
+          <div className="credential-row url-row">
+            <span className="credential-label">Or visit URL</span>
+            <span className="credential-url">{url}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="sidebar-explainer">
+        <div className="explainer-item">
+          <strong>🪄 {WISHBOARD_COPY.features.create.title}:</strong>
+          <span>{WISHBOARD_COPY.features.create.desc}</span>
+        </div>
+        <div className="explainer-item">
+          <strong>🔍 {WISHBOARD_COPY.features.match.title}:</strong>
+          <span>{WISHBOARD_COPY.features.match.desc}</span>
+        </div>
+        <div className="explainer-item">
+          <strong>🔒 {WISHBOARD_COPY.features.privacy.title}:</strong>
+          <span>{WISHBOARD_COPY.features.privacy.desc}</span>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 export default function WiFiQrCode({ variant = 'floating', className = '' }: WiFiQrCodeProps = {}) {
   const isSidebar = variant === 'sidebar';
   const [isFloatingVisible, setIsFloatingVisible] = useState(false);
@@ -75,104 +190,14 @@ export default function WiFiQrCode({ variant = 'floating', className = '' }: WiF
   const url = publicDomain ? `https://${publicDomain}` : `http://${apIp}`;
 
   if (isSidebar) {
-    const isDemo = Boolean(config.isServerless);
-    const badge = isDemo ? WISHBOARD_COPY.demoBadge : WISHBOARD_COPY.badge;
-    const title = isDemo ? 'Try the Live Demo' : 'Join the Board';
-    const subtitle = isDemo ? WISHBOARD_COPY.demoTagline : WISHBOARD_COPY.tagline;
-    const qrValue = isDemo ? url : wifiString;
-    const qrCaption = isDemo ? 'Scan with Camera to Open App' : 'Scan with Camera to Connect';
-
-    const steps = isDemo
-      ? [
-          { num: 1, title: 'Scan Web QR Code', desc: 'Opens the live demo directly on your phone' },
-          { num: 2, title: 'Post a Test Wish', desc: 'Watch it appear instantly on this display' },
-          {
-            num: 3,
-            title: 'Find Matches',
-            desc: 'Test automatic identity matchmaking in real time',
-          },
-        ]
-      : [
-          { num: 1, title: 'Scan Wi-Fi QR Code', desc: 'Joins the local private network' },
-          { num: 2, title: 'Open Portal', desc: 'Launches automatically upon connecting' },
-          { num: 3, title: 'Share Your Wish', desc: 'Post anonymously to this board' },
-        ];
-
     return (
-      <aside className={`kiosk-sidebar-panel ${className}`} aria-label="Kiosk Onboarding Panel">
-        <div className="sidebar-header">
-          <span className="sidebar-badge">{badge}</span>
-          <h2 className="sidebar-title">{title}</h2>
-          <p className="sidebar-subtitle">{subtitle}</p>
-        </div>
-
-        <div className="sidebar-qr-wrapper">
-          <div className="sidebar-qr-frame">
-            <QRCodeSVG value={qrValue} size={260} level="H" />
-          </div>
-          <span className="sidebar-qr-caption">{qrCaption}</span>
-        </div>
-
-        <ol className="sidebar-steps">
-          {steps.map((s) => (
-            <li key={s.num}>
-              <div className="step-num">{s.num}</div>
-              <div className="step-content">
-                <strong>{s.title}</strong>
-                <span>{s.desc}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        {isDemo ? (
-          <div className="sidebar-host-spotlight">
-            <div className="host-spotlight-header">
-              <span className="host-spotlight-icon" aria-hidden="true">
-                🎪
-              </span>
-              <strong>{WISHBOARD_COPY.eventHostTitle}</strong>
-            </div>
-            <p className="host-spotlight-desc">{WISHBOARD_COPY.eventHostDesc}</p>
-            <div className="credential-divider" />
-            <div className="credential-row url-row">
-              <span className="credential-label">Demo URL</span>
-              <span className="credential-url">{url}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="sidebar-credentials">
-            <div className="credential-row">
-              <span className="credential-label">Network</span>
-              <span className="credential-value">Wishboard_WiFi</span>
-            </div>
-            <div className="credential-row">
-              <span className="credential-label">Password</span>
-              <span className="credential-value">{wifiPass}</span>
-            </div>
-            <div className="credential-divider" />
-            <div className="credential-row url-row">
-              <span className="credential-label">Or visit URL</span>
-              <span className="credential-url">{url}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="sidebar-explainer">
-          <div className="explainer-item">
-            <strong>🪄 {WISHBOARD_COPY.features.create.title}:</strong>
-            <span>{WISHBOARD_COPY.features.create.desc}</span>
-          </div>
-          <div className="explainer-item">
-            <strong>🔍 {WISHBOARD_COPY.features.match.title}:</strong>
-            <span>{WISHBOARD_COPY.features.match.desc}</span>
-          </div>
-          <div className="explainer-item">
-            <strong>🔒 {WISHBOARD_COPY.features.privacy.title}:</strong>
-            <span>{WISHBOARD_COPY.features.privacy.desc}</span>
-          </div>
-        </div>
-      </aside>
+      <WiFiSidebarPanel
+        className={className}
+        isDemo={Boolean(config.isServerless)}
+        url={url}
+        wifiString={wifiString}
+        wifiPass={wifiPass}
+      />
     );
   }
 
