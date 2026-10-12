@@ -27,9 +27,20 @@ export default function DisplayPage({ onEnterKiosk, isKiosk, title }: DisplayPag
   const [capacity, setCapacity] = useState<number>(12);
   const [mailWishId, setMailWishId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
+  const [isNarrowScreen, setIsNarrowScreen] = useState<boolean>(() => {
+    return typeof globalThis.innerWidth === 'number' ? globalThis.innerWidth < 1024 : false;
+  });
   const gridRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
   const { socket } = useWebSocket();
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsNarrowScreen(typeof globalThis.innerWidth === 'number' && globalThis.innerWidth < 1024);
+    };
+    globalThis.addEventListener('resize', handleResize);
+    return () => globalThis.removeEventListener('resize', handleResize);
+  }, []);
 
   const loadWishes = useCallback(async () => {
     setError(null);
@@ -201,7 +212,7 @@ export default function DisplayPage({ onEnterKiosk, isKiosk, title }: DisplayPag
         <>
           <div className="display-header-bar">
             <h1>Big Screen Display</h1>
-            {onEnterKiosk && (
+            {onEnterKiosk && !isNarrowScreen && (
               <button type="button" className="kiosk-btn secondary-button" onClick={onEnterKiosk}>
                 Enter Kiosk Mode
               </button>

@@ -15,7 +15,6 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 
 - **[#312](https://github.com/wishboards/wishboard/issues/312)** — Offload OpenCV frame processing in `WishScanner` to a Web Worker to maintain smooth 60fps UI rendering on lower-power devices.
 - **[#332](https://github.com/wishboards/wishboard/issues/332)** — Decomposable & Optional AI Integration: Implement `InferenceProvider` / `EmbeddingProvider` interfaces, async tagging worker, UX suggestion badges, and optional vector search (see [ADR 0007](docs/adr/0007-ai-integration.md)).
-- **[#506](https://github.com/wishboards/wishboard/issues/506)** — Remove Kiosk Mode option on mobile devices: Hide the "Enter Kiosk Mode" toggle on mobile screens and narrow viewports so mobile users only receive the responsive Big Screen view.
 
 ## Infrastructure & DevOps
 

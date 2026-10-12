@@ -804,6 +804,12 @@ button:hover {
   margin-bottom: 12px;
 }
 
+@media (max-width: 1023px) {
+  .display-header-bar .kiosk-btn {
+    display: none;
+  }
+}
+
 .app-shell.page-display .content-area,
 .app-shell.page-search .content-area {
   max-width: 100%;
