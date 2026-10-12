@@ -22,26 +22,9 @@ describe('generatePassphrase', () => {
     }
   });
 
-  it('uses node crypto if globalThis.crypto is undefined', async () => {
-    const originalCrypto = globalThis.crypto;
-    delete (globalThis as Record<string, unknown>).crypto;
-
-    vi.resetModules();
-    // @ts-expect-error - cache-busting query parameter is not in declarations
-    const { generatePassphrase } = await import('./passphrase.js?node-fallback');
-    expect(generatePassphrase()).toBeTypeOf('string');
-
-    globalThis.crypto = originalCrypto;
-  });
-
   it('throws an error if no crypto is available', async () => {
     const originalCrypto = globalThis.crypto;
     delete (globalThis as Record<string, unknown>).crypto;
-
-    const originalNodeVersion = process.versions?.node;
-    if (process.versions) {
-      delete (process.versions as Record<string, unknown>).node;
-    }
 
     vi.resetModules();
     // @ts-expect-error - cache-busting query parameter is not in declarations
@@ -50,9 +33,6 @@ describe('generatePassphrase', () => {
     );
 
     globalThis.crypto = originalCrypto;
-    if (process.versions && originalNodeVersion) {
-      process.versions.node = originalNodeVersion;
-    }
   });
 });
 
