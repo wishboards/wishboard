@@ -33,6 +33,7 @@ This document outlines the core coding conventions, architectural patterns, envi
   3. `expansion`: Synonyms and variants mapping (e.g., expanding `enby`, `non-binary` to `nonbinary`).
   4. `cross_match`: Bidirectional matches between complementary roles.
 - **Extending Matching Logic:** To add support for new identities or matching terms, add/edit rules via the admin UI (they live in the DB) — or change the seed defaults in `profiles/**/profile.yaml` — rather than introducing custom parsing helpers in `src/server/routes/wishes.js`.
+- **Fidelity of Demos and Public Interfaces:** Any public marketing site, interactive demonstration, sandbox widget, or documentation must strictly reflect the actual implementation and capabilities of the shipped codebase. Never invent or simulate features (such as synthetic "match confidence percentages", arbitrary "high/low match" tiers, or simulated AI scoring) that do not exist in the matching engine. Demonstrations must faithfully illustrate the actual dynamic rule types (`cross_match`, `acceptance`, `enrichment`, `expansion`, and `exclusion`) and attribute matching logic documented in ADRs and `docs/src/content/docs/matching-rules.md`.
 
 ---
 
