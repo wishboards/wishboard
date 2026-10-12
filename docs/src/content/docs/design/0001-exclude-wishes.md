@@ -6,7 +6,7 @@ title: 0001 Exclude Wishes
 
 - **Status:** Implemented. Tracks [#200](https://github.com/wishboards/wishboard/issues/200).
 - **Date:** 2026-07
-- **Related:** [ADR 0002 (database architecture)](../adr/0002-serverless-database-architecture.md), [Matching Rules](../MATCHING_RULES.md)
+- **Related:** [ADR 0002 (database architecture)](../adr/0002-serverless-database-architecture.md), [Matching Rules](../matching-rules.md)
 
 ## Context
 
@@ -242,7 +242,7 @@ wish_id = ?` — cheap and idempotent, and it mirrors how `/manage` already
 - **Interaction with matching.** Exclusion is orthogonal to compatibility.
   Because we filter exclusions in SQL **before** `LIMIT 50` and **before** the
   JS `isCompatible` pass, hidden wishes never consume the page budget and the
-  matching engine (`MATCHING_RULES.md`) sees a clean candidate set. A wish the
+  matching engine (`matching-rules.md`) sees a clean candidate set. A wish the
   user hid but which would also fail compatibility is simply gone once — no
   double-counting, no ordering surprises.
 - **Owner hiding their own wish.** Allowed and harmless — it only affects the
