@@ -152,4 +152,21 @@ if (globalThis.window !== undefined) {
       dispatchEvent: vi.fn(),
     })),
   });
+
+  // Node 25/26 provides an unconfigured built-in localStorage on globalThis that shadows JSDOM.
+  // Bridge globalThis storage to JSDOM window storage for clean cross-version compatibility.
+  if (globalThis.window.localStorage) {
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: globalThis.window.localStorage,
+      configurable: true,
+      writable: true,
+    });
+  }
+  if (globalThis.window.sessionStorage) {
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: globalThis.window.sessionStorage,
+      configurable: true,
+      writable: true,
+    });
+  }
 }
