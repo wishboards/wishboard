@@ -75,6 +75,11 @@ This document outlines the core coding conventions, architectural patterns, envi
 - **Never Use `continue-on-error` to Tolerate an Expected Non-Zero Exit:** It suppresses _all_ failures, not just the expected one, and reports genuine breakage as a green check. Configure the tool not to fail instead — `stryker.config.json` already sets `thresholds.break: null`, so surviving mutants exit 0 and the flag was pure downside. If a step may legitimately fail, gate the specific condition and keep artifact upload on `if: always()`.
 - **Mutation Testing Is Nightly, Never On Push:** A full Stryker run takes **2.5-5 hours**. It lives in `.github/workflows/stryker.yml` on a `schedule` + `workflow_dispatch` trigger and must never gain a `push` trigger. It publishes nothing; it uploads a `mutation-report` artifact.
   - `.github/workflows/pages.yml` is the **single GitHub Pages deployer**. It builds the docs, pulls the most recent successful `mutation-report`, and also runs on `workflow_run` when Stryker finishes. Do not merge these two workflows back together, and do not add a second workflow that deploys Pages — two deployers race for one Pages source.
+- **No Dangling Dependency Pins:** When a dependency major upgrade must be temporarily held back or pinned due to an upstream tooling incompatibility (e.g., test runner / mutation runner mismatches):
+  1. **Open a Tracking Issue:** Detail the exact root cause, and include breadcrumb links to upstream issues and pull requests (e.g., in `stryker-mutator/stryker-js`).
+  2. **Track in Backlog:** Add an entry under `BACKLOG.md` referencing the tracking issue.
+  3. **Dependabot Ignore:** Configure `.github/dependabot.yml` to ignore `semver-major` on the pinned dependency while explicitly referencing the issue number.
+  4. **Automated Upstream Watcher:** Add an automated weekly check in `.github/workflows/deps-upstream-watch.yml` that monitors `npm view <pkg>@latest version` (or peer dependency ranges) and automatically comments on the tracking issue when an unblocking release is published.
 
 ---
 
@@ -108,3 +113,5 @@ This document outlines the core coding conventions, architectural patterns, envi
   - Hardware/kiosk or deployment guides for scripts and infrastructure changes.
 - **Remote Branch Deletion:** Pass `--no-verify` when executing `git push origin --delete <branch_name>` to bypass pre-push hooks during branch cleanup.
 - **CI Status Watching:** When waiting for GitHub PR status checks, use `gh pr checks <pr> --watch` rather than repeatedly polling or executing status checks in a loop.
+- **Windows / PowerShell Shell Safety (`--body-file`):** When authoring Pull Request descriptions, issue bodies, or commit messages using the GitHub CLI (`gh`), never pass multiline or markdown strings with backticks or complex quotes inline. Always write the text to a temporary scratch file (e.g., in `scratch/`) and pass `--body-file <path>`. This completely avoids PowerShell argument-escaping corruption.
+- **GitHub PR Auto-Merge:** Prefer enabling auto-merge immediately after creating a Pull Request via `gh pr merge --auto -s -d <pr>` (or `gh pr merge --auto --squash --delete-branch <pr>`). This allows GitHub to merge and delete the branch automatically as soon as required status checks and Quality Gates succeed, avoiding idle blocking.

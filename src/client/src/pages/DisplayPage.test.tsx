@@ -58,6 +58,46 @@ describe('DisplayPage', () => {
     expect(onEnterKiosk).toHaveBeenCalled();
   });
 
+  it('hides the Enter Kiosk Mode button on narrow/mobile viewports (< 1024px)', async () => {
+    const originalInnerWidth = globalThis.innerWidth;
+    globalThis.innerWidth = 768;
+
+    const onEnterKiosk = vi.fn();
+    render(<DisplayPage isKiosk={false} onEnterKiosk={onEnterKiosk} />);
+
+    await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Enter Kiosk Mode' })).not.toBeInTheDocument();
+
+    globalThis.innerWidth = originalInnerWidth;
+  });
+
+  it('updates Enter Kiosk Mode button visibility when window is resized', async () => {
+    const originalInnerWidth = globalThis.innerWidth;
+    globalThis.innerWidth = 1200;
+
+    const onEnterKiosk = vi.fn();
+    render(<DisplayPage isKiosk={false} onEnterKiosk={onEnterKiosk} />);
+
+    await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Enter Kiosk Mode' })).toBeInTheDocument();
+
+    act(() => {
+      globalThis.innerWidth = 500;
+      globalThis.dispatchEvent(new Event('resize'));
+    });
+
+    expect(screen.queryByRole('button', { name: 'Enter Kiosk Mode' })).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.innerWidth = 1280;
+      globalThis.dispatchEvent(new Event('resize'));
+    });
+
+    expect(screen.getByRole('button', { name: 'Enter Kiosk Mode' })).toBeInTheDocument();
+
+    globalThis.innerWidth = originalInnerWidth;
+  });
+
   it('cleans up rotation timer on unmount', async () => {
     const { unmount } = render(<DisplayPage isKiosk={false} />);
     await waitFor(() => expect(screen.getByText('Big screen wish')).toBeInTheDocument());
