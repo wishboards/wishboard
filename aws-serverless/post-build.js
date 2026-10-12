@@ -21,7 +21,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 
-// Lambda runtime (nodejs22.x) runs on Amazon Linux 2023 (glibc, x64), so the
+// Lambda runtime (nodejs24.x) runs on Amazon Linux 2023 (glibc, x64), so the
 // linux-x64-gnu binary is the correct one to ship.
 const NATIVE_PKG = '@libsql/linux-x64-gnu';
 

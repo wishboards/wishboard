@@ -241,7 +241,7 @@ Resources:
       FunctionName: !Sub '${ProjectName}-express-api'
       CodeUri: ../
       Handler: aws-serverless/lambda.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Timeout: 30
       MemorySize: 1024
       Environment:
@@ -307,7 +307,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'node22'
+        Target: 'node24'
         Format: esm
         OutExtension:
           - .js=.mjs
@@ -337,7 +337,7 @@ Resources:
       FunctionName: !Sub '${ProjectName}-websocket-mgr'
       CodeUri: ../
       Handler: aws-serverless/websocket.handler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Timeout: 10
       MemorySize: 512
       Environment:
@@ -362,7 +362,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'node22'
+        Target: 'node24'
         Format: esm
         OutExtension:
           - .js=.mjs
