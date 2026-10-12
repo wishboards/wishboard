@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.30.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.29.2...wishboard-v1.30.0) (2026-10-12)
+
+
+### Features
+
+* **kiosk:** suppress kiosk mode toggle on mobile screens and narrow viewports ([#522](https://github.com/wishboards/wishboard/issues/522)) ([461f292](https://github.com/wishboards/wishboard/commit/461f292f2102ed1b6af59e8905a5da90455f15df))
+
+
+### Bug Fixes
+
+* **stickers:** bundle split profile yaml in serverless and align scanner overlay ([#525](https://github.com/wishboards/wishboard/issues/525)) ([92d9180](https://github.com/wishboards/wishboard/commit/92d918007ab59633a4607efe0db25df4d1c2a91b))
+
 ## [1.29.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.29.1...wishboard-v1.29.2) (2026-10-12)
 
 
