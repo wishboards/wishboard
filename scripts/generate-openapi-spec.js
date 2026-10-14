@@ -24,7 +24,9 @@ export function generateOpenApiSpecFile(outputPath = DEFAULT_TARGET_PATH) {
 }
 
 if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
-  const target = process.argv[2] ? path.resolve(process.argv[2]) : DEFAULT_TARGET_PATH;
+  const target = process.env.OPENAPI_SPEC_PATH
+    ? path.resolve(process.env.OPENAPI_SPEC_PATH)
+    : DEFAULT_TARGET_PATH;
   generateOpenApiSpecFile(target);
   console.log(`Generated OpenAPI specification at ${target}`);
 }

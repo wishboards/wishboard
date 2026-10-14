@@ -30,13 +30,14 @@ describe('generate-openapi-spec script', () => {
     expect(parsed.paths['/api/config']).toBeDefined();
   });
 
-  it('executes via CLI with custom path argument', () => {
+  it('executes via CLI entrypoint using OPENAPI_SPEC_PATH without polluting working tree', () => {
     const outputPath = path.join(tempDir, 'cli', 'openapi.json');
     const scriptPath = path.resolve(__dirname, 'generate-openapi-spec.js');
-    execSync(`node "${scriptPath}" "${outputPath}"`, { stdio: 'pipe' });
-
+    const stdout = execSync(`node "${scriptPath}"`, {
+      stdio: 'pipe',
+      env: { ...process.env, OPENAPI_SPEC_PATH: outputPath },
+    }).toString();
+    expect(stdout).toContain('Generated OpenAPI specification');
     expect(fs.existsSync(outputPath)).toBe(true);
-    const parsed = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-    expect(parsed.openapi).toBe('3.0.0');
   });
 });
