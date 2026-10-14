@@ -16,7 +16,11 @@ import logger from '../logger.js';
 import { getRules } from '../rulesManager.js';
 import { getExclusionConflicts, parseAttributesInput } from '@wishboards/matching-engine';
 import { validateBody, validateQuery } from '../utils/validation.js';
-import { UsernameCheckQuerySchema, RegisterUserInputSchema } from '../docs/openapi.js';
+import {
+  UsernameCheckQuerySchema,
+  RegisterUserInputSchema,
+  LoginInputSchema,
+} from '../docs/openapi.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -142,11 +146,8 @@ router.put('/me', async (req, res) => {
   });
 });
 
-router.post('/login', async (req, res) => {
-  const { username, passphrase } = req.body;
-  if (!username || !passphrase) {
-    return res.status(400).json({ error: 'Username and passphrase are required.' });
-  }
+router.post('/login', validateBody(LoginInputSchema), async (req, res) => {
+  const { username, passphrase } = req.validatedBody;
 
   const user = await db
     .prepare(

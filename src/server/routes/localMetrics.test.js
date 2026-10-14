@@ -53,4 +53,23 @@ describe('localMetrics route', () => {
     expect(res.body.generatedAt).toBeDefined();
     expect(new Date(res.body.generatedAt).getTime()).not.toBeNaN();
   });
+
+  it('returns 400 when running in serverless (Lambda) mode', async () => {
+    const originalLambdaEnv = process.env.AWS_LAMBDA_FUNCTION_NAME;
+    try {
+      process.env.AWS_LAMBDA_FUNCTION_NAME = 'wishboard-express-api';
+      const res = await request
+        .get('/api/admin/local-metrics')
+        .set('Authorization', 'Bearer admin-token');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Local in-process metrics are not available in serverless mode.');
+    } finally {
+      if (originalLambdaEnv !== undefined) {
+        process.env.AWS_LAMBDA_FUNCTION_NAME = originalLambdaEnv;
+      } else {
+        delete process.env.AWS_LAMBDA_FUNCTION_NAME;
+      }
+    }
+  });
 });

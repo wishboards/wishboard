@@ -5,16 +5,15 @@ import logger from '../logger.js';
 import { getRules, addRule, updateRule, deleteRule } from '../rulesManager.js';
 
 import { getExclusionConflicts } from '@wishboards/matching-engine';
+import { validateBody } from '../utils/validation.js';
+import { CheckRuleConflictsInputSchema } from '../docs/openapi.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
 
 // Public conflict validation endpoint (runs before admin authorization check)
-router.post('/check-conflicts', async (req, res) => {
-  const { attributes } = req.body;
-  if (!attributes || typeof attributes !== 'object') {
-    return res.status(400).json({ error: 'Attributes object is required.' });
-  }
+router.post('/check-conflicts', validateBody(CheckRuleConflictsInputSchema), async (req, res) => {
+  const { attributes } = req.validatedBody;
 
   const normalized = {};
   for (const key of ['gender', 'orientation', 'role']) {

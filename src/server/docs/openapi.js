@@ -9,11 +9,12 @@ extendZodWithOpenApi(z);
 
 const registry = new OpenAPIRegistry();
 
-// Security Schemes
+// ── Security Schemes ──────────────────────────────────────────────────────────
+
 registry.registerComponent('securitySchemes', 'BearerAuth', {
   type: 'http',
   scheme: 'bearer',
-  description: 'Session token obtained from POST /api/users/login.',
+  description: 'Session token obtained from POST /api/users/login (stored in session database).',
 });
 
 registry.registerComponent('securitySchemes', 'PassphraseAuth', {
@@ -23,13 +24,27 @@ registry.registerComponent('securitySchemes', 'PassphraseAuth', {
   description: 'Three-word local passphrase used to manage created wishes and wishmail.',
 });
 
-// Common Schemas
+// ── Common Schemas ────────────────────────────────────────────────────────────
+
 export const ErrorResponseSchema = registry.register(
   'ErrorResponse',
   z.object({
     error: z.string().openapi({ example: 'Invalid request or resource not found.' }),
+    details: z.array(z.any()).optional(),
   })
 );
+
+export const SuccessResponseSchema = registry.register(
+  'SuccessResponse',
+  z.object({
+    success: z.boolean().openapi({ example: true }),
+    message: z.string().optional().openapi({ example: 'Operation completed successfully.' }),
+    id: z.string().optional().openapi({ example: 'rule_a1b2c3d4' }),
+    newSecret: z.string().nullable().optional().openapi({ example: 'apple-river-forest' }),
+  })
+);
+
+// ── Wish Schemas ──────────────────────────────────────────────────────────────
 
 export const WishSchema = registry.register(
   'Wish',
@@ -89,6 +104,38 @@ export const CreateWishInputSchema = registry.register(
   })
 );
 
+export const ManageWishInputSchema = registry.register(
+  'ManageWishInput',
+  z.object({
+    secret: z.string().optional().openapi({ example: 'apple-river-forest' }),
+    action: z.enum(['update', 'delete']).optional().openapi({ example: 'update' }),
+    content: z.string().max(500).optional().openapi({ example: 'Updated wish text' }),
+    contacts: z.any().optional(),
+    wishmail_enabled: z.boolean().optional(),
+    new_passphrase: z.string().optional().openapi({ example: 'ocean-sun-meadow' }),
+  })
+);
+
+export const ClaimWishInputSchema = registry.register(
+  'ClaimWishInput',
+  z.object({
+    passphrase: z
+      .string({ required_error: 'Passphrase is required.' })
+      .trim()
+      .min(1, { message: 'Passphrase is required.' })
+      .openapi({ example: 'apple-river-forest' }),
+  })
+);
+
+export const ExclusionImportInputSchema = registry.register(
+  'ExclusionImportInput',
+  z.object({
+    exclusions: z.array(z.string()).openapi({ example: ['wish_k9x2m', 'wish_abc12'] }),
+  })
+);
+
+// ── Wishmail Schemas ──────────────────────────────────────────────────────────
+
 export const WishmailMessageSchema = registry.register(
   'WishmailMessage',
   z.object({
@@ -124,6 +171,8 @@ export const SendWishmailInputSchema = registry.register(
     })
 );
 
+// ── User Schemas ──────────────────────────────────────────────────────────────
+
 export const UsernameCheckQuerySchema = registry.register(
   'UsernameCheckQuery',
   z.object({
@@ -152,9 +201,15 @@ export const RegisterUserInputSchema = registry.register(
 export const LoginInputSchema = registry.register(
   'LoginInput',
   z.object({
-    username: z.string({ required_error: 'Username is required.' }).openapi({ example: 'admin' }),
+    username: z
+      .string({ required_error: 'Username and passphrase are required.' })
+      .trim()
+      .min(1, { message: 'Username and passphrase are required.' })
+      .openapi({ example: 'admin' }),
     passphrase: z
-      .string({ required_error: 'Passphrase is required.' })
+      .string({ required_error: 'Username and passphrase are required.' })
+      .trim()
+      .min(1, { message: 'Username and passphrase are required.' })
       .openapi({ example: 'apple-river-forest' }),
   })
 );
@@ -173,6 +228,81 @@ export const UserProfileSchema = registry.register(
   })
 );
 
+export const UpdateUserInputSchema = registry.register(
+  'UpdateUserInput',
+  z.object({
+    contacts: z.any().optional(),
+    wishmail_enabled: z.union([z.boolean(), z.number()]).optional(),
+    identity_attributes: z.record(z.string(), z.any()).optional(),
+  })
+);
+
+export const UserDeletePreviewSchema = registry.register(
+  'UserDeletePreview',
+  z.object({
+    wishes_count: z.number().openapi({ example: 2 }),
+    wishmails_count: z.number().openapi({ example: 5 }),
+  })
+);
+
+// ── Rule Schemas ──────────────────────────────────────────────────────────────
+
+export const RuleSchema = registry.register(
+  'MatchmakingRule',
+  z.object({
+    id: z.string().openapi({ example: 'rule_k7m2x9' }),
+    rule_type: z
+      .enum(['enrichment', 'acceptance', 'expansion', 'cross_match'])
+      .openapi({ example: 'expansion' }),
+    trigger_attribute: z.string().openapi({ example: 'orientation' }),
+    trigger_value: z.string().openapi({ example: 'pansexual' }),
+    context_attribute: z.string().nullable().optional(),
+    context_value: z.string().nullable().optional(),
+    target_attribute: z.string().openapi({ example: 'orientation' }),
+    target_value: z.string().openapi({ example: 'all' }),
+  })
+);
+
+export const CheckRuleConflictsInputSchema = registry.register(
+  'CheckRuleConflictsInput',
+  z.object({
+    attributes: z
+      .record(z.string(), z.any(), { required_error: 'Attributes object is required.' })
+      .openapi({ example: { gender: ['woman'], orientation: ['lesbian'] } }),
+  })
+);
+
+export const CreateRuleInputSchema = registry.register(
+  'CreateRuleInput',
+  z.object({
+    rule_type: z
+      .enum(['enrichment', 'acceptance', 'expansion', 'cross_match'])
+      .openapi({ example: 'expansion' }),
+    trigger_attribute: z.string().openapi({ example: 'orientation' }),
+    trigger_value: z.string().openapi({ example: 'pansexual' }),
+    context_attribute: z.string().optional(),
+    context_value: z.string().optional(),
+    target_attribute: z.string().openapi({ example: 'orientation' }),
+    target_value: z.string().openapi({ example: 'all' }),
+  })
+);
+
+// ── Admin & Hardware Schemas ──────────────────────────────────────────────────
+
+export const AdminUserRoleInputSchema = registry.register(
+  'AdminUserRoleInput',
+  z.object({
+    role: z.enum(['user', 'admin']).openapi({ example: 'admin' }),
+  })
+);
+
+export const ResetPasswordInputSchema = registry.register(
+  'ResetPasswordInput',
+  z.object({
+    passphrase: z.string().optional().openapi({ example: 'new-passphrase' }),
+  })
+);
+
 export const ConfigResponseSchema = registry.register(
   'ConfigResponse',
   z.object({
@@ -183,27 +313,85 @@ export const ConfigResponseSchema = registry.register(
   })
 );
 
-export const RuleSchema = registry.register(
-  'MatchmakingRule',
+export const CaptivePortalStatusSchema = registry.register(
+  'CaptivePortalStatus',
   z.object({
-    id: z.union([z.string(), z.number()]).openapi({ example: 1 }),
-    type: z
-      .enum(['enrichment', 'acceptance', 'expansion', 'cross_match'])
-      .openapi({ example: 'expansion' }),
-    trigger_category: z.string().openapi({ example: 'orientation' }),
-    trigger_value: z.string().openapi({ example: 'pansexual' }),
-    target_category: z.string().openapi({ example: 'orientation' }),
-    target_value: z.string().openapi({ example: 'all' }),
-    active: z.union([z.boolean(), z.number()]).openapi({ example: 1 }),
+    captive: z.boolean().openapi({ example: false }),
+    'user-portal-url': z.string().openapi({ example: 'https://wishboards.local/' }),
+    'venue-info-url': z.string().openapi({ example: 'https://wishboards.local/' }),
   })
 );
 
-// Register Paths
+// ── Registration Helpers (Prevents SonarQube Duplicate Blocks) ────────────────
 
-// /api/config
+const createRouteHelper =
+  (tag, security = []) =>
+  ({
+    method,
+    path,
+    summary,
+    description,
+    requestSchema,
+    responseSchema,
+    status = 200,
+    params = [],
+  }) => {
+    const responses = {
+      [status]: {
+        description: `${summary} response`,
+        content: responseSchema ? { 'application/json': { schema: responseSchema } } : undefined,
+      },
+    };
+
+    if (security.length > 0) {
+      responses[401] = {
+        description: 'Unauthorized',
+        content: { 'application/json': { schema: ErrorResponseSchema } },
+      };
+      responses[403] = {
+        description: 'Forbidden',
+        content: { 'application/json': { schema: ErrorResponseSchema } },
+      };
+    }
+
+    const pathItem = {
+      method,
+      path,
+      tags: [tag],
+      summary,
+      description: description ?? summary,
+      parameters: params,
+      responses,
+    };
+
+    if (security.length > 0) {
+      pathItem.security = security;
+    }
+
+    if (requestSchema) {
+      pathItem.request = {
+        body: { content: { 'application/json': { schema: requestSchema } } },
+      };
+    }
+
+    registry.registerPath(pathItem);
+  };
+
+const addWishRoute = createRouteHelper('Wishes');
+const addWishmailRoute = createRouteHelper('Wishmail');
+const addUserRoute = createRouteHelper('Users & Auth');
+const addAuthUserRoute = createRouteHelper('Users & Auth', [{ BearerAuth: [] }]);
+const addRuleRoute = createRouteHelper('Rules Engine');
+const addAdminRuleRoute = createRouteHelper('Rules Engine', [{ BearerAuth: [] }]);
+const addAdminRoute = createRouteHelper('Admin', [{ BearerAuth: [] }]);
+const addPortalRoute = createRouteHelper('Captive Portal');
+
+// ── 1. Configuration ──────────────────────────────────────────────────────────
+
 registry.registerPath({
   method: 'get',
   path: '/api/config',
+  tags: ['Configuration'],
   summary: 'Retrieve runtime configuration',
   description:
     'Returns network, domain, and realtime WebSocket provider settings for kiosks and clients.',
@@ -215,14 +403,14 @@ registry.registerPath({
   },
 });
 
-// /api/wishes
-registry.registerPath({
+// ── 2. Wishes Domain ──────────────────────────────────────────────────────────
+
+addWishRoute({
   method: 'get',
   path: '/api/wishes',
   summary: 'List and search active wishes',
-  description:
-    'Search active wishes with identity filtering, matchmaking rules, and text query matching.',
-  parameters: [
+  responseSchema: z.array(WishSchema),
+  params: [
     { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Text search query' },
     {
       name: 'gender',
@@ -242,33 +430,17 @@ registry.registerPath({
       schema: { type: 'string' },
       description: 'Filter by creator role',
     },
-    {
-      name: 'limit',
-      in: 'query',
-      schema: { type: 'integer', default: 50 },
-      description: 'Page limit',
-    },
-    {
-      name: 'offset',
-      in: 'query',
-      schema: { type: 'integer', default: 0 },
-      description: 'Page offset',
-    },
+    { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+    { name: 'offset', in: 'query', schema: { type: 'integer', default: 0 } },
   ],
-  responses: {
-    200: {
-      description: 'List of matching wishes',
-      content: { 'application/json': { schema: z.array(WishSchema) } },
-    },
-  },
 });
 
 registry.registerPath({
   method: 'post',
   path: '/api/wishes',
+  tags: ['Wishes'],
   summary: 'Submit a new wish',
-  description:
-    'Submits a new wish to the board. Generates or claims a local three-word passphrase for management.',
+  description: 'Submits a new wish to the board with optional image upload.',
   request: {
     body: {
       content: {
@@ -279,7 +451,7 @@ registry.registerPath({
   },
   responses: {
     201: {
-      description: 'Wish successfully created',
+      description: 'Wish created successfully',
       content: {
         'application/json': {
           schema: z.object({
@@ -297,132 +469,144 @@ registry.registerPath({
   },
 });
 
-registry.registerPath({
+addWishRoute({
+  method: 'get',
+  path: '/api/wishes/random',
+  summary: 'Retrieve random active wish',
+  description:
+    'Fetches a single active wish at random, ideal for kiosk screensavers or hero carousels.',
+  responseSchema: WishSchema,
+});
+
+addWishRoute({
   method: 'get',
   path: '/api/wishes/{id}',
   summary: 'Retrieve single wish details',
-  parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-  responses: {
-    200: {
-      description: 'Wish details',
-      content: { 'application/json': { schema: WishSchema } },
-    },
-    404: {
-      description: 'Wish not found',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
+  responseSchema: WishSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
 });
 
-registry.registerPath({
+addWishRoute({
   method: 'post',
   path: '/api/wishes/{id}/manage',
   summary: 'Manage wish (update or delete)',
   description:
-    'Updates or deletes an existing wish using its creator secret passphrase or authenticated user session.',
-  parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-  request: {
-    body: {
-      content: {
-        'application/json': {
-          schema: z.object({
-            secret: z.string().optional().openapi({ example: 'apple-river-forest' }),
-            action: z.enum(['update', 'delete']).optional().openapi({ example: 'delete' }),
-            content: z.string().optional(),
-            contacts: z.any().optional(),
-            wishmail_enabled: z.boolean().optional(),
-            new_passphrase: z.string().optional(),
-          }),
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Wish updated or deleted successfully',
-      content: {
-        'application/json': {
-          schema: z.object({
-            success: z.boolean(),
-            newSecret: z.string().nullable().optional(),
-          }),
-        },
-      },
-    },
-    401: {
-      description: 'Secret token required',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-    403: {
-      description: 'Invalid secret token or unauthorized',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
+    'Updates or deletes an existing wish using its creator secret passphrase or authenticated session.',
+  requestSchema: ManageWishInputSchema,
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
 });
 
-registry.registerPath({
+addWishRoute({
+  method: 'post',
+  path: '/api/wishes/{id}/deactivate',
+  summary: 'Deactivate a wish',
+  description: 'Hides a wish from the public board without deleting its data.',
+  requestSchema: z.object({ secret: z.string().optional() }),
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addWishRoute({
+  method: 'post',
+  path: '/api/wishes/{id}/reactivate',
+  summary: 'Reactivate a wish',
+  description: 'Restores a deactivated wish to the active public board.',
+  requestSchema: z.object({ secret: z.string().optional() }),
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addWishRoute({
+  method: 'post',
+  path: '/api/wishes/{id}/claim',
+  summary: 'Claim wish into user account',
+  description:
+    'Links an anonymously submitted wish to the authenticated user account via secret passphrase.',
+  requestSchema: ClaimWishInputSchema,
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addWishRoute({
   method: 'post',
   path: '/api/wishes/{id}/flag',
   summary: 'Report / flag an inappropriate wish',
-  parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-  request: {
-    body: {
-      content: {
-        'application/json': {
-          schema: z.object({ reason: z.string().optional() }),
-        },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Wish flagged for admin review',
-      content: { 'application/json': { schema: z.object({ message: z.string() }) } },
-    },
-  },
+  requestSchema: z.object({ reason: z.string().optional() }),
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
 });
 
-// /api/wishes/{id}/mail
-registry.registerPath({
+addAuthUserRoute({
+  method: 'get',
+  path: '/api/wishes/exclusions',
+  summary: 'List user wish exclusions',
+  description: 'Returns full wish objects excluded/hidden by the current user.',
+  responseSchema: z.array(WishSchema),
+});
+
+addAuthUserRoute({
+  method: 'get',
+  path: '/api/wishes/exclusions/list',
+  summary: 'List user exclusion IDs',
+  description:
+    'Returns an array of string IDs corresponding to wishes excluded by the current user.',
+  responseSchema: z.array(z.string()),
+});
+
+addAuthUserRoute({
+  method: 'post',
+  path: '/api/wishes/exclusions/import',
+  summary: 'Bulk import wish exclusions',
+  description:
+    'Synchronizes client-side localStorage exclusion lists into the persistent user account.',
+  requestSchema: ExclusionImportInputSchema,
+  responseSchema: SuccessResponseSchema,
+});
+
+addAuthUserRoute({
+  method: 'post',
+  path: '/api/wishes/{id}/exclude',
+  summary: 'Exclude / hide a wish',
+  description: 'Mutes a specific wish from appearing in the authenticated user feed.',
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAuthUserRoute({
+  method: 'delete',
+  path: '/api/wishes/{id}/exclude',
+  summary: 'Remove wish exclusion',
+  description: 'Un-mutes a previously excluded wish, restoring it to the user feed.',
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+// ── 3. Wishmail Domain ────────────────────────────────────────────────────────
+
+addWishmailRoute({
   method: 'post',
   path: '/api/wishes/{id}/mail',
   summary: 'Send Wishmail to a wish author',
-  parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-  request: {
-    body: {
-      content: {
-        'application/json': { schema: SendWishmailInputSchema },
-      },
-    },
-  },
-  responses: {
-    201: {
-      description: 'Wishmail sent successfully',
-      content: {
-        'application/json': {
-          schema: z.object({ message: z.string(), mail: WishmailMessageSchema }),
-        },
-      },
-    },
-    400: {
-      description: 'Wishmail disabled or invalid request',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
+  status: 201,
+  requestSchema: SendWishmailInputSchema,
+  responseSchema: z.object({ message: z.string(), mail: WishmailMessageSchema }),
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
 });
 
 registry.registerPath({
   method: 'get',
   path: '/api/wishes/{id}/mail',
+  tags: ['Wishmail'],
   summary: 'Retrieve Wishmail for a wish',
-  security: [{ PassphraseAuth: [] }],
+  security: [{ PassphraseAuth: [] }, { BearerAuth: [] }],
   parameters: [
     { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
     {
       name: 'passphrase',
       in: 'query',
       schema: { type: 'string' },
-      description: 'Passphrase for authentication',
+      description: 'Passphrase for auth',
     },
   ],
   responses: {
@@ -431,33 +615,7 @@ registry.registerPath({
       content: { 'application/json': { schema: z.array(WishmailMessageSchema) } },
     },
     403: {
-      description: 'Forbidden / invalid passphrase',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
-});
-
-// /api/users
-registry.registerPath({
-  method: 'get',
-  path: '/api/users/exists',
-  summary: 'Check if a username exists',
-  parameters: [
-    {
-      name: 'username',
-      in: 'query',
-      required: true,
-      schema: { type: 'string' },
-      description: 'Username to check',
-    },
-  ],
-  responses: {
-    200: {
-      description: 'Username existence status',
-      content: { 'application/json': { schema: z.object({ exists: z.boolean() }) } },
-    },
-    400: {
-      description: 'Missing username',
+      description: 'Forbidden: invalid passphrase',
       content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
@@ -465,140 +623,307 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'post',
-  path: '/api/users/register',
-  summary: 'Register a new user account',
-  request: {
-    body: {
-      content: {
-        'application/json': { schema: RegisterUserInputSchema },
-      },
-    },
-  },
+  path: '/api/wishes/{id}/mail/{mailId}/read',
+  tags: ['Wishmail'],
+  summary: 'Mark wishmail message as read',
+  security: [{ PassphraseAuth: [] }, { BearerAuth: [] }],
+  parameters: [
+    { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    { name: 'mailId', in: 'path', required: true, schema: { type: 'string' } },
+  ],
   responses: {
-    201: {
-      description: 'User registered successfully',
-      content: { 'application/json': { schema: UserProfileSchema } },
-    },
-    400: {
-      description: 'Validation error or username taken',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
+    200: {
+      description: 'Message marked as read',
+      content: { 'application/json': { schema: SuccessResponseSchema } },
     },
   },
 });
 
 registry.registerPath({
+  method: 'delete',
+  path: '/api/wishes/{id}/mail/{mailId}',
+  tags: ['Wishmail'],
+  summary: 'Delete wishmail message',
+  security: [{ PassphraseAuth: [] }, { BearerAuth: [] }],
+  parameters: [
+    { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    { name: 'mailId', in: 'path', required: true, schema: { type: 'string' } },
+  ],
+  responses: {
+    200: {
+      description: 'Message deleted',
+      content: { 'application/json': { schema: SuccessResponseSchema } },
+    },
+  },
+});
+
+// ── 4. Users & Auth Domain ────────────────────────────────────────────────────
+
+addUserRoute({
+  method: 'get',
+  path: '/api/users/exists',
+  summary: 'Check if a username exists',
+  responseSchema: z.object({ exists: z.boolean() }),
+  params: [{ name: 'username', in: 'query', required: true, schema: { type: 'string' } }],
+});
+
+addUserRoute({
+  method: 'post',
+  path: '/api/users/register',
+  summary: 'Register a new user account',
+  status: 201,
+  requestSchema: RegisterUserInputSchema,
+  responseSchema: UserProfileSchema,
+});
+
+addUserRoute({
   method: 'post',
   path: '/api/users/login',
   summary: 'User & Admin login',
   description:
-    'Authenticates user or admin credentials and returns an active session token for Bearer authentication.',
-  request: {
-    body: {
-      content: {
-        'application/json': { schema: LoginInputSchema },
-      },
-    },
-  },
-  responses: {
-    200: {
-      description: 'Login successful',
-      content: { 'application/json': { schema: UserProfileSchema } },
-    },
-    401: {
-      description: 'Invalid credentials',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
+    'Authenticates credentials and returns an active session token for Bearer authentication.',
+  requestSchema: LoginInputSchema,
+  responseSchema: UserProfileSchema,
 });
 
-registry.registerPath({
+addAuthUserRoute({
+  method: 'post',
+  path: '/api/users/logout',
+  summary: 'Logout current session',
+  description: 'Destroys the current active session token in the database.',
+  responseSchema: SuccessResponseSchema,
+});
+
+addAuthUserRoute({
   method: 'get',
   path: '/api/users/me',
   summary: 'Get current user profile',
-  security: [{ BearerAuth: [] }],
-  responses: {
-    200: {
-      description: 'Current user profile',
-      content: { 'application/json': { schema: UserProfileSchema } },
-    },
-    401: {
-      description: 'Unauthorized',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
+  responseSchema: UserProfileSchema,
 });
 
-registry.registerPath({
+addAuthUserRoute({
+  method: 'put',
+  path: '/api/users/me',
+  summary: 'Update current user profile',
+  requestSchema: UpdateUserInputSchema,
+  responseSchema: UserProfileSchema,
+});
+
+addAuthUserRoute({
   method: 'get',
   path: '/api/users/me/wishes',
-  summary: 'Get all wishes associated with authenticated user',
-  security: [{ BearerAuth: [] }],
-  responses: {
-    200: {
-      description: 'User wishes list',
-      content: { 'application/json': { schema: z.array(WishSchema) } },
-    },
-    401: {
-      description: 'Unauthorized',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
+  summary: 'Get all wishes for current user',
+  responseSchema: z.array(WishSchema),
 });
 
-// /api/rules
-registry.registerPath({
+addAuthUserRoute({
+  method: 'get',
+  path: '/api/users/me/delete-preview',
+  summary: 'Preview user deletion impact',
+  responseSchema: UserDeletePreviewSchema,
+});
+
+addAuthUserRoute({
+  method: 'post',
+  path: '/api/users/me/delete',
+  summary: 'Permanently delete user account',
+  responseSchema: SuccessResponseSchema,
+});
+
+addAuthUserRoute({
+  method: 'post',
+  path: '/api/users/me/deactivate',
+  summary: 'Deactivate user account',
+  responseSchema: SuccessResponseSchema,
+});
+
+addAuthUserRoute({
+  method: 'post',
+  path: '/api/users/me/reactivate',
+  summary: 'Reactivate user account',
+  responseSchema: SuccessResponseSchema,
+});
+
+// ── 5. Rules Engine Domain ────────────────────────────────────────────────────
+
+addRuleRoute({
   method: 'get',
   path: '/api/rules',
   summary: 'List active matchmaking rules',
-  description: 'Returns identity enrichment, acceptance, expansion, and cross-matching rules.',
-  responses: {
-    200: {
-      description: 'Active matchmaking rules',
-      content: { 'application/json': { schema: z.array(RuleSchema) } },
-    },
-  },
+  responseSchema: z.array(RuleSchema),
 });
 
-// /api/admin
-const registerAdminGet = (path, summary, description, schema) => {
-  registry.registerPath({
-    method: 'get',
-    path,
-    summary,
-    security: [{ BearerAuth: [] }],
-    responses: {
-      200: {
-        description,
-        content: { 'application/json': { schema } },
-      },
-      403: {
-        description: 'Forbidden: requires admin role',
-        content: { 'application/json': { schema: ErrorResponseSchema } },
-      },
-    },
-  });
-};
+addRuleRoute({
+  method: 'post',
+  path: '/api/rules/check-conflicts',
+  summary: 'Check matchmaking rule conflicts',
+  requestSchema: CheckRuleConflictsInputSchema,
+  responseSchema: z.object({ conflicts: z.array(z.any()) }),
+});
 
-registerAdminGet(
-  '/api/admin/flags',
-  'List flagged wishes',
-  'List of flagged wishes awaiting moderation',
-  z.array(z.any())
-);
+addAdminRuleRoute({
+  method: 'post',
+  path: '/api/rules',
+  summary: 'Create matchmaking rule',
+  status: 201,
+  requestSchema: CreateRuleInputSchema,
+  responseSchema: SuccessResponseSchema,
+});
 
-registerAdminGet(
-  '/api/admin/logs',
-  'Retrieve recent server logs',
-  'Recent server log entries',
-  z.array(z.any())
-);
+addAdminRuleRoute({
+  method: 'put',
+  path: '/api/rules/{id}',
+  summary: 'Update matchmaking rule',
+  requestSchema: CreateRuleInputSchema,
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
 
-registerAdminGet(
-  '/api/admin/local-metrics',
-  'Retrieve local performance and request metrics',
-  'Local metrics summary',
-  z.record(z.string(), z.any())
-);
+addAdminRuleRoute({
+  method: 'delete',
+  path: '/api/rules/{id}',
+  summary: 'Delete matchmaking rule',
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+// ── 6. Administration Domain ──────────────────────────────────────────────────
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/flags',
+  summary: 'List flagged wishes',
+  responseSchema: z.array(z.any()),
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/wishes/{id}/remove',
+  summary: 'Admin remove wish',
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/wishes/{id}/clear-flag',
+  summary: 'Admin clear wish flag',
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/wishes/clear-all-flags',
+  summary: 'Admin clear all wish flags',
+  responseSchema: SuccessResponseSchema,
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/users',
+  summary: 'Admin list all users',
+  responseSchema: z.array(UserProfileSchema),
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/users/{id}/role',
+  summary: 'Admin update user role',
+  requestSchema: AdminUserRoleInputSchema,
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/users/{id}/delete-preview',
+  summary: 'Admin preview user deletion',
+  responseSchema: UserDeletePreviewSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/users/{id}/delete',
+  summary: 'Admin delete user',
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/users/{username}/reset-password',
+  summary: 'Admin reset user passphrase',
+  requestSchema: ResetPasswordInputSchema,
+  responseSchema: SuccessResponseSchema,
+  params: [{ name: 'username', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/reset-demo',
+  summary: 'Admin seed demo wishes',
+  responseSchema: SuccessResponseSchema,
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/reset-rules',
+  summary: 'Admin reload default rules',
+  responseSchema: SuccessResponseSchema,
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/logs',
+  summary: 'Retrieve recent server logs',
+  responseSchema: z.array(z.any()),
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/config',
+  summary: 'Admin inspect server profile & config',
+  responseSchema: z.record(z.string(), z.any()),
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/local-metrics',
+  summary: 'Retrieve local performance metrics',
+  description:
+    'In-process CPU/memory/HTTP metrics. Note: Available in Kiosk/Local mode only; returns 400 in Serverless mode.',
+  responseSchema: z.record(z.string(), z.any()),
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/aws-metrics',
+  summary: 'Retrieve AWS CloudWatch metrics',
+  description:
+    'CloudWatch metrics time-series. Note: Available in AWS Serverless mode only; returns 400 in Kiosk/Local mode.',
+  responseSchema: z.record(z.string(), z.any()),
+});
+
+// ── 7. Captive Portal Domain ──────────────────────────────────────────────────
+
+addPortalRoute({
+  method: 'get',
+  path: '/api/captive-portal',
+  summary: 'RFC 8908 Captive Portal JSON status',
+  description:
+    'Returns captive network state and portal URLs. Active during local Wi-Fi kiosk operation.',
+  responseSchema: CaptivePortalStatusSchema,
+});
+
+addPortalRoute({
+  method: 'post',
+  path: '/api/captive-portal/accept',
+  summary: 'Accept terms and admit client',
+  description: 'Admits client IP to access local network.',
+  responseSchema: SuccessResponseSchema,
+});
 
 let cachedDocument = null;
 

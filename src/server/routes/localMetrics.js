@@ -15,6 +15,13 @@ import { getSnapshot } from '../metricsCollector.js';
 const router = express.Router();
 
 router.get('/', requireAdmin, (req, res) => {
+  const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (isLambda) {
+    return res
+      .status(400)
+      .json({ error: 'Local in-process metrics are not available in serverless mode.' });
+  }
+
   const snapshot = getSnapshot();
   res.json({ ...snapshot, generatedAt: new Date().toISOString() });
 });
