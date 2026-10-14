@@ -16,10 +16,44 @@ import path from 'node:path';
 import { DEFAULT_EVENT_PROFILE } from '../src/cli/commandUtils.js';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { getOpenApiDocument } from '../src/server/docs/openapi.js';
+import { renderApiReference } from '@scalar/client-side-rendering';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
+
+export function generateStaticApiDocs(distDir = path.join(repoRoot, 'dist')) {
+  if (!fs.existsSync(distDir)) {
+    console.log(
+      `Frontend dist directory not found at ${distDir}; skipping static API docs generation.`
+    );
+    return;
+  }
+
+  const spec = getOpenApiDocument();
+  fs.writeFileSync(path.join(distDir, 'openapi.json'), JSON.stringify(spec, null, 2), 'utf8');
+
+  const html = renderApiReference({
+    config: {
+      spec: {
+        content: spec,
+      },
+    },
+    pageTitle: 'Wishboard API Reference',
+    theme: 'purple',
+  });
+
+  const apiDocsDir = path.join(distDir, 'api-docs');
+  fs.mkdirSync(apiDocsDir, { recursive: true });
+  fs.writeFileSync(path.join(apiDocsDir, 'index.html'), html, 'utf8');
+
+  const apiDocsSubdir = path.join(distDir, 'api', 'docs');
+  fs.mkdirSync(apiDocsSubdir, { recursive: true });
+  fs.writeFileSync(path.join(apiDocsSubdir, 'index.html'), html, 'utf8');
+  fs.writeFileSync(path.join(distDir, 'api-docs.html'), html, 'utf8');
+  console.log(`Generated static API docs and openapi.json in ${path.relative(repoRoot, distDir)}`);
+}
 
 // Lambda runtime (nodejs24.x) runs on Amazon Linux 2023 (glibc, x64), so the
 // linux-x64-gnu binary is the correct one to ship.
@@ -173,6 +207,8 @@ export function runPostBuild() {
     console.error('No function artifacts were updated. Did `sam build` succeed?');
     process.exit(1);
   }
+
+  generateStaticApiDocs();
 
   console.log(`Done. Patched ${copied} function artifact(s) with the libSQL native binary.`);
 }

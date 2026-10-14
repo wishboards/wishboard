@@ -206,9 +206,18 @@ describe('OpenAPI & Scalar HTTP Routes', () => {
     expect(res.text).toContain('Wishboard API Reference');
   });
 
-  it('GET /api/docs redirects to /api-docs', async () => {
+  it('GET /api/docs returns 200 and text/html serving Scalar UI directly', async () => {
     const res = await request(app).get('/api/docs');
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/api-docs');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('Wishboard API Reference');
+  });
+
+  it('GET /api/openapi.json returns 200 and application/json with spec', async () => {
+    const res = await request(app).get('/api/openapi.json');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/application\/json/);
+    expect(res.body.openapi).toBe('3.0.0');
+    expect(res.body.info.title).toBe('Wishboard REST API');
   });
 });

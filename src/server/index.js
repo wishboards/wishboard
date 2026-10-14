@@ -121,23 +121,23 @@ app.use('/api/admin/local-metrics', localMetricsRouter);
 app.use('/api/rules', rulesRouter);
 
 // OpenAPI JSON specification
-app.get('/openapi.json', (req, res) => {
+const openApiHandler = (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.json(getOpenApiDocument());
-});
+};
+app.get('/openapi.json', openApiHandler);
+app.get('/api/openapi.json', openApiHandler);
 
 // Interactive Scalar API documentation
-app.get('/api/docs', (req, res) => res.redirect('/api-docs'));
-app.use(
-  '/api-docs',
-  apiReference({
-    spec: {
-      content: getOpenApiDocument(),
-    },
-    pageTitle: 'Wishboard API Reference',
-    theme: 'purple',
-  })
-);
+const scalarDocsMiddleware = apiReference({
+  spec: {
+    content: getOpenApiDocument(),
+  },
+  pageTitle: 'Wishboard API Reference',
+  theme: 'purple',
+});
+app.use('/api/docs', scalarDocsMiddleware);
+app.use('/api-docs', scalarDocsMiddleware);
 
 const distPath = path.resolve(__dirname, '../../dist');
 const imagesPath = path.resolve(__dirname, '../../data/images');

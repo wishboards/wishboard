@@ -26,4 +26,18 @@ describe('integration: SAM template contract', () => {
     },
     60000
   );
+
+  it('declares HttpApi events and CloudFront behaviors for /api-docs and /openapi.json', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(template, 'utf8');
+
+    // HttpApi event routes on ApiFunction
+    expect(content).toContain('Path: /api-docs');
+    expect(content).toContain('Path: /api-docs/{proxy+}');
+    expect(content).toContain('Path: /openapi.json');
+
+    // CloudFront cache behaviors routing to BackendApiOrigin
+    expect(content).toContain('PathPattern: /api-docs*');
+    expect(content).toContain('PathPattern: /openapi.json');
+  });
 });

@@ -223,4 +223,57 @@ describe('App Component', () => {
     globalThis.history.replaceState({}, '', '/');
     globalThis.location.hash = '#home';
   });
+
+  it('redirects to /api/docs when #api-docs or #api/docs hash is accessed', async () => {
+    const replaceSpy = vi.fn();
+    vi.stubGlobal('location', {
+      ...globalThis.location,
+      hash: '#api-docs',
+      pathname: '/',
+      replace: replaceSpy,
+    });
+
+    render(<App />);
+    expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
+
+    replaceSpy.mockClear();
+    vi.stubGlobal('location', {
+      ...globalThis.location,
+      hash: '#api/docs',
+      pathname: '/',
+      replace: replaceSpy,
+    });
+    render(<App />);
+    expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
+
+    vi.unstubAllGlobals();
+    globalThis.location.hash = '#home';
+  });
+
+  it('redirects to /api/docs when pathname /api-docs or /api/docs is accessed without hash', async () => {
+    const replaceSpy = vi.fn();
+    vi.stubGlobal('location', {
+      ...globalThis.location,
+      hash: '',
+      pathname: '/api-docs',
+      replace: replaceSpy,
+    });
+
+    render(<App />);
+    expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
+
+    replaceSpy.mockClear();
+    vi.stubGlobal('location', {
+      ...globalThis.location,
+      hash: '',
+      pathname: '/api/docs',
+      replace: replaceSpy,
+    });
+    render(<App />);
+    expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
+
+    vi.unstubAllGlobals();
+    globalThis.history.replaceState({}, '', '/');
+    globalThis.location.hash = '#home';
+  });
 });
