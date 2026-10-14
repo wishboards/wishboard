@@ -43,13 +43,13 @@ globalThis.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
   if (urlStr === '/api/config' || urlStr.endsWith('/api/config')) {
     return {
       ok: true,
-      json: async () => MOCK_DOMAIN,
+      json: () => Promise.resolve(MOCK_DOMAIN),
     } as Response;
   }
   if (originalFetch) {
     return originalFetch(url, init);
   }
-  return { ok: true, json: async () => ({}) } as Response;
+  return { ok: true, json: () => Promise.resolve({}) } as Response;
 });
 
 // Mock EventProfileContext so it renders children immediately without waiting for fetch in tests

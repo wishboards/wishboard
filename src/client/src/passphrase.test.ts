@@ -17,12 +17,12 @@ describe('generatePassphrase', () => {
   it('always returns a string with two hyphens', () => {
     for (let i = 0; i < 100; i++) {
       const passphrase = generatePassphrase();
-      expect(passphrase.split('-').length).toBe(3);
+      expect(passphrase.split('-')).toHaveLength(3);
       expect(passphrase).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/);
     }
   });
 
-  it('throws an error if no crypto is available', async () => {
+  it('throws a TypeError if no crypto is available', async () => {
     const originalCrypto = globalThis.crypto;
     delete (globalThis as Record<string, unknown>).crypto;
 
