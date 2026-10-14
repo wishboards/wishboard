@@ -60,6 +60,8 @@ import logger from '../logger.js';
 import { getRules } from '../rulesManager.js';
 import { emitNewWish, emitWishFlagged, emitWishDeleted } from '../socket.js';
 import { ensureArray } from '../utils/arrays.js';
+import { validateBody } from '../utils/validation.js';
+import { CreateWishInputSchema } from '../docs/openapi.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -125,11 +127,8 @@ const uploadImageToS3 = async (file) => {
   }
 };
 
-router.post('/', upload.single('image'), async (req, res) => {
-  const { content, passphrase, contacts, wishmail_enabled } = req.body;
-  if (!content?.trim()) {
-    return res.status(400).json({ error: 'Wish content is required.' });
-  }
+router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), async (req, res) => {
+  const { content, passphrase, contacts, wishmail_enabled } = req.validatedBody;
 
   const imageId = req.file ? req.file.filename : null;
 

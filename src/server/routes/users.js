@@ -15,15 +15,14 @@ import { generatePassphrase } from '../../client/src/passphrase.js';
 import logger from '../logger.js';
 import { getRules } from '../rulesManager.js';
 import { getExclusionConflicts, parseAttributesInput } from '@wishboards/matching-engine';
+import { validateBody, validateQuery } from '../utils/validation.js';
+import { UsernameCheckQuerySchema, RegisterUserInputSchema } from '../docs/openapi.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
 
-router.get('/exists', async (req, res) => {
-  const { username } = req.query;
-  if (!username || typeof username !== 'string' || !username.trim()) {
-    return res.status(400).json({ error: 'Username is required.' });
-  }
+router.get('/exists', validateQuery(UsernameCheckQuerySchema), async (req, res) => {
+  const { username } = req.validatedQuery;
 
   const existingUser = await db
     .prepare('SELECT 1 FROM users WHERE username = ?')
@@ -43,11 +42,8 @@ const validateProfile = (identityAttrs) => {
   };
 };
 
-router.post('/register', async (req, res) => {
-  const { username, passphrase, contacts, wishmail_enabled } = req.body;
-  if (!username?.trim()) {
-    return res.status(400).json({ error: 'Username is required.' });
-  }
+router.post('/register', validateBody(RegisterUserInputSchema), async (req, res) => {
+  const { username, passphrase, contacts, wishmail_enabled } = req.validatedBody;
 
   const existingUser = await db
     .prepare('SELECT id FROM users WHERE username = ?')
