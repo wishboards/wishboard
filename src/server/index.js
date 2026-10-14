@@ -17,6 +17,8 @@ import { metricsMiddleware, startCollector } from './metricsCollector.js';
 import { initSocket } from './socket.js';
 import { jsonErrorHandler } from './errorHandler.js';
 import captivePortalRouter, { captivePortalMiddleware } from './routes/captivePortal.js';
+import { apiReference } from '@scalar/express-api-reference';
+import { getOpenApiDocument } from './docs/openapi.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -117,6 +119,25 @@ app.use('/api/admin', adminRouter);
 app.use('/api/admin/aws-metrics', cloudwatchMetricsRouter);
 app.use('/api/admin/local-metrics', localMetricsRouter);
 app.use('/api/rules', rulesRouter);
+
+// OpenAPI JSON specification
+app.get('/openapi.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json(getOpenApiDocument());
+});
+
+// Interactive Scalar API documentation
+app.get('/api/docs', (req, res) => res.redirect('/api-docs'));
+app.use(
+  '/api-docs',
+  apiReference({
+    spec: {
+      content: () => getOpenApiDocument(),
+    },
+    pageTitle: 'Wishboard API Reference',
+    theme: 'purple',
+  })
+);
 
 const distPath = path.resolve(__dirname, '../../dist');
 const imagesPath = path.resolve(__dirname, '../../data/images');

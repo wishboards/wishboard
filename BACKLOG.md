@@ -20,6 +20,5 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 
 - **[#238](https://github.com/wishboards/wishboard/issues/238)** — Implement automated database and media backups: periodically snapshot the SQLite database (Turso point-in-time restore vs. `turso db dump` exports) and S3 uploaded images.
 - **[#314](https://github.com/wishboards/wishboard/issues/314)** — Automated database and media backup recovery testing: periodically restore snapshots into a temporary database to verify recoverability (follow-up to #238).
-- **[#344](https://github.com/wishboards/wishboard/issues/344)** — Automated API Documentation (ADR-0008 Phase 1): Adopt Zod and Scalar for live OpenAPI specs.
 - **[#398](https://github.com/wishboards/wishboard/issues/398)** — UI Component Documentation (ADR-0008 Phase 3): Implement Storybook for UI isolation and accessibility testing.
 - **[#399](https://github.com/wishboards/wishboard/issues/399)** — Automate external site bootstrapping: Expand the CLI to seamlessly provision SonarCloud, Stryker, AWS OIDC roles, and GitHub secrets for a frictionless fork deployment experience.
