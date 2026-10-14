@@ -497,25 +497,20 @@ addWishRoute({
   params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
 });
 
-addWishRoute({
-  method: 'post',
-  path: '/api/wishes/{id}/deactivate',
-  summary: 'Deactivate a wish',
-  description: 'Hides a wish from the public board without deleting its data.',
-  requestSchema: z.object({ secret: z.string().optional() }),
-  responseSchema: SuccessResponseSchema,
-  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-});
+const registerWishState = (action, desc) => {
+  addWishRoute({
+    method: 'post',
+    path: `/api/wishes/{id}/${action}`,
+    summary: `${action.charAt(0).toUpperCase() + action.slice(1)} a wish`,
+    description: desc,
+    requestSchema: z.object({ secret: z.string().optional() }),
+    responseSchema: SuccessResponseSchema,
+    params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+  });
+};
 
-addWishRoute({
-  method: 'post',
-  path: '/api/wishes/{id}/reactivate',
-  summary: 'Reactivate a wish',
-  description: 'Restores a deactivated wish to the active public board.',
-  requestSchema: z.object({ secret: z.string().optional() }),
-  responseSchema: SuccessResponseSchema,
-  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-});
+registerWishState('deactivate', 'Hides a wish from the public board without deleting its data.');
+registerWishState('reactivate', 'Restores a deactivated wish to the active public board.');
 
 addWishRoute({
   method: 'post',
@@ -621,41 +616,28 @@ registry.registerPath({
   },
 });
 
-registry.registerPath({
-  method: 'post',
-  path: '/api/wishes/{id}/mail/{mailId}/read',
-  tags: ['Wishmail'],
-  summary: 'Mark wishmail message as read',
-  security: [{ PassphraseAuth: [] }, { BearerAuth: [] }],
-  parameters: [
-    { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-    { name: 'mailId', in: 'path', required: true, schema: { type: 'string' } },
-  ],
-  responses: {
-    200: {
-      description: 'Message marked as read',
-      content: { 'application/json': { schema: SuccessResponseSchema } },
+const addWishmailItemAction = (method, pathSuffix, summary) => {
+  registry.registerPath({
+    method,
+    path: `/api/wishes/{id}/mail/{mailId}${pathSuffix}`,
+    tags: ['Wishmail'],
+    summary,
+    security: [{ PassphraseAuth: [] }, { BearerAuth: [] }],
+    parameters: [
+      { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+      { name: 'mailId', in: 'path', required: true, schema: { type: 'string' } },
+    ],
+    responses: {
+      200: {
+        description: summary,
+        content: { 'application/json': { schema: SuccessResponseSchema } },
+      },
     },
-  },
-});
+  });
+};
 
-registry.registerPath({
-  method: 'delete',
-  path: '/api/wishes/{id}/mail/{mailId}',
-  tags: ['Wishmail'],
-  summary: 'Delete wishmail message',
-  security: [{ PassphraseAuth: [] }, { BearerAuth: [] }],
-  parameters: [
-    { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
-    { name: 'mailId', in: 'path', required: true, schema: { type: 'string' } },
-  ],
-  responses: {
-    200: {
-      description: 'Message deleted',
-      content: { 'application/json': { schema: SuccessResponseSchema } },
-    },
-  },
-});
+addWishmailItemAction('post', '/read', 'Mark wishmail message as read');
+addWishmailItemAction('delete', '', 'Delete wishmail message');
 
 // ── 4. Users & Auth Domain ────────────────────────────────────────────────────
 
