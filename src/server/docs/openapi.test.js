@@ -24,8 +24,10 @@ describe('OpenAPI Specification Generator', () => {
     expect(schemas).toHaveProperty('SendWishmailInput');
     expect(schemas).toHaveProperty('ConfigResponse');
     expect(schemas).toHaveProperty('MatchmakingRule');
-    expect(schemas).toHaveProperty('UserAccount');
-    expect(schemas).toHaveProperty('AdminOverview');
+    expect(schemas).toHaveProperty('UsernameCheckQuery');
+    expect(schemas).toHaveProperty('RegisterUserInput');
+    expect(schemas).toHaveProperty('LoginInput');
+    expect(schemas).toHaveProperty('UserProfile');
     expect(schemas).toHaveProperty('ErrorResponse');
   });
 
@@ -33,8 +35,10 @@ describe('OpenAPI Specification Generator', () => {
     const doc = getOpenApiDocument();
     const securitySchemes = doc.components.securitySchemes;
     expect(securitySchemes).toBeDefined();
+    expect(securitySchemes).toHaveProperty('BearerAuth');
     expect(securitySchemes).toHaveProperty('PassphraseAuth');
-    expect(securitySchemes).toHaveProperty('AdminAuth');
+    expect(securitySchemes.BearerAuth.type).toBe('http');
+    expect(securitySchemes.BearerAuth.scheme).toBe('bearer');
     expect(securitySchemes.PassphraseAuth.type).toBe('apiKey');
     expect(securitySchemes.PassphraseAuth.name).toBe('X-Passphrase');
   });
@@ -52,22 +56,41 @@ describe('OpenAPI Specification Generator', () => {
 
     expect(paths).toHaveProperty('/api/wishes/{id}');
     expect(paths['/api/wishes/{id}']).toHaveProperty('get');
-    expect(paths['/api/wishes/{id}']).toHaveProperty('delete');
+
+    expect(paths).toHaveProperty('/api/wishes/{id}/manage');
+    expect(paths['/api/wishes/{id}/manage']).toHaveProperty('post');
+
+    expect(paths).toHaveProperty('/api/wishes/{id}/flag');
+    expect(paths['/api/wishes/{id}/flag']).toHaveProperty('post');
 
     expect(paths).toHaveProperty('/api/wishes/{id}/mail');
     expect(paths['/api/wishes/{id}/mail']).toHaveProperty('get');
     expect(paths['/api/wishes/{id}/mail']).toHaveProperty('post');
 
-    expect(paths).toHaveProperty('/api/users/auth');
-    expect(paths['/api/users/auth']).toHaveProperty('post');
+    expect(paths).toHaveProperty('/api/users/exists');
+    expect(paths['/api/users/exists']).toHaveProperty('get');
+
+    expect(paths).toHaveProperty('/api/users/register');
+    expect(paths['/api/users/register']).toHaveProperty('post');
+
+    expect(paths).toHaveProperty('/api/users/login');
+    expect(paths['/api/users/login']).toHaveProperty('post');
+
+    expect(paths).toHaveProperty('/api/users/me');
+    expect(paths['/api/users/me']).toHaveProperty('get');
+
+    expect(paths).toHaveProperty('/api/users/me/wishes');
+    expect(paths['/api/users/me/wishes']).toHaveProperty('get');
 
     expect(paths).toHaveProperty('/api/rules');
     expect(paths['/api/rules']).toHaveProperty('get');
 
-    expect(paths).toHaveProperty('/api/admin/login');
-    expect(paths['/api/admin/login']).toHaveProperty('post');
-    expect(paths).toHaveProperty('/api/admin/overview');
-    expect(paths['/api/admin/overview']).toHaveProperty('get');
+    expect(paths).toHaveProperty('/api/admin/flags');
+    expect(paths['/api/admin/flags']).toHaveProperty('get');
+    expect(paths).toHaveProperty('/api/admin/logs');
+    expect(paths['/api/admin/logs']).toHaveProperty('get');
+    expect(paths).toHaveProperty('/api/admin/local-metrics');
+    expect(paths['/api/admin/local-metrics']).toHaveProperty('get');
   });
 
   it('caches the document in production environment', () => {

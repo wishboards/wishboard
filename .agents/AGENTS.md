@@ -21,6 +21,7 @@ This document outlines the core coding conventions, architectural patterns, envi
 - **Code Quality & Linter Health:** Prefer extracting reusable helpers over duplicating logic; avoid data clumps (pass structured objects, not long parameter lists). Always check for linter/type errors on modified code blocks.
 - **Optional Chaining:** Prefer optional chaining (`?.`) over traditional chained conditionals (e.g., `a && a.b`) to prevent IDE static analysis warnings and improve code conciseness.
 - **React State Derivation over Effects:** Prefer computing derived state during render or using lazy initializers (`useState(() => ...)`) over synchronizing state from props or query params inside `useEffect`. This prevents cascading double-renders and satisfies modern ESLint React rules.
+- **API Specification Fidelity:** Never invent, assume, or register hypothetical endpoints or security schemes in API documentation (e.g., OpenAPI, Swagger, Scalar). All documented paths, HTTP methods, parameters, request bodies, and authentication schemes must be strictly audited and verified against actual mounted Express routes and middleware in the codebase before authoring or modifying specifications.
 
 ---
 

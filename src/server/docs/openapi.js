@@ -10,18 +10,17 @@ extendZodWithOpenApi(z);
 const registry = new OpenAPIRegistry();
 
 // Security Schemes
+registry.registerComponent('securitySchemes', 'BearerAuth', {
+  type: 'http',
+  scheme: 'bearer',
+  description: 'Session token obtained from POST /api/users/login.',
+});
+
 registry.registerComponent('securitySchemes', 'PassphraseAuth', {
   type: 'apiKey',
   in: 'header',
   name: 'X-Passphrase',
   description: 'Three-word local passphrase used to manage created wishes and wishmail.',
-});
-
-registry.registerComponent('securitySchemes', 'AdminAuth', {
-  type: 'apiKey',
-  in: 'header',
-  name: 'X-Admin-Token',
-  description: 'Admin session token received after logging in via /api/admin/login.',
 });
 
 // Common Schemas
@@ -150,6 +149,30 @@ export const RegisterUserInputSchema = registry.register(
   })
 );
 
+export const LoginInputSchema = registry.register(
+  'LoginInput',
+  z.object({
+    username: z.string({ required_error: 'Username is required.' }).openapi({ example: 'admin' }),
+    passphrase: z
+      .string({ required_error: 'Passphrase is required.' })
+      .openapi({ example: 'apple-river-forest' }),
+  })
+);
+
+export const UserProfileSchema = registry.register(
+  'UserProfile',
+  z.object({
+    id: z.string().openapi({ example: 'usr_8a92b' }),
+    username: z.string().openapi({ example: 'admin' }),
+    role: z.enum(['user', 'admin']).openapi({ example: 'admin' }),
+    is_active: z.boolean().openapi({ example: true }),
+    token: z.string().optional().openapi({ example: '49f8a29b4e12c...' }),
+    contacts: z.array(z.string()).default([]),
+    wishmail_enabled: z.boolean().default(true),
+    identity_attributes: z.record(z.string(), z.any()).default({}),
+  })
+);
+
 export const ConfigResponseSchema = registry.register(
   'ConfigResponse',
   z.object({
@@ -172,26 +195,6 @@ export const RuleSchema = registry.register(
     target_category: z.string().openapi({ example: 'orientation' }),
     target_value: z.string().openapi({ example: 'all' }),
     active: z.union([z.boolean(), z.number()]).openapi({ example: 1 }),
-  })
-);
-
-export const UserAccountSchema = registry.register(
-  'UserAccount',
-  z.object({
-    passphrase: z.string().openapi({ example: 'apple-river-forest' }),
-    wish_count: z.number().openapi({ example: 2 }),
-    wishes: z.array(WishSchema),
-  })
-);
-
-export const AdminOverviewSchema = registry.register(
-  'AdminOverview',
-  z.object({
-    totalWishes: z.number().openapi({ example: 42 }),
-    activeWishes: z.number().openapi({ example: 38 }),
-    flaggedWishes: z.number().openapi({ example: 2 }),
-    userCount: z.number().openapi({ example: 15 }),
-    rulesCount: z.number().openapi({ example: 24 }),
   })
 );
 
@@ -312,27 +315,46 @@ registry.registerPath({
 });
 
 registry.registerPath({
-  method: 'delete',
-  path: '/api/wishes/{id}',
-  summary: 'Delete or withdraw a wish',
-  security: [{ PassphraseAuth: [] }],
+  method: 'post',
+  path: '/api/wishes/{id}/manage',
+  summary: 'Manage wish (update or delete)',
+  description:
+    'Updates or deletes an existing wish using its creator secret passphrase or authenticated user session.',
   parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
   request: {
     body: {
       content: {
         'application/json': {
-          schema: z.object({ passphrase: z.string() }),
+          schema: z.object({
+            secret: z.string().optional().openapi({ example: 'apple-river-forest' }),
+            action: z.enum(['update', 'delete']).optional().openapi({ example: 'delete' }),
+            content: z.string().optional(),
+            contacts: z.any().optional(),
+            wishmail_enabled: z.boolean().optional(),
+            new_passphrase: z.string().optional(),
+          }),
         },
       },
     },
   },
   responses: {
     200: {
-      description: 'Wish deleted',
-      content: { 'application/json': { schema: z.object({ message: z.string() }) } },
+      description: 'Wish updated or deleted successfully',
+      content: {
+        'application/json': {
+          schema: z.object({
+            success: z.boolean(),
+            newSecret: z.string().nullable().optional(),
+          }),
+        },
+      },
+    },
+    401: {
+      description: 'Secret token required',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
     403: {
-      description: 'Incorrect passphrase',
+      description: 'Invalid secret token or unauthorized',
       content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
@@ -417,21 +439,91 @@ registry.registerPath({
 
 // /api/users
 registry.registerPath({
+  method: 'get',
+  path: '/api/users/exists',
+  summary: 'Check if a username exists',
+  parameters: [
+    {
+      name: 'username',
+      in: 'query',
+      required: true,
+      schema: { type: 'string' },
+      description: 'Username to check',
+    },
+  ],
+  responses: {
+    200: {
+      description: 'Username existence status',
+      content: { 'application/json': { schema: z.object({ exists: z.boolean() }) } },
+    },
+    400: {
+      description: 'Missing username',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
   method: 'post',
-  path: '/api/users/auth',
-  summary: 'Authenticate with a passphrase',
-  description: 'Validates a three-word passphrase and returns account summary.',
+  path: '/api/users/register',
+  summary: 'Register a new user account',
   request: {
     body: {
       content: {
-        'application/json': { schema: z.object({ passphrase: z.string() }) },
+        'application/json': { schema: RegisterUserInputSchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: 'User registered successfully',
+      content: { 'application/json': { schema: UserProfileSchema } },
+    },
+    400: {
+      description: 'Validation error or username taken',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: 'post',
+  path: '/api/users/login',
+  summary: 'User & Admin login',
+  description:
+    'Authenticates user or admin credentials and returns an active session token for Bearer authentication.',
+  request: {
+    body: {
+      content: {
+        'application/json': { schema: LoginInputSchema },
       },
     },
   },
   responses: {
     200: {
-      description: 'Authenticated user account',
-      content: { 'application/json': { schema: UserAccountSchema } },
+      description: 'Login successful',
+      content: { 'application/json': { schema: UserProfileSchema } },
+    },
+    401: {
+      description: 'Invalid credentials',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/users/me',
+  summary: 'Get current user profile',
+  security: [{ BearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Current user profile',
+      content: { 'application/json': { schema: UserProfileSchema } },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
@@ -439,12 +531,16 @@ registry.registerPath({
 registry.registerPath({
   method: 'get',
   path: '/api/users/me/wishes',
-  summary: 'Get all wishes associated with authenticated passphrase',
-  security: [{ PassphraseAuth: [] }],
+  summary: 'Get all wishes associated with authenticated user',
+  security: [{ BearerAuth: [] }],
   responses: {
     200: {
       description: 'User wishes list',
       content: { 'application/json': { schema: z.array(WishSchema) } },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
@@ -464,61 +560,45 @@ registry.registerPath({
 });
 
 // /api/admin
-registry.registerPath({
-  method: 'post',
-  path: '/api/admin/login',
-  summary: 'Admin login',
-  request: {
-    body: {
-      content: {
-        'application/json': {
-          schema: z.object({
-            username: z.string().default('admin'),
-            passphrase: z.string(),
-          }),
-        },
+const registerAdminGet = (path, summary, description, schema) => {
+  registry.registerPath({
+    method: 'get',
+    path,
+    summary,
+    security: [{ BearerAuth: [] }],
+    responses: {
+      200: {
+        description,
+        content: { 'application/json': { schema } },
+      },
+      403: {
+        description: 'Forbidden: requires admin role',
+        content: { 'application/json': { schema: ErrorResponseSchema } },
       },
     },
-  },
-  responses: {
-    200: {
-      description: 'Admin authenticated',
-      content: {
-        'application/json': { schema: z.object({ message: z.string(), token: z.string() }) },
-      },
-    },
-    401: {
-      description: 'Invalid credentials',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
-});
+  });
+};
 
-registry.registerPath({
-  method: 'get',
-  path: '/api/admin/overview',
-  summary: 'System statistics and overview',
-  security: [{ AdminAuth: [] }],
-  responses: {
-    200: {
-      description: 'System overview statistics',
-      content: { 'application/json': { schema: AdminOverviewSchema } },
-    },
-  },
-});
+registerAdminGet(
+  '/api/admin/flags',
+  'List flagged wishes',
+  'List of flagged wishes awaiting moderation',
+  z.array(z.any())
+);
 
-registry.registerPath({
-  method: 'get',
-  path: '/api/admin/local-metrics',
-  summary: 'Retrieve local performance and request metrics',
-  security: [{ AdminAuth: [] }],
-  responses: {
-    200: {
-      description: 'Local metrics summary',
-      content: { 'application/json': { schema: z.record(z.string(), z.any()) } },
-    },
-  },
-});
+registerAdminGet(
+  '/api/admin/logs',
+  'Retrieve recent server logs',
+  'Recent server log entries',
+  z.array(z.any())
+);
+
+registerAdminGet(
+  '/api/admin/local-metrics',
+  'Retrieve local performance and request metrics',
+  'Local metrics summary',
+  z.record(z.string(), z.any())
+);
 
 let cachedDocument = null;
 
@@ -536,7 +616,7 @@ export function getOpenApiDocument() {
     openapi: '3.0.0',
     info: {
       title: 'Wishboard REST API',
-      version: '1.30.1',
+      version: '1.31.0',
       description:
         'Interactive OpenAPI reference for the Wishboard event matchmaking platform. Provides endpoints for wish submissions, identity matching, Wishmail messaging, admin moderation, and runtime configuration.',
       contact: {
