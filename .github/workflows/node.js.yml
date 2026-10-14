@@ -36,6 +36,25 @@ jobs:
         run: npm run type-check
       - name: Format check
         run: npm run format:check
+      - name: Check for OpenAPI spec drift
+        run: npm run api:spec:check
+      - name: Fetch base branch for OpenAPI diff
+        if: github.event_name == 'pull_request'
+        id: check-base
+        run: |
+          git fetch --depth=1 origin ${{ github.base_ref }}
+          if git cat-file -e "origin/${{ github.base_ref }}:api/openapi.json" 2>/dev/null; then
+            echo "has_base=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_base=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Check for breaking API changes
+        if: github.event_name == 'pull_request' && steps.check-base.outputs.has_base == 'true'
+        uses: oasdiff/oasdiff-action/breaking@v0
+        with:
+          base: 'origin/${{ github.base_ref }}:api/openapi.json'
+          revision: 'HEAD:api/openapi.json'
+          fail-on: ERR
       - name: Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v3
         env:

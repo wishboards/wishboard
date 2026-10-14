@@ -4,6 +4,7 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from '@asteasolutions/zod-to-openapi';
+import { getApiVersion } from '../version.js';
 
 extendZodWithOpenApi(z);
 
@@ -310,6 +311,8 @@ export const ConfigResponseSchema = registry.register(
     realtimeProvider: z.string().openapi({ example: 'socketio' }),
     apIp: z.string().openapi({ example: '192.168.4.1' }),
     isServerless: z.boolean().openapi({ example: false }),
+    apiVersion: z.string().openapi({ example: '1.0.0' }),
+    appVersion: z.string().openapi({ example: '1.32.1' }),
   })
 );
 
@@ -923,7 +926,7 @@ export function getOpenApiDocument() {
     openapi: '3.0.0',
     info: {
       title: 'Wishboard REST API',
-      version: '1.31.0',
+      version: getApiVersion(),
       description:
         'Interactive OpenAPI reference for the Wishboard event matchmaking platform. Provides endpoints for wish submissions, identity matching, Wishmail messaging, admin moderation, and runtime configuration.',
       contact: {

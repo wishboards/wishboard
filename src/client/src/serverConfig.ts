@@ -9,6 +9,8 @@ export interface ServerConfig {
   domain?: string;
   apIp?: string;
   isServerless?: boolean;
+  apiVersion?: string;
+  appVersion?: string;
 }
 
 export function getServerConfig(): ServerConfig {

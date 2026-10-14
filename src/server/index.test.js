@@ -37,6 +37,10 @@ describe('Server index.js', () => {
     // Runtime-resolved domain + AP IP for the poster / Wi-Fi popup.
     expect(res.body).toHaveProperty('domain');
     expect(res.body).toHaveProperty('apIp');
+    expect(res.body).toHaveProperty('apiVersion');
+    expect(res.body.apiVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(res.body).toHaveProperty('appVersion');
+    expect(res.body.appVersion).toMatch(/^\d+\.\d+\.\d+/);
   });
 
   it('serves the configured WISHBOARD_DOMAIN on /api/config', async () => {

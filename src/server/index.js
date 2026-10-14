@@ -19,6 +19,7 @@ import { jsonErrorHandler } from './errorHandler.js';
 import captivePortalRouter, { captivePortalMiddleware } from './routes/captivePortal.js';
 import { apiReference } from '@scalar/express-api-reference';
 import { getOpenApiDocument } from './docs/openapi.js';
+import { getApiVersion, getAppVersion } from './version.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -109,6 +110,8 @@ app.get('/api/config', async (req, res) => {
     domain: process.env.WISHBOARD_DOMAIN || domainConfig.domain || '',
     apIp: process.env.WISHBOARD_AP_IP || '',
     isServerless: !!process.env.AWS_EXECUTION_ENV,
+    apiVersion: getApiVersion(),
+    appVersion: getAppVersion(),
   });
 });
 
