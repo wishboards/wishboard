@@ -9,6 +9,8 @@ import {
 } from '../auth.js';
 import logger from '../logger.js';
 import { ensureArray } from '../utils/arrays.js';
+import { validateBody } from '../utils/validation.js';
+import { SendWishmailInputSchema } from '../docs/openapi.js';
 
 const router = express.Router({ mergeParams: true });
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -51,14 +53,11 @@ const authorizeWishmailManagement = async (req, res, next) => {
 
 // POST /api/wishes/:id/mail
 // Send a wishmail
-router.post('/', async (req, res) => {
+router.post('/', validateBody(SendWishmailInputSchema), async (req, res) => {
   const { id: wish_id } = req.params;
-  const { content, return_contacts } = req.body;
+  const { return_contacts } = req.validatedBody;
+  const content = (req.validatedBody.content || req.validatedBody.message).trim();
   const user = await getRequestUser(req);
-
-  if (!content?.trim()) {
-    return res.status(400).json({ error: 'Mail content is required.' });
-  }
 
   const wish = await db
     .prepare('SELECT id, wishmail_enabled FROM wishes WHERE id = ?')

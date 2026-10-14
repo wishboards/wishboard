@@ -67,7 +67,12 @@ export const WishSchema = registry.register(
 export const CreateWishInputSchema = registry.register(
   'CreateWishInput',
   z.object({
-    content: z.string().min(1).max(500).openapi({ example: 'Looking for board game buddies!' }),
+    content: z
+      .string({ required_error: 'Wish content is required.' })
+      .trim()
+      .min(1, { message: 'Wish content is required.' })
+      .max(500)
+      .openapi({ example: 'Looking for board game buddies!' }),
     author: z.string().max(100).optional().openapi({ example: 'Alex' }),
     creator_genders: z.union([z.string(), z.array(z.string())]).optional(),
     creator_orientations: z.union([z.string(), z.array(z.string())]).optional(),
@@ -75,8 +80,12 @@ export const CreateWishInputSchema = registry.register(
     desired_genders: z.union([z.string(), z.array(z.string())]).optional(),
     desired_orientations: z.union([z.string(), z.array(z.string())]).optional(),
     desired_roles: z.union([z.string(), z.array(z.string())]).optional(),
+    creator_attributes: z.any().optional(),
+    desired_attributes: z.any().optional(),
+    contacts: z.any().optional(),
     contact: z.string().max(255).optional().openapi({ example: 'Discord: @alex' }),
-    allow_wishmail: z.union([z.boolean(), z.string()]).optional().default(true),
+    allow_wishmail: z.union([z.boolean(), z.string(), z.number()]).optional().default(true),
+    wishmail_enabled: z.union([z.boolean(), z.string(), z.number()]).optional(),
     passphrase: z.string().optional().openapi({ example: 'apple-river-forest' }),
   })
 );
@@ -97,13 +106,47 @@ export const WishmailMessageSchema = registry.register(
 
 export const SendWishmailInputSchema = registry.register(
   'SendWishmailInput',
+  z
+    .object({
+      content: z
+        .string()
+        .trim()
+        .min(1, { message: 'Mail content is required.' })
+        .max(1000)
+        .optional()
+        .openapi({ example: 'Hey! Would love to fulfill your wish.' }),
+      message: z.string().trim().max(1000).optional(),
+      return_contacts: z.any().optional(),
+      senderContact: z.string().max(255).optional().openapi({ example: 'Telegram: @gamer' }),
+    })
+    .refine((data) => Boolean(data.content?.trim() || data.message?.trim()), {
+      message: 'Mail content is required.',
+      path: ['content'],
+    })
+);
+
+export const UsernameCheckQuerySchema = registry.register(
+  'UsernameCheckQuery',
   z.object({
-    message: z
-      .string()
-      .min(1)
-      .max(1000)
-      .openapi({ example: 'Hey! Would love to fulfill your wish.' }),
-    senderContact: z.string().max(255).optional().openapi({ example: 'Telegram: @gamer' }),
+    username: z
+      .string({ required_error: 'Username is required.' })
+      .trim()
+      .min(1, { message: 'Username is required.' }),
+  })
+);
+
+export const RegisterUserInputSchema = registry.register(
+  'RegisterUserInput',
+  z.object({
+    username: z
+      .string({ required_error: 'Username is required.' })
+      .trim()
+      .min(1, { message: 'Username is required.' })
+      .max(100),
+    passphrase: z.string().optional(),
+    contacts: z.any().optional(),
+    wishmail_enabled: z.any().optional(),
+    identity_attributes: z.any().optional(),
   })
 );
 
