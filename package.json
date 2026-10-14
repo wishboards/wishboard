@@ -18,6 +18,8 @@
     "build:cli": "esbuild src/cli/wishboard.js --bundle --platform=node --format=esm --outfile=dist/wishboard.js",
     "preview": "vite preview",
     "start": "npm run build && node ./src/server/index.js",
+    "api:spec": "node ./scripts/generate-openapi-spec.js && prettier --write api/openapi.json",
+    "api:spec:check": "npm run api:spec && git diff --exit-code api/openapi.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",

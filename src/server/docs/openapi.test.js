@@ -9,7 +9,7 @@ describe('OpenAPI Specification Generator', () => {
     expect(doc).toBeDefined();
     expect(doc.openapi).toBe('3.0.0');
     expect(doc.info.title).toBe('Wishboard REST API');
-    expect(doc.info.version).toBeDefined();
+    expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(doc.servers).toHaveLength(1);
     expect(doc.servers[0].url).toBe('/');
   });
@@ -26,6 +26,8 @@ describe('OpenAPI Specification Generator', () => {
     expect(schemas).toHaveProperty('WishmailMessage');
     expect(schemas).toHaveProperty('SendWishmailInput');
     expect(schemas).toHaveProperty('ConfigResponse');
+    expect(schemas.ConfigResponse.properties).toHaveProperty('apiVersion');
+    expect(schemas.ConfigResponse.properties).toHaveProperty('appVersion');
     expect(schemas).toHaveProperty('MatchmakingRule');
     expect(schemas).toHaveProperty('CheckRuleConflictsInput');
     expect(schemas).toHaveProperty('CreateRuleInput');

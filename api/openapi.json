@@ -1,0 +1,3052 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Wishboard REST API",
+    "version": "1.0.0",
+    "description": "Interactive OpenAPI reference for the Wishboard event matchmaking platform. Provides endpoints for wish submissions, identity matching, Wishmail messaging, admin moderation, and runtime configuration.",
+    "contact": {
+      "name": "Wishboard Project",
+      "url": "https://wishboards.app"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current Wishboard Server Instance"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Session token obtained from POST /api/users/login (stored in session database)."
+      },
+      "PassphraseAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Passphrase",
+        "description": "Three-word local passphrase used to manage created wishes and wishmail."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Invalid request or resource not found."
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "nullable": true
+            }
+          }
+        },
+        "required": ["error"]
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Operation completed successfully."
+          },
+          "id": {
+            "type": "string",
+            "example": "rule_a1b2c3d4"
+          },
+          "newSecret": {
+            "type": "string",
+            "nullable": true,
+            "example": "apple-river-forest"
+          }
+        },
+        "required": ["success"]
+      },
+      "Wish": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "wish_k9x2m"
+          },
+          "content": {
+            "type": "string",
+            "example": "Looking for a board game group on Saturday evening!"
+          },
+          "author": {
+            "type": "string",
+            "example": "Alex"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-10-13T20:00:00.000Z"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "flagged", "hidden", "fulfilled"],
+            "example": "active"
+          },
+          "creator_genders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["non-binary"]
+          },
+          "creator_orientations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["queer"]
+          },
+          "creator_roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["switch"]
+          },
+          "desired_genders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["any"]
+          },
+          "desired_orientations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "desired_roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contact": {
+            "type": "string",
+            "example": "alex@example.com"
+          },
+          "allow_wishmail": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true,
+            "example": "/images/card_123.jpg"
+          }
+        },
+        "required": ["id", "content", "created_at", "status"]
+      },
+      "CreateWishInput": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "example": "Looking for board game buddies!"
+          },
+          "author": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Alex"
+          },
+          "creator_genders": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "creator_orientations": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "creator_roles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "desired_genders": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "desired_orientations": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "desired_roles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "creator_attributes": {
+            "nullable": true
+          },
+          "desired_attributes": {
+            "nullable": true
+          },
+          "contacts": {
+            "nullable": true
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Discord: @alex"
+          },
+          "allow_wishmail": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "default": true
+          },
+          "wishmail_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "passphrase": {
+            "type": "string",
+            "example": "apple-river-forest"
+          }
+        },
+        "required": ["content"]
+      },
+      "ManageWishInput": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "example": "apple-river-forest"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["update", "delete"],
+            "example": "update"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 500,
+            "example": "Updated wish text"
+          },
+          "contacts": {
+            "nullable": true
+          },
+          "wishmail_enabled": {
+            "type": "boolean"
+          },
+          "new_passphrase": {
+            "type": "string",
+            "example": "ocean-sun-meadow"
+          }
+        }
+      },
+      "ClaimWishInput": {
+        "type": "object",
+        "properties": {
+          "passphrase": {
+            "type": "string",
+            "minLength": 1,
+            "example": "apple-river-forest"
+          }
+        },
+        "required": ["passphrase"]
+      },
+      "ExclusionImportInput": {
+        "type": "object",
+        "properties": {
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["wish_k9x2m", "wish_abc12"]
+          }
+        },
+        "required": ["exclusions"]
+      },
+      "WishmailMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "mail_7z1q"
+          },
+          "wish_id": {
+            "type": "string",
+            "example": "wish_k9x2m"
+          },
+          "message": {
+            "type": "string",
+            "example": "Hey! I saw your wish and would love to join your game."
+          },
+          "sender_contact": {
+            "type": "string",
+            "example": "Signal: @sam"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-10-13T20:15:00.000Z"
+          },
+          "read": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": ["id", "wish_id", "message", "created_at"]
+      },
+      "SendWishmailInput": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "example": "Hey! Would love to fulfill your wish."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "return_contacts": {
+            "nullable": true
+          },
+          "senderContact": {
+            "type": "string",
+            "maxLength": 255,
+            "example": "Telegram: @gamer"
+          }
+        }
+      },
+      "UsernameCheckQuery": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["username"]
+      },
+      "RegisterUserInput": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "passphrase": {
+            "type": "string"
+          },
+          "contacts": {
+            "nullable": true
+          },
+          "wishmail_enabled": {
+            "nullable": true
+          },
+          "identity_attributes": {
+            "nullable": true
+          }
+        },
+        "required": ["username"]
+      },
+      "LoginInput": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "example": "admin"
+          },
+          "passphrase": {
+            "type": "string",
+            "minLength": 1,
+            "example": "apple-river-forest"
+          }
+        },
+        "required": ["username", "passphrase"]
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "usr_8a92b"
+          },
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["user", "admin"],
+            "example": "admin"
+          },
+          "is_active": {
+            "type": "boolean",
+            "example": true
+          },
+          "token": {
+            "type": "string",
+            "example": "49f8a29b4e12c..."
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "wishmail_enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "identity_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "default": {}
+          }
+        },
+        "required": ["id", "username", "role", "is_active"]
+      },
+      "UpdateUserInput": {
+        "type": "object",
+        "properties": {
+          "contacts": {
+            "nullable": true
+          },
+          "wishmail_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "identity_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          }
+        }
+      },
+      "UserDeletePreview": {
+        "type": "object",
+        "properties": {
+          "wishes_count": {
+            "type": "number",
+            "example": 2
+          },
+          "wishmails_count": {
+            "type": "number",
+            "example": 5
+          }
+        },
+        "required": ["wishes_count", "wishmails_count"]
+      },
+      "MatchmakingRule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "rule_k7m2x9"
+          },
+          "rule_type": {
+            "type": "string",
+            "enum": ["enrichment", "acceptance", "expansion", "cross_match"],
+            "example": "expansion"
+          },
+          "trigger_attribute": {
+            "type": "string",
+            "example": "orientation"
+          },
+          "trigger_value": {
+            "type": "string",
+            "example": "pansexual"
+          },
+          "context_attribute": {
+            "type": "string",
+            "nullable": true
+          },
+          "context_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_attribute": {
+            "type": "string",
+            "example": "orientation"
+          },
+          "target_value": {
+            "type": "string",
+            "example": "all"
+          }
+        },
+        "required": [
+          "id",
+          "rule_type",
+          "trigger_attribute",
+          "trigger_value",
+          "target_attribute",
+          "target_value"
+        ]
+      },
+      "CheckRuleConflictsInput": {
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "example": {
+              "gender": ["woman"],
+              "orientation": ["lesbian"]
+            }
+          }
+        },
+        "required": ["attributes"]
+      },
+      "CreateRuleInput": {
+        "type": "object",
+        "properties": {
+          "rule_type": {
+            "type": "string",
+            "enum": ["enrichment", "acceptance", "expansion", "cross_match"],
+            "example": "expansion"
+          },
+          "trigger_attribute": {
+            "type": "string",
+            "example": "orientation"
+          },
+          "trigger_value": {
+            "type": "string",
+            "example": "pansexual"
+          },
+          "context_attribute": {
+            "type": "string"
+          },
+          "context_value": {
+            "type": "string"
+          },
+          "target_attribute": {
+            "type": "string",
+            "example": "orientation"
+          },
+          "target_value": {
+            "type": "string",
+            "example": "all"
+          }
+        },
+        "required": [
+          "rule_type",
+          "trigger_attribute",
+          "trigger_value",
+          "target_attribute",
+          "target_value"
+        ]
+      },
+      "AdminUserRoleInput": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["user", "admin"],
+            "example": "admin"
+          }
+        },
+        "required": ["role"]
+      },
+      "ResetPasswordInput": {
+        "type": "object",
+        "properties": {
+          "passphrase": {
+            "type": "string",
+            "example": "new-passphrase"
+          }
+        }
+      },
+      "ConfigResponse": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "example": "wishboards.local"
+          },
+          "realtimeProvider": {
+            "type": "string",
+            "example": "socketio"
+          },
+          "apIp": {
+            "type": "string",
+            "example": "192.168.4.1"
+          },
+          "isServerless": {
+            "type": "boolean",
+            "example": false
+          },
+          "apiVersion": {
+            "type": "string",
+            "example": "1.0.0"
+          },
+          "appVersion": {
+            "type": "string",
+            "example": "1.32.1"
+          }
+        },
+        "required": [
+          "domain",
+          "realtimeProvider",
+          "apIp",
+          "isServerless",
+          "apiVersion",
+          "appVersion"
+        ]
+      },
+      "CaptivePortalStatus": {
+        "type": "object",
+        "properties": {
+          "captive": {
+            "type": "boolean",
+            "example": false
+          },
+          "user-portal-url": {
+            "type": "string",
+            "example": "https://wishboards.local/"
+          },
+          "venue-info-url": {
+            "type": "string",
+            "example": "https://wishboards.local/"
+          }
+        },
+        "required": ["captive", "user-portal-url", "venue-info-url"]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/config": {
+      "get": {
+        "tags": ["Configuration"],
+        "summary": "Retrieve runtime configuration",
+        "description": "Returns network, domain, and realtime WebSocket provider settings for kiosks and clients.",
+        "responses": {
+          "200": {
+            "description": "Domain and runtime configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes": {
+      "get": {
+        "tags": ["Wishes"],
+        "summary": "List and search active wishes",
+        "description": "List and search active wishes",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Text search query"
+          },
+          {
+            "name": "gender",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by creator gender"
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by creator orientation"
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by creator role"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List and search active wishes response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Wish"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Wishes"],
+        "summary": "Submit a new wish",
+        "description": "Submits a new wish to the board with optional image upload.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWishInput"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWishInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Wish created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "wish": {
+                      "$ref": "#/components/schemas/Wish"
+                    },
+                    "passphrase": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["message", "wish", "passphrase"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/random": {
+      "get": {
+        "tags": ["Wishes"],
+        "summary": "Retrieve random active wish",
+        "description": "Fetches a single active wish at random, ideal for kiosk screensavers or hero carousels.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Retrieve random active wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wish"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}": {
+      "get": {
+        "tags": ["Wishes"],
+        "summary": "Retrieve single wish details",
+        "description": "Retrieve single wish details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieve single wish details response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wish"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/manage": {
+      "post": {
+        "tags": ["Wishes"],
+        "summary": "Manage wish (update or delete)",
+        "description": "Updates or deletes an existing wish using its creator secret passphrase or authenticated session.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManageWishInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Manage wish (update or delete) response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/deactivate": {
+      "post": {
+        "tags": ["Wishes"],
+        "summary": "Deactivate a wish",
+        "description": "Hides a wish from the public board without deleting its data.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "secret": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deactivate a wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/reactivate": {
+      "post": {
+        "tags": ["Wishes"],
+        "summary": "Reactivate a wish",
+        "description": "Restores a deactivated wish to the active public board.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "secret": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reactivate a wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/claim": {
+      "post": {
+        "tags": ["Wishes"],
+        "summary": "Claim wish into user account",
+        "description": "Links an anonymously submitted wish to the authenticated user account via secret passphrase.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimWishInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Claim wish into user account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/flag": {
+      "post": {
+        "tags": ["Wishes"],
+        "summary": "Report / flag an inappropriate wish",
+        "description": "Report / flag an inappropriate wish",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report / flag an inappropriate wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/exclusions": {
+      "get": {
+        "tags": ["Users & Auth"],
+        "summary": "List user wish exclusions",
+        "description": "Returns full wish objects excluded/hidden by the current user.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List user wish exclusions response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Wish"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/exclusions/list": {
+      "get": {
+        "tags": ["Users & Auth"],
+        "summary": "List user exclusion IDs",
+        "description": "Returns an array of string IDs corresponding to wishes excluded by the current user.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List user exclusion IDs response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/exclusions/import": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Bulk import wish exclusions",
+        "description": "Synchronizes client-side localStorage exclusion lists into the persistent user account.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExclusionImportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk import wish exclusions response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/exclude": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Exclude / hide a wish",
+        "description": "Mutes a specific wish from appearing in the authenticated user feed.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exclude / hide a wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users & Auth"],
+        "summary": "Remove wish exclusion",
+        "description": "Un-mutes a previously excluded wish, restoring it to the user feed.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Remove wish exclusion response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/mail": {
+      "post": {
+        "tags": ["Wishmail"],
+        "summary": "Send Wishmail to a wish author",
+        "description": "Send Wishmail to a wish author",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendWishmailInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Send Wishmail to a wish author response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "mail": {
+                      "$ref": "#/components/schemas/WishmailMessage"
+                    }
+                  },
+                  "required": ["message", "mail"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Wishmail"],
+        "summary": "Retrieve Wishmail for a wish",
+        "security": [
+          {
+            "PassphraseAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "passphrase",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Passphrase for auth"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of wishmail messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WishmailMessage"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden: invalid passphrase",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/mail/{mailId}/read": {
+      "post": {
+        "tags": ["Wishmail"],
+        "summary": "Mark wishmail message as read",
+        "security": [
+          {
+            "PassphraseAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mailId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mark wishmail message as read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/mail/{mailId}": {
+      "delete": {
+        "tags": ["Wishmail"],
+        "summary": "Delete wishmail message",
+        "security": [
+          {
+            "PassphraseAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mailId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete wishmail message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/exists": {
+      "get": {
+        "tags": ["Users & Auth"],
+        "summary": "Check if a username exists",
+        "description": "Check if a username exists",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Check if a username exists response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exists": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["exists"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/register": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Register a new user account",
+        "description": "Register a new user account",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterUserInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Register a new user account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/login": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "User & Admin login",
+        "description": "Authenticates credentials and returns an active session token for Bearer authentication.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User & Admin login response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/logout": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Logout current session",
+        "description": "Destroys the current active session token in the database.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout current session response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": ["Users & Auth"],
+        "summary": "Get current user profile",
+        "description": "Get current user profile",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get current user profile response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users & Auth"],
+        "summary": "Update current user profile",
+        "description": "Update current user profile",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update current user profile response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/wishes": {
+      "get": {
+        "tags": ["Users & Auth"],
+        "summary": "Get all wishes for current user",
+        "description": "Get all wishes for current user",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get all wishes for current user response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Wish"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/delete-preview": {
+      "get": {
+        "tags": ["Users & Auth"],
+        "summary": "Preview user deletion impact",
+        "description": "Preview user deletion impact",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preview user deletion impact response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDeletePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/delete": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Permanently delete user account",
+        "description": "Permanently delete user account",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Permanently delete user account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/deactivate": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Deactivate user account",
+        "description": "Deactivate user account",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deactivate user account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/reactivate": {
+      "post": {
+        "tags": ["Users & Auth"],
+        "summary": "Reactivate user account",
+        "description": "Reactivate user account",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reactivate user account response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rules": {
+      "get": {
+        "tags": ["Rules Engine"],
+        "summary": "List active matchmaking rules",
+        "description": "List active matchmaking rules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List active matchmaking rules response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MatchmakingRule"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Rules Engine"],
+        "summary": "Create matchmaking rule",
+        "description": "Create matchmaking rule",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Create matchmaking rule response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rules/check-conflicts": {
+      "post": {
+        "tags": ["Rules Engine"],
+        "summary": "Check matchmaking rule conflicts",
+        "description": "Check matchmaking rule conflicts",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckRuleConflictsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Check matchmaking rule conflicts response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conflicts": {
+                      "type": "array",
+                      "items": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": ["conflicts"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rules/{id}": {
+      "put": {
+        "tags": ["Rules Engine"],
+        "summary": "Update matchmaking rule",
+        "description": "Update matchmaking rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update matchmaking rule response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Rules Engine"],
+        "summary": "Delete matchmaking rule",
+        "description": "Delete matchmaking rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete matchmaking rule response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/flags": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List flagged wishes",
+        "description": "List flagged wishes",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List flagged wishes response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/wishes/{id}/remove": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin remove wish",
+        "description": "Admin remove wish",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin remove wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/wishes/{id}/clear-flag": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin clear wish flag",
+        "description": "Admin clear wish flag",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin clear wish flag response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/wishes/clear-all-flags": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin clear all wish flags",
+        "description": "Admin clear all wish flags",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin clear all wish flags response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Admin list all users",
+        "description": "Admin list all users",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin list all users response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserProfile"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/role": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin update user role",
+        "description": "Admin update user role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserRoleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin update user role response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/delete-preview": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Admin preview user deletion",
+        "description": "Admin preview user deletion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin preview user deletion response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDeletePreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{id}/delete": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin delete user",
+        "description": "Admin delete user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin delete user response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{username}/reset-password": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin reset user passphrase",
+        "description": "Admin reset user passphrase",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Admin reset user passphrase response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reset-demo": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin seed demo wishes",
+        "description": "Admin seed demo wishes",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin seed demo wishes response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/reset-rules": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Admin reload default rules",
+        "description": "Admin reload default rules",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin reload default rules response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/logs": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Retrieve recent server logs",
+        "description": "Retrieve recent server logs",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieve recent server logs response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/config": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Admin inspect server profile & config",
+        "description": "Admin inspect server profile & config",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin inspect server profile & config response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/local-metrics": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Retrieve local performance metrics",
+        "description": "In-process CPU/memory/HTTP metrics. Note: Available in Kiosk/Local mode only; returns 400 in Serverless mode.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieve local performance metrics response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/aws-metrics": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Retrieve AWS CloudWatch metrics",
+        "description": "CloudWatch metrics time-series. Note: Available in AWS Serverless mode only; returns 400 in Kiosk/Local mode.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieve AWS CloudWatch metrics response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/captive-portal": {
+      "get": {
+        "tags": ["Captive Portal"],
+        "summary": "RFC 8908 Captive Portal JSON status",
+        "description": "Returns captive network state and portal URLs. Active during local Wi-Fi kiosk operation.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "RFC 8908 Captive Portal JSON status response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptivePortalStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/captive-portal/accept": {
+      "post": {
+        "tags": ["Captive Portal"],
+        "summary": "Accept terms and admit client",
+        "description": "Admits client IP to access local network.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Accept terms and admit client response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
