@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.31.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.30.1...wishboard-v1.31.0) (2026-10-14)
+
+
+### Features
+
+* **api:** implement OpenAPI specification and Scalar interactive docs ([#534](https://github.com/wishboards/wishboard/issues/534)) ([80add12](https://github.com/wishboards/wishboard/commit/80add12c3d177e30eff7615e8701e0a115bb6ff9))
+
 ## [1.30.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.30.0...wishboard-v1.30.1) (2026-10-12)
 
 
