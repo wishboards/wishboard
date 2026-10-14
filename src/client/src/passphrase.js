@@ -3,7 +3,7 @@ let cryptoProvider;
 if (typeof globalThis !== 'undefined' && typeof globalThis.crypto?.getRandomValues === 'function') {
   cryptoProvider = globalThis.crypto;
 } else {
-  throw new Error('No secure crypto available in this environment.');
+  throw new TypeError('No secure crypto available in this environment.');
 }
 
 const randomIndex = (max) => {
