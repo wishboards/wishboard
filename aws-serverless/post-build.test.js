@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { copyProfileConfigs } from './post-build.js';
+import { copyProfileConfigs, generateStaticApiDocs } from './post-build.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,5 +67,41 @@ describe('post-build copyProfileConfigs', () => {
     } finally {
       fs.rmSync(mockRepo, { recursive: true, force: true });
     }
+  });
+});
+
+describe('post-build generateStaticApiDocs', () => {
+  it('generates openapi.json, api-docs/index.html, and api/docs/index.html in dist', () => {
+    const tmpDist = fs.mkdtempSync(path.join(os.tmpdir(), 'wb-postbuild-dist-'));
+    try {
+      generateStaticApiDocs(tmpDist);
+
+      const openApiFile = path.join(tmpDist, 'openapi.json');
+      expect(fs.existsSync(openApiFile)).toBe(true);
+      const spec = JSON.parse(fs.readFileSync(openApiFile, 'utf8'));
+      expect(spec.openapi).toBe('3.0.0');
+      expect(spec.info.title).toBe('Wishboard REST API');
+
+      const apiDocsIndex = path.join(tmpDist, 'api-docs', 'index.html');
+      expect(fs.existsSync(apiDocsIndex)).toBe(true);
+      const html = fs.readFileSync(apiDocsIndex, 'utf8');
+      expect(html).toContain('Wishboard API Reference');
+
+      const apiSubdocsIndex = path.join(tmpDist, 'api', 'docs', 'index.html');
+      expect(fs.existsSync(apiSubdocsIndex)).toBe(true);
+      const subHtml = fs.readFileSync(apiSubdocsIndex, 'utf8');
+      expect(subHtml).toContain('Wishboard API Reference');
+
+      const apiDocsHtml = path.join(tmpDist, 'api-docs.html');
+      expect(fs.existsSync(apiDocsHtml)).toBe(true);
+    } finally {
+      fs.rmSync(tmpDist, { recursive: true, force: true });
+    }
+  });
+
+  it('gracefully skips if distDir does not exist without throwing', () => {
+    const nonExistent = path.join(os.tmpdir(), 'wb-nonexistent-dist-' + Date.now());
+    expect(() => generateStaticApiDocs(nonExistent)).not.toThrow();
+    expect(fs.existsSync(nonExistent)).toBe(false);
   });
 });

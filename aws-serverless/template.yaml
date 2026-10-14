@@ -299,6 +299,30 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /api/{proxy+}
             Method: ANY
+        ApiRootRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api
+            Method: ANY
+        ApiDocsRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api-docs/{proxy+}
+            Method: ANY
+        ApiDocsRootRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api-docs
+            Method: ANY
+        OpenApiRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /openapi.json
+            Method: GET
     Metadata:
       # NOTE: `sam build` runs a production-only `npm install` then requires
       # esbuild — so esbuild must stay in package.json "dependencies" (not
@@ -538,6 +562,26 @@ Resources:
               - PATCH
               - POST
               - DELETE
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # Managed-AllViewerExceptHostHeader
+          # Route /api-docs* to the Express API
+          - PathPattern: /api-docs*
+            TargetOriginId: BackendApiOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # Managed-AllViewerExceptHostHeader
+          # Route /openapi.json to the Express API
+          - PathPattern: /openapi.json
+            TargetOriginId: BackendApiOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
             CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # Managed-AllViewerExceptHostHeader
           # Route /socket.io/* to the API Gateway WebSocket Stage (No Caching)

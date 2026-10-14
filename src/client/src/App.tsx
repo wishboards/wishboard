@@ -43,14 +43,26 @@ const getHashPage = (): PageId => {
   if (typeof globalThis === 'undefined' || !globalThis.location) {
     return 'home';
   }
-  const hashPart = globalThis.location.hash.split('?')[0].replace(/^#/, '');
+  const hashPart = globalThis.location.hash
+    .split('?')[0]
+    .replace(/^#/, '')
+    .replace(/^\/+|\/+$/g, '');
+  if (hashPart === 'api-docs' || hashPart === 'api/docs') {
+    globalThis.location.replace?.('/api/docs');
+    return 'home';
+  }
   if (isValidPage(hashPart)) {
     return hashPart;
   }
 
   // Friendly URL support: inspect pathname if no valid hash is specified
-  const pathPart = globalThis.location.pathname?.replace(/^\/+|\/+$/g, '').split('/')[0];
-  if (isValidPage(pathPart)) {
+  const normalizedPath = globalThis.location.pathname?.replace(/^\/+|\/+$/g, '');
+  if (normalizedPath === 'api-docs' || normalizedPath === 'api/docs') {
+    globalThis.location.replace?.('/api/docs');
+    return 'home';
+  }
+  const pathPart = normalizedPath?.split('/')[0];
+  if (pathPart && isValidPage(pathPart)) {
     const search = globalThis.location.search || '';
     if (globalThis.history?.replaceState) {
       globalThis.history.replaceState({}, '', `/#${pathPart}${search}`);
