@@ -132,7 +132,7 @@ app.use(
   '/api-docs',
   apiReference({
     spec: {
-      content: () => getOpenApiDocument(),
+      content: getOpenApiDocument(),
     },
     pageTitle: 'Wishboard API Reference',
     theme: 'purple',
