@@ -4,7 +4,7 @@ title: 0010 Independent API Versioning Lifecycle
 
 # ADR 0010: Independent API Versioning Lifecycle
 
-- **Status:** Accepted
+- **Status:** Implemented
 - **Context date:** October 2026
 
 ## Context
