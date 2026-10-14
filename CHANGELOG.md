@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.32.0...wishboard-v1.32.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **api:** support /api/docs, /api-docs, and SPA hash routes on serverless deploy ([#541](https://github.com/wishboards/wishboard/issues/541)) ([84b9654](https://github.com/wishboards/wishboard/commit/84b9654f283babbc57f6f8f84b8f90892a76aeb7))
+
 ## [1.32.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.31.0...wishboard-v1.32.0) (2026-10-14)
 
 
