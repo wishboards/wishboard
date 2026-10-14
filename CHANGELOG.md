@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.32.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.31.0...wishboard-v1.32.0) (2026-10-14)
+
+
+### Features
+
+* **api:** document full API surface across all domains and align mode-specific metrics ([#540](https://github.com/wishboards/wishboard/issues/540)) ([69cc5d0](https://github.com/wishboards/wishboard/commit/69cc5d01e321e01cc03c603946cc2642bdeb7f91))
+* **validation:** wire Zod validation middleware into Express routes ([#536](https://github.com/wishboards/wishboard/issues/536)) ([fd72a1b](https://github.com/wishboards/wishboard/commit/fd72a1b64f6139ff12478136c7a1b6b547992a65))
+
+
+### Bug Fixes
+
+* **api:** inline OpenAPI spec in Scalar configuration and proxy /api-docs in Vite ([#538](https://github.com/wishboards/wishboard/issues/538)) ([39a6142](https://github.com/wishboards/wishboard/commit/39a6142d4337f314396f6c5a0aec4ea34bd72cad))
+* **docs:** align OpenAPI specification with authentic server endpoints and security schemes ([#539](https://github.com/wishboards/wishboard/issues/539)) ([8b3f02b](https://github.com/wishboards/wishboard/commit/8b3f02bc24a51dbb2c56048d87b353a3bea39b8f))
+
 ## [1.31.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.30.1...wishboard-v1.31.0) (2026-10-14)
 
 
