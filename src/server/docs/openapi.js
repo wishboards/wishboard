@@ -560,56 +560,45 @@ registry.registerPath({
 });
 
 // /api/admin
-registry.registerPath({
-  method: 'get',
-  path: '/api/admin/flags',
-  summary: 'List flagged wishes',
-  security: [{ BearerAuth: [] }],
-  responses: {
-    200: {
-      description: 'List of flagged wishes awaiting moderation',
-      content: { 'application/json': { schema: z.array(z.any()) } },
+const registerAdminGet = (path, summary, description, schema) => {
+  registry.registerPath({
+    method: 'get',
+    path,
+    summary,
+    security: [{ BearerAuth: [] }],
+    responses: {
+      200: {
+        description,
+        content: { 'application/json': { schema } },
+      },
+      403: {
+        description: 'Forbidden: requires admin role',
+        content: { 'application/json': { schema: ErrorResponseSchema } },
+      },
     },
-    403: {
-      description: 'Forbidden: requires admin role',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
-});
+  });
+};
 
-registry.registerPath({
-  method: 'get',
-  path: '/api/admin/logs',
-  summary: 'Retrieve recent server logs',
-  security: [{ BearerAuth: [] }],
-  responses: {
-    200: {
-      description: 'Recent server log entries',
-      content: { 'application/json': { schema: z.array(z.any()) } },
-    },
-    403: {
-      description: 'Forbidden: requires admin role',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
-});
+registerAdminGet(
+  '/api/admin/flags',
+  'List flagged wishes',
+  'List of flagged wishes awaiting moderation',
+  z.array(z.any())
+);
 
-registry.registerPath({
-  method: 'get',
-  path: '/api/admin/local-metrics',
-  summary: 'Retrieve local performance and request metrics',
-  security: [{ BearerAuth: [] }],
-  responses: {
-    200: {
-      description: 'Local metrics summary',
-      content: { 'application/json': { schema: z.record(z.string(), z.any()) } },
-    },
-    403: {
-      description: 'Forbidden: requires admin role',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-  },
-});
+registerAdminGet(
+  '/api/admin/logs',
+  'Retrieve recent server logs',
+  'Recent server log entries',
+  z.array(z.any())
+);
+
+registerAdminGet(
+  '/api/admin/local-metrics',
+  'Retrieve local performance and request metrics',
+  'Local metrics summary',
+  z.record(z.string(), z.any())
+);
 
 let cachedDocument = null;
 
