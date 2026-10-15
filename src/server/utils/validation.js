@@ -6,7 +6,7 @@
 
 /**
  * Validates req.body against a Zod schema.
- * @param {import('zod').ZodTypeAny} schema
+ * @param {import('zod').ZodType} schema
  */
 export function validateBody(schema) {
   return (req, res, next) => {
@@ -23,7 +23,7 @@ export function validateBody(schema) {
 
 /**
  * Validates req.query against a Zod schema.
- * @param {import('zod').ZodTypeAny} schema
+ * @param {import('zod').ZodType} schema
  */
 export function validateQuery(schema) {
   return (req, res, next) => {
@@ -40,7 +40,7 @@ export function validateQuery(schema) {
 
 /**
  * Validates req.params against a Zod schema.
- * @param {import('zod').ZodTypeAny} schema
+ * @param {import('zod').ZodType} schema
  */
 export function validateParams(schema) {
   return (req, res, next) => {
