@@ -1,5 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "f784f17dc729a5ea6e8e310e6812f214ae4aea18",
   "packages": {
     ".": {
       "release-type": "node",
@@ -8,12 +9,13 @@
     },
     "api": {
       "release-type": "simple",
+      "release-as": "1.0.0",
       "bump-minor-pre-major": false,
       "component": "api",
       "extra-files": [
         {
           "type": "json",
-          "path": "api/openapi.json",
+          "path": "openapi.json",
           "jsonpath": "$.info.version"
         }
       ]
