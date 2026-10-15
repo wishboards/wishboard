@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.33.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.32.1...wishboard-v1.33.0) (2026-10-15)
+
+
+### Features
+
+* **api:** decouple API version lifecycle with release-please and OpenAPI contract governance ([#543](https://github.com/wishboards/wishboard/issues/543)) ([7245c48](https://github.com/wishboards/wishboard/commit/7245c48fbeaa1123275bac1deca461b50fdd88f7))
+
+
+### Bug Fixes
+
+* **ci:** bootstrap API release at 1.0.0 and truncate pre-split history ([#546](https://github.com/wishboards/wishboard/issues/546)) ([e073bed](https://github.com/wishboards/wishboard/commit/e073bed97097784623b548fa46f5284da2ac75b3))
+* **ci:** grant caller permissions to deploy-serverless in release workflow ([#547](https://github.com/wishboards/wishboard/issues/547)) ([8ac206a](https://github.com/wishboards/wishboard/commit/8ac206af442a15fb9f5b19d039a1957beb61df51))
+* resolve Sonar code smells, type deprecations, and workflow security permissions ([#545](https://github.com/wishboards/wishboard/issues/545)) ([37228a4](https://github.com/wishboards/wishboard/commit/37228a44b324ebdb00f96af5d5967e37527c2863))
+
 ## [1.32.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.32.0...wishboard-v1.32.1) (2026-10-14)
 
 
