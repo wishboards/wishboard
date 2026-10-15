@@ -76,6 +76,9 @@ jobs:
     name: Deploy Serverless (${{ matrix.profile }})
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      id-token: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
