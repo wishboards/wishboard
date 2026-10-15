@@ -46,7 +46,8 @@ const getHashPage = (): PageId => {
   const hashPart = globalThis.location.hash
     .split('?')[0]
     .replace(/^#/, '')
-    .replace(/^\/+|\/+$/g, '');
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '');
   if (hashPart === 'api-docs' || hashPart === 'api/docs') {
     globalThis.location.replace?.('/api/docs');
     return 'home';
@@ -56,7 +57,7 @@ const getHashPage = (): PageId => {
   }
 
   // Friendly URL support: inspect pathname if no valid hash is specified
-  const normalizedPath = globalThis.location.pathname?.replace(/^\/+|\/+$/g, '');
+  const normalizedPath = globalThis.location.pathname?.replace(/^\/+/, '').replace(/\/+$/, '');
   if (normalizedPath === 'api-docs' || normalizedPath === 'api/docs') {
     globalThis.location.replace?.('/api/docs');
     return 'home';

@@ -14,8 +14,8 @@ export interface ParsedLogEntry {
 
 // eslint-disable-next-line no-control-regex -- intentionally matches ANSI escape sequences
 const ansiRegex = /\u001b?\[[0-9;]*m/g;
-const winstonRegex = /^(?:\[(WS)\]\s*)?(?:\[(?!WS\])([^\]]+)\]\s*)?([a-z]+):\s*(.*)$/i;
-const cloudwatchRegex = /^(?:\[(WS)\]\s*)?(\d{4}-\S+)\s+(\S+)\s+([a-z]+)\b\s*(.*)$/i;
+const winstonRegex = /^(?:\[([^\]]+)\]\s*)?([a-z]+):\s*(.*)$/i;
+const cloudwatchRegex = /^(\d{4}-\S+)\s+(\S+)\s+([a-z]+)\b\s*(.*)$/i;
 
 function normalizeLogLevel(raw: string): LogLevel {
   const l = raw.trim().toLowerCase();
@@ -39,69 +39,70 @@ function parseLogLine(line: string, idx: number): ParsedLogEntry {
     };
   }
 
+  let prefix = '';
+  let targetLine = cleanLine;
+  if (targetLine.startsWith('[WS]')) {
+    prefix = '[WS]';
+    targetLine = targetLine.slice(4).trimStart();
+  }
+
   // Check Winston format first
-  const winstonMatch = winstonRegex.exec(cleanLine);
+  const winstonMatch = winstonRegex.exec(targetLine);
   if (winstonMatch) {
-    const prefix = winstonMatch[1]?.trim() || '';
-    const timestamp = winstonMatch[2]?.trim() || '';
-    const message = winstonMatch[4] || '';
+    const timestamp = winstonMatch[1]?.trim() || '';
+    const message = winstonMatch[3] || '';
 
     return {
       id: `${idx}-${timestamp}-${message.slice(0, 10)}`,
       prefix,
       timestamp,
-      level: normalizeLogLevel(winstonMatch[3] || ''),
+      level: normalizeLogLevel(winstonMatch[2] || ''),
       message,
       raw: cleanLine,
     };
   }
 
   // Check CloudWatch Lambda format next
-  const cloudwatchMatch = cloudwatchRegex.exec(cleanLine);
+  const cloudwatchMatch = cloudwatchRegex.exec(targetLine);
   if (cloudwatchMatch) {
-    const prefix = cloudwatchMatch[1]?.trim() || '';
-    const rawTs = cloudwatchMatch[2]?.trim() || '';
+    const rawTs = cloudwatchMatch[1]?.trim() || '';
     const formattedTs = rawTs
       .replace('T', ' ')
       .replace(/\.\d+Z?$/, '')
       .replace(/Z$/, '');
-    const message = cloudwatchMatch[5] || '';
+    const message = cloudwatchMatch[4] || '';
 
     return {
       id: `${idx}-${formattedTs}-${message.slice(0, 10)}`,
       prefix,
       timestamp: formattedTs,
-      level: normalizeLogLevel(cloudwatchMatch[4] || ''),
+      level: normalizeLogLevel(cloudwatchMatch[3] || ''),
       message,
       raw: cleanLine,
     };
   }
 
   // Fallback: check unformatted lines
-  const prefix = cleanLine.startsWith('[WS]') ? '[WS]' : '';
-  const textWithoutWs = cleanLine.startsWith('[WS]')
-    ? cleanLine.replace(/^\[WS\]\s*/, '')
-    : cleanLine;
-  const cleanLower = textWithoutWs.toLowerCase();
+  const cleanLower = targetLine.toLowerCase();
 
   let level: LogLevel = 'other';
   if (
-    /^(error|err)\b/i.test(textWithoutWs) ||
+    /^(error|err)\b/i.test(targetLine) ||
     cleanLower.includes('error:') ||
     cleanLower.includes('err:') ||
     cleanLower.includes('error message')
   ) {
     level = 'error';
   } else if (
-    /^(warn|warning)\b/i.test(textWithoutWs) ||
+    /^(warn|warning)\b/i.test(targetLine) ||
     cleanLower.includes('warn:') ||
     cleanLower.includes('warning:') ||
     cleanLower.includes('warn message')
   ) {
     level = 'warn';
-  } else if (/^info\b/i.test(textWithoutWs) || cleanLower.includes('info:')) {
+  } else if (/^info\b/i.test(targetLine) || cleanLower.includes('info:')) {
     level = 'info';
-  } else if (/^(debug|trace)\b/i.test(textWithoutWs) || cleanLower.includes('debug:')) {
+  } else if (/^(debug|trace)\b/i.test(targetLine) || cleanLower.includes('debug:')) {
     level = 'debug';
   }
 
@@ -110,7 +111,7 @@ function parseLogLine(line: string, idx: number): ParsedLogEntry {
     prefix,
     timestamp: '',
     level,
-    message: textWithoutWs,
+    message: targetLine,
     raw: cleanLine,
   };
 }

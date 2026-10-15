@@ -208,12 +208,9 @@ export default function WishScanner({
   const profile = useEventProfile();
 
   const stickerConfig: StickerZoneConfig = useMemo(() => {
-    const effectiveCount =
-      stickerCount !== undefined
-        ? stickerCount
-        : attributes !== undefined
-          ? countMatchingStickers(attributes, profile?.stickers)
-          : undefined;
+    const attributeCount =
+      attributes !== undefined ? countMatchingStickers(attributes, profile?.stickers) : undefined;
+    const effectiveCount = stickerCount ?? attributeCount;
 
     if (effectiveCount !== undefined) {
       if (effectiveCount === 0) {

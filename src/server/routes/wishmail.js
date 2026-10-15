@@ -33,7 +33,7 @@ const authorizeWishmailManagement = async (req, res, next) => {
   }
 
   let authorized = false;
-  if (user && wish.user_id === user.id) {
+  if (user?.id && wish.user_id === user.id) {
     authorized = true;
   }
 
