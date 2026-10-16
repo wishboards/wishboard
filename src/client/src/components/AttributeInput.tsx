@@ -68,6 +68,7 @@ export default function AttributeInput({
       if (rule.iconType === 'female') {
         return (
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             width="12"
             height="12"
@@ -87,6 +88,7 @@ export default function AttributeInput({
       if (rule.iconType === 'male') {
         return (
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             width="12"
             height="12"

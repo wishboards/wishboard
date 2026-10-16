@@ -32,6 +32,7 @@ export default function PassphraseInput({
       >
         {show ? (
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -44,6 +45,7 @@ export default function PassphraseInput({
           </svg>
         ) : (
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
