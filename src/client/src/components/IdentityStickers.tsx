@@ -41,6 +41,7 @@ export default function IdentityStickers({ attributes }: Readonly<Props>) {
       return (
         <div key={`${cat}-${index}`} className={`sticker sticker-icon ${rule.class}`} title={val}>
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -59,6 +60,7 @@ export default function IdentityStickers({ attributes }: Readonly<Props>) {
       return (
         <div key={`${cat}-${index}`} className={`sticker sticker-icon ${rule.class}`} title={val}>
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -1521,6 +1521,12 @@ textarea.overflowing-textarea {
   transition: all 0.2s ease;
 }
 
+/* Admin Responsive Tables - Desktop Base */
+table.responsive-table th,
+table.responsive-table td {
+  padding: 12px;
+}
+
 /* Mobile Bottom Tab Bar & Navigation */
 .mobile-bottom-bar {
   display: none;
@@ -1688,7 +1694,7 @@ textarea.overflowing-textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px !important;
+    padding: 8px;
     text-align: right;
     border-bottom: 1px dashed #444;
   }

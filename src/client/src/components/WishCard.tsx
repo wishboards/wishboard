@@ -110,6 +110,7 @@ function ExcludeToggleButton({
         </span>
       ) : (
         <svg
+          aria-hidden="true"
           viewBox="0 0 24 24"
           stroke="currentColor"
           strokeWidth="2"
@@ -167,6 +168,7 @@ function WishBottomActions({
           aria-label={onViewWishmail ? 'View Wishmail' : 'Send Wishmail'}
         >
           <svg
+            aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
@@ -227,8 +229,10 @@ function WishTopActions({
           className="owner-edit-wish-btn"
           onClick={() => onEdit(wishId)}
           title="Edit Wish"
+          aria-label="Edit Wish"
         >
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth="2.5"
@@ -247,8 +251,10 @@ function WishTopActions({
           className="owner-delete-wish-btn"
           onClick={() => onDelete(wishId)}
           title="Delete Wish"
+          aria-label="Delete Wish"
         >
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth="2.5"
@@ -267,8 +273,10 @@ function WishTopActions({
           className="admin-delete-wish-btn"
           onClick={() => onAdminDelete(wishId)}
           title="Admin Delete Wish"
+          aria-label="Admin Delete Wish"
         >
           <svg
+            aria-hidden="true"
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth="2.5"

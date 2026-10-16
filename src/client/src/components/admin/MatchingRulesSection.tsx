@@ -56,53 +56,41 @@ function MatchingRulesTable({
       >
         <thead>
           <tr style={{ borderBottom: '1px solid #444', backgroundColor: '#2a2a2a' }}>
-            <th
-              style={{ padding: '12px', cursor: 'pointer' }}
-              onClick={() => handleRuleSort('rule_type')}
-            >
+            <th style={{ cursor: 'pointer' }} onClick={() => handleRuleSort('rule_type')}>
               Type {getSortIcon(ruleSort, 'rule_type')}
             </th>
-            <th
-              style={{ padding: '12px', cursor: 'pointer' }}
-              onClick={() => handleRuleSort('trigger_attribute')}
-            >
+            <th style={{ cursor: 'pointer' }} onClick={() => handleRuleSort('trigger_attribute')}>
               Trigger {getSortIcon(ruleSort, 'trigger_attribute')}
             </th>
-            <th
-              style={{ padding: '12px', cursor: 'pointer' }}
-              onClick={() => handleRuleSort('context_attribute')}
-            >
+            <th style={{ cursor: 'pointer' }} onClick={() => handleRuleSort('context_attribute')}>
               Context {getSortIcon(ruleSort, 'context_attribute')}
             </th>
-            <th
-              style={{ padding: '12px', cursor: 'pointer' }}
-              onClick={() => handleRuleSort('target_attribute')}
-            >
+            <th style={{ cursor: 'pointer' }} onClick={() => handleRuleSort('target_attribute')}>
               Target {getSortIcon(ruleSort, 'target_attribute')}
             </th>
-            <th style={{ padding: '12px' }}>Actions</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {filteredRules.map((rule) => (
             <tr key={rule.id} style={{ borderBottom: '1px solid #333' }}>
-              <td data-label="Type" style={{ padding: '12px' }}>
+              <td data-label="Type">
                 <strong>{rule.rule_type}</strong>
               </td>
-              <td data-label="Trigger" style={{ padding: '12px' }}>
+              <td data-label="Trigger">
                 {rule.trigger_attribute} = {rule.trigger_value}
               </td>
-              <td data-label="Context" style={{ padding: '12px' }}>
+              <td data-label="Context">
                 {rule.context_attribute ? (
                   `${rule.context_attribute} = ${rule.context_value}`
                 ) : (
                   <span style={{ color: '#777' }}>-</span>
                 )}
               </td>
-              <td data-label="Target" style={{ padding: '12px' }}>
+              <td data-label="Target">
                 {rule.target_attribute} = {rule.target_value}
               </td>
-              <td data-label="Actions" style={{ padding: '12px' }}>
+              <td data-label="Actions">
                 <button
                   type="button"
                   className="secondary-button"
