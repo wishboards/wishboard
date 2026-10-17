@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.33.0...wishboard-v1.33.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **a11y:** add aria-hidden to decorative SVGs and resolve CSS table specificity ([#551](https://github.com/wishboards/wishboard/issues/551)) ([b50aec3](https://github.com/wishboards/wishboard/commit/b50aec3e6d259909ffe8fcc19869f509926ae79c))
+
 ## [1.33.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.32.1...wishboard-v1.33.0) (2026-10-15)
 
 
