@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.33.1...wishboard-v1.33.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* **ci:** restore release-please outputs and wire dispatch input to downstream jobs ([#554](https://github.com/wishboards/wishboard/issues/554)) ([a6fe3e2](https://github.com/wishboards/wishboard/commit/a6fe3e2b1633838a019991861740aed0fa4d6b8f))
+
 ## [1.33.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.33.0...wishboard-v1.33.1) (2026-10-16)
 
 
