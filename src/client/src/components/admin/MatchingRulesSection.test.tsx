@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import MatchingRulesSection from './MatchingRulesSection';
+import { createRule } from '../../../../../tests/testUtils';
 
 describe('MatchingRulesSection', () => {
   const mockAuthHeader = { Authorization: 'Bearer test-token' };
@@ -9,28 +10,16 @@ describe('MatchingRulesSection', () => {
   const mockSetError = vi.fn();
 
   const mockRules = [
-    {
-      id: 'rule-1',
-      rule_type: 'expansion',
-      trigger_attribute: 'role',
-      trigger_value: 'pup',
-      target_attribute: 'role',
-      target_value: 'pet',
+    createRule('rule-1', 'expansion', 'role', 'role', 'pup', 'pet', {
       context_attribute: '',
       context_value: '',
       created_at: '2026-01-01T00:00:00Z',
-    },
-    {
-      id: 'rule-2',
-      rule_type: 'cross_match',
-      trigger_attribute: 'role',
-      trigger_value: 'handler',
-      target_attribute: 'role',
-      target_value: 'pet',
+    }),
+    createRule('rule-2', 'cross_match', 'role', 'role', 'handler', 'pet', {
       context_attribute: 'location',
       context_value: 'main_hall',
       created_at: '2026-01-02T00:00:00Z',
-    },
+    }),
   ];
 
   const renderSection = (propsOverrides = {}) =>
