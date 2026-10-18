@@ -22,6 +22,7 @@ This document outlines the core coding conventions, architectural patterns, envi
 - **Optional Chaining:** Prefer optional chaining (`?.`) over traditional chained conditionals (e.g., `a && a.b`) to prevent IDE static analysis warnings and improve code conciseness.
 - **React State Derivation over Effects:** Prefer computing derived state during render or using lazy initializers (`useState(() => ...)`) over synchronizing state from props or query params inside `useEffect`. This prevents cascading double-renders and satisfies modern ESLint React rules.
 - **API Specification Fidelity:** Never invent, assume, or register hypothetical endpoints or security schemes in API documentation (e.g., OpenAPI, Swagger, Scalar). All documented paths, HTTP methods, parameters, request bodies, and authentication schemes must be strictly audited and verified against actual mounted Express routes and middleware in the codebase before authoring or modifying specifications.
+- **External Dependency & Action Contract Fidelity:** Never speculate, guess, or assume parameter names, outputs, or configuration schemas when integrating with external tools, GitHub Actions, or third-party libraries (e.g., guessing action output keys like `paths_._release_created` instead of verifying the true `release_created` contract). All inputs, outputs, environment variables, CLI flags, and configuration contracts must be strictly verified against official documentation or inspected directly in the upstream action/library source code before authoring or modifying integration workflows.
 
 ---
 
