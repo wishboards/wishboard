@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      force_build_tag:
+        description: 'Force Docker build & publish for tag (e.g. wishboard-v1.33.1)'
+        required: false
+        default: ''
 
 permissions: {}
 
@@ -13,9 +19,16 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    # In manifest mode with root '.' and subpath 'api', release-please-action (src/index.ts) sets:
+    #   - 'release_created' & 'tag_name' for root path '.' (the Wishboard application)
+    #   - 'api--release_created' & 'api--tag_name' for subpath 'api' (the OpenAPI contract)
+    #   - 'releases_created' (plural) if ANY package released
+    # Gating downstream jobs on 'release_created' guarantees Docker and serverless
+    # deployments run ONLY for Wishboard app releases, never for API-only releases (ADR 0010).
     outputs:
-      release_created: ${{ steps.release.outputs['paths_._release_created'] }}
-      tag_name: ${{ steps.release.outputs['paths_._tag_name'] }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
@@ -24,7 +37,7 @@ jobs:
 
   build-and-publish-docker:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (inputs.force_build_tag != null && inputs.force_build_tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,6 +45,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.force_build_tag || needs.release-please.outputs.tag_name }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
@@ -49,7 +64,7 @@ jobs:
       - name: Sanitize tag name
         id: sanitize
         run: |
-          RAW_TAG="${{ needs.release-please.outputs.tag_name }}"
+          RAW_TAG="${{ inputs.force_build_tag || needs.release-please.outputs.tag_name }}"
           CLEAN_TAG="${RAW_TAG#wishboard-}"
           echo "clean_tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
 
@@ -75,7 +90,7 @@ jobs:
   deploy-serverless:
     name: Deploy Serverless (${{ matrix.profile }})
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' || (inputs.force_build_tag != null && inputs.force_build_tag != '') }}
     permissions:
       id-token: write
       contents: read
