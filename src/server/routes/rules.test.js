@@ -8,6 +8,7 @@ const appModule = await import('../index.js');
 const db = (await import('../db.js')).default;
 const app = appModule.default;
 const { reloadRules } = await import('../rulesManager.js');
+const { createRulePayload } = await import('../../../tests/testUtils.ts');
 
 const defaultAdminUsername = 'admin';
 const defaultAdminSecret = 'admin-board';
@@ -23,6 +24,9 @@ beforeEach(async () => await clearTestData());
 afterEach(async () => await clearTestData());
 
 describe('rules routes', () => {
+  const sampleRule = createRulePayload('expansion', 'role', 'role', 'pet', 'pup');
+  const updatedRule = createRulePayload('expansion', 'role', 'role', 'pet', 'pup, kitten');
+
   const loginAsAdmin = async () => {
     const response = await request(app)
       .post('/api/users/login')
@@ -56,13 +60,10 @@ describe('rules routes', () => {
 
   it('allows admin to add a rule', async () => {
     const token = await loginAsAdmin();
-    const res = await request(app).post('/api/rules').set('Authorization', `Bearer ${token}`).send({
-      rule_type: 'expansion',
-      trigger_attribute: 'role',
-      trigger_value: 'pet',
-      target_attribute: 'role',
-      target_value: 'pup',
-    });
+    const res = await request(app)
+      .post('/api/rules')
+      .set('Authorization', `Bearer ${token}`)
+      .send(sampleRule);
     expect(res.status).toBe(200);
     expect(res.body.id).toBeDefined();
 
@@ -76,25 +77,13 @@ describe('rules routes', () => {
     const createRes = await request(app)
       .post('/api/rules')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        rule_type: 'expansion',
-        trigger_attribute: 'role',
-        trigger_value: 'pet',
-        target_attribute: 'role',
-        target_value: 'pup',
-      });
+      .send(sampleRule);
     const ruleId = createRes.body.id;
 
     const updateRes = await request(app)
       .put(`/api/rules/${ruleId}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        rule_type: 'expansion',
-        trigger_attribute: 'role',
-        trigger_value: 'pet',
-        target_attribute: 'role',
-        target_value: 'pup, kitten',
-      });
+      .send(updatedRule);
 
     expect(updateRes.status).toBe(200);
     expect(updateRes.body.success).toBe(true);
@@ -108,13 +97,7 @@ describe('rules routes', () => {
     const res = await request(app)
       .put('/api/rules/missing-id')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        rule_type: 'expansion',
-        trigger_attribute: 'role',
-        trigger_value: 'pet',
-        target_attribute: 'role',
-        target_value: 'pup, kitten',
-      });
+      .send(updatedRule);
     expect(res.status).toBe(404);
   });
 
@@ -123,13 +106,7 @@ describe('rules routes', () => {
     const createRes = await request(app)
       .post('/api/rules')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        rule_type: 'expansion',
-        trigger_attribute: 'role',
-        trigger_value: 'pet',
-        target_attribute: 'role',
-        target_value: 'pup',
-      });
+      .send(sampleRule);
 
     const res = await request(app)
       .put(`/api/rules/${createRes.body.id}`)
@@ -143,13 +120,7 @@ describe('rules routes', () => {
     const createRes = await request(app)
       .post('/api/rules')
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        rule_type: 'expansion',
-        trigger_attribute: 'role',
-        trigger_value: 'pet',
-        target_attribute: 'role',
-        target_value: 'pup',
-      });
+      .send(sampleRule);
     const ruleId = createRes.body.id;
 
     const deleteRes = await request(app)

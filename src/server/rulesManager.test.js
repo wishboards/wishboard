@@ -11,17 +11,10 @@ const importFresh = async (env = {}) => {
   return { db, rm };
 };
 
-const fullRule = (over = {}) => ({
-  id: 'rule-1',
-  rule_type: 'expansion',
-  trigger_attribute: 'gender',
-  trigger_value: 'woman',
-  context_attribute: null,
-  context_value: null,
-  target_attribute: 'gender',
-  target_value: 'woman, female',
-  ...over,
-});
+const { createRule } = await import('../../tests/testUtils.ts');
+
+const fullRule = (over = {}) =>
+  createRule('rule-1', 'expansion', 'gender', 'gender', 'woman', 'woman, female', over);
 
 const insertDirect = (db, id) =>
   db.execute({

@@ -27,6 +27,7 @@ const {
   parseAttributesInput,
   getExclusionConflicts,
 } = await import('./wishes.js');
+const { createRule } = await import('../../../tests/testUtils.ts');
 
 const clearTestData = async () => {
   await db.exec('DELETE FROM sessions');
@@ -308,22 +309,8 @@ describe('Matchmaking logic', () => {
 
   it('correctly uses rule engine for expansions and cross-matches (handler/pet/pup)', async () => {
     // 1. Add rules via rulesManager
-    addRule({
-      id: 'r1',
-      rule_type: 'expansion',
-      trigger_attribute: 'role',
-      trigger_value: 'pet',
-      target_attribute: 'role',
-      target_value: 'pup, kitten',
-    });
-    addRule({
-      id: 'r2',
-      rule_type: 'cross_match',
-      trigger_attribute: 'role',
-      trigger_value: 'handler',
-      target_attribute: 'role',
-      target_value: 'pet',
-    });
+    addRule(createRule('r1', 'expansion', 'role', 'role', 'pet', 'pup, kitten'));
+    addRule(createRule('r2', 'cross_match', 'role', 'role', 'handler', 'pet'));
 
     // 2. Create wish wanting a pet
     await request(app)
@@ -548,24 +535,11 @@ describe('wishes route helper functions & file filter', () => {
 
   it('getExclusionConflicts identifies conflicting attributes based on rules', () => {
     const rules = [
-      {
-        id: 1,
-        rule_type: 'exclusion',
-        trigger_attribute: 'orientation',
-        trigger_value: 'gay',
-        target_attribute: 'orientation',
-        target_value: 'straight',
-      },
-      {
-        id: 2,
-        rule_type: 'exclusion',
-        trigger_attribute: 'orientation',
-        trigger_value: 'lesbian',
+      createRule(1, 'exclusion', 'orientation', 'orientation', 'gay', 'straight'),
+      createRule(2, 'exclusion', 'orientation', 'gender', 'lesbian', 'man', {
         context_attribute: 'gender',
         context_value: 'woman',
-        target_attribute: 'gender',
-        target_value: 'man',
-      },
+      }),
     ];
 
     // Conflict 1: gay + straight

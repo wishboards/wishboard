@@ -16,9 +16,10 @@ const request = (await import('supertest')).default;
 const appModule = await import('../index.js');
 const app = appModule.default;
 const db = (await import('../db.js')).default;
-const { reloadRules, stopWatchingRules } = await import('../rulesManager.js');
+const { addRule, reloadRules, stopWatchingRules } = await import('../rulesManager.js');
 const { getExclusionConflicts, normalizeToken, escapeRegExp, hasToken } =
   await import('./wishes.js');
+const { createRule } = await import('../../../tests/testUtils.ts');
 
 const clearTestData = async () => {
   await db.exec('DELETE FROM sessions');
@@ -45,20 +46,20 @@ describe('Write-Time Exclusion Rules', () => {
   const seedExclRules = async () => {
     // Add default test expansion and exclusion rules
     // Excl 1: gay + straight (orientation vs orientation)
-    await db.execute({
-      sql: 'INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, target_attribute, target_value) VALUES (?,?,?,?,?,?)',
-      args: ['rule_ex_1', 'exclusion', 'orientation', 'gay', 'orientation', 'straight'],
-    });
+    await addRule(
+      createRule('rule_ex_1', 'exclusion', 'orientation', 'orientation', 'gay', 'straight')
+    );
     // Excl 2: lesbian + man (orientation vs gender context)
-    await db.execute({
-      sql: 'INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, context_attribute, context_value, target_attribute, target_value) VALUES (?,?,?,?,?,?,?,?)',
-      args: ['rule_ex_2', 'exclusion', 'orientation', 'lesbian', 'gender', 'man', 'gender', 'man'],
-    });
+    await addRule(
+      createRule('rule_ex_2', 'exclusion', 'orientation', 'gender', 'lesbian', 'man', {
+        context_attribute: 'gender',
+        context_value: 'man',
+      })
+    );
     // Expansion: enby synonym
-    await db.execute({
-      sql: 'INSERT INTO rules (id, rule_type, trigger_attribute, trigger_value, target_attribute, target_value) VALUES (?,?,?,?,?,?)',
-      args: ['rule_exp_1', 'expansion', 'gender', 'enby', 'gender', 'nonbinary, non-binary'],
-    });
+    await addRule(
+      createRule('rule_exp_1', 'expansion', 'gender', 'gender', 'enby', 'nonbinary, non-binary')
+    );
     await reloadRules();
   };
 
