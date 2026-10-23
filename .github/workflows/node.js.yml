@@ -50,7 +50,7 @@ jobs:
           fi
       - name: Check for breaking API changes
         if: github.event_name == 'pull_request' && steps.check-base.outputs.has_base == 'true'
-        uses: oasdiff/oasdiff-action/breaking@b9325c9e0a27ab65b0da3b766522cedec6be81dc # v0
+        uses: oasdiff/oasdiff-action/breaking@514e22ec2f1d1654fb78ac3bb7dc00d8f3c6c4d9 # v0
         with:
           base: 'origin/${{ github.base_ref }}:api/openapi.json'
           revision: 'HEAD:api/openapi.json'
