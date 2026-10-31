@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.33.2...wishboard-v1.34.0) (2026-10-31)
+
+
+### Features
+
+* **deps:** package dependency updates for deployment ([66c48f5](https://github.com/wishboards/wishboard/commit/66c48f5c5a0df0ef18d5590c080d05a40126d249))
+
 ## [1.33.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.33.1...wishboard-v1.33.2) (2026-10-18)
 
 
