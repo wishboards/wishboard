@@ -13,6 +13,7 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 
 ### Features & Enhancements
 
+- **Review ADR 0011: Theming, Dual-Persona Skinning, & Mobile Companion UX** — Review proposed architectural design for dark glassmorphism styling, Event Host branding, tactile 3×5 card/pushpin personalization, and low-scroll mobile companion UX (see [ADR 0011](docs/adr/0011-theming-skinning-and-mobile-companion-ux.md)). Assigned reviewer: Brian Loew.
 - **[#312](https://github.com/wishboards/wishboard/issues/312)** — Offload OpenCV frame processing in `WishScanner` to a Web Worker to maintain smooth 60fps UI rendering on lower-power devices.
 - **[#332](https://github.com/wishboards/wishboard/issues/332)** — Decomposable & Optional AI Integration: Implement `InferenceProvider` / `EmbeddingProvider` interfaces, async tagging worker, UX suggestion badges, and optional vector search (see [ADR 0007](docs/adr/0007-ai-integration.md)).
 
