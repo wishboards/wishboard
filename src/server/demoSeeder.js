@@ -92,53 +92,71 @@ function generateMadLibsWish(demoSeeds) {
   return `${action} ${subject} ${context}`;
 }
 
-async function clearDemoData() {
+const INSERT_USER_SQL = `
+  INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, identity_attributes, contacts, wishmail_enabled, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
+const INSERT_WISH_SQL = `
+  INSERT INTO wishes (
+    id, user_id, content,
+    creator_attributes, desired_attributes,
+    contacts, wishmail_enabled,
+    created_at, updated_at, flagged
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
+function buildClearDemoDataStmts() {
   // 1. Clear existing demo/user data (Keep the default admin's session)
   // Remove wishes and demo users first, then prune sessions that no
   // longer belong to any remaining user (this preserves the admin's session)
-  await db
-    .prepare(
-      "DELETE FROM wishes WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'demo_user_%')"
-    )
-    .run();
-  await db.prepare("DELETE FROM users WHERE username LIKE 'demo_user_%'").run();
-
-  // Remove sessions for user_ids that no longer exist (keeps admin session)
-  await db.prepare('DELETE FROM sessions WHERE user_id NOT IN (SELECT id FROM users)').run();
+  return [
+    {
+      sql: "DELETE FROM wishes WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'demo_user_%')",
+      args: [],
+    },
+    {
+      sql: "DELETE FROM users WHERE username LIKE 'demo_user_%'",
+      args: [],
+    },
+    {
+      sql: 'DELETE FROM sessions WHERE user_id NOT IN (SELECT id FROM users)',
+      args: [],
+    },
+  ];
 }
 
-async function generateDemoUsers(userCount, attributePools, contactMethods) {
-  const users = [];
-  const insertPromises = [];
-  const insertUser = await db.prepare(`
-    INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, identity_attributes, contacts, wishmail_enabled, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+async function createSingleUser(index, attributePools, contactMethods) {
+  const id = idGenerator();
+  const username = `demo_user_${index}`;
+  const salt = createSalt();
+  const hash = await hashPassphrase('demo-password', salt);
 
-  // 2. Generate simulated users
-  for (let i = 1; i <= userCount; i++) {
-    const id = idGenerator();
-    const username = `demo_user_${i}`;
-    const salt = createSalt();
-    const hash = await hashPassphrase('demo-password', salt);
+  // Generate random identities, retry if exclusion conflicts arise
+  let attributes;
+  let attempts = 0;
+  while (true) {
+    attributes = generateRandomAttributes(attributePools);
+    const conflicts = getExclusionConflicts(attributes, getRules());
+    if (conflicts.length === 0 || attempts > 10) break;
+    attempts++;
+  }
 
-    // Generate random identities, retry if exclusion conflicts arise
-    let attributes;
-    let attempts = 0;
-    while (true) {
-      attributes = generateRandomAttributes(attributePools);
-      const conflicts = getExclusionConflicts(attributes, getRules());
-      if (conflicts.length === 0 || attempts > 10) break;
-      attempts++;
-    }
+  const identityAttributes = JSON.stringify(attributes);
+  const contacts = generateRandomContacts(contactMethods);
+  const wishmailEnabledInt = crypto.randomInt(0, 100) > 50 ? 1 : 0;
+  const createdAt = new Date().toISOString();
 
-    const identityAttributes = JSON.stringify(attributes);
-    const contacts = generateRandomContacts(contactMethods);
-    const wishmailEnabledInt = crypto.randomInt(0, 100) > 50 ? 1 : 0;
-    const createdAt = new Date().toISOString();
-
-    insertPromises.push(
-      insertUser.run(
+  return {
+    user: {
+      id,
+      identityAttributes,
+      contacts,
+      wishmailEnabled: wishmailEnabledInt === 1,
+    },
+    stmt: {
+      sql: INSERT_USER_SQL,
+      args: [
         id,
         username,
         hash,
@@ -147,23 +165,26 @@ async function generateDemoUsers(userCount, attributePools, contactMethods) {
         identityAttributes,
         JSON.stringify(contacts),
         wishmailEnabledInt,
-        createdAt
-      )
-    );
-
-    // Keep in memory to assign wishes later
-    users.push({
-      id,
-      identityAttributes,
-      contacts,
-      wishmailEnabled: wishmailEnabledInt === 1,
-    });
-  }
-  await Promise.allSettled(insertPromises);
-  return users;
+        createdAt,
+      ],
+    },
+  };
 }
 
-function createSingleWish(insertWish, randomUser, attributePools, contactMethods, demoSeeds) {
+async function buildDemoUsers(userCount, attributePools, contactMethods) {
+  // 2. Generate simulated users concurrently
+  const results = await Promise.all(
+    Array.from({ length: userCount }, (_, idx) =>
+      createSingleUser(idx + 1, attributePools, contactMethods)
+    )
+  );
+  return {
+    users: results.map((r) => r.user),
+    userStmts: results.map((r) => r.stmt),
+  };
+}
+
+function buildSingleWishStmt(randomUser, attributePools, contactMethods, demoSeeds) {
   const id = idGenerator();
   const content = generateMadLibsWish(demoSeeds);
 
@@ -181,7 +202,7 @@ function createSingleWish(insertWish, randomUser, attributePools, contactMethods
   const timeOffset = crypto.randomInt(0, 30 * 24 * 60 * 60 * 1000);
   const date = new Date(Date.now() - timeOffset).toISOString();
 
-  let wishContacts = [...randomUser.contacts];
+  const wishContacts = [...randomUser.contacts];
   let wishWishmail = randomUser.wishmailEnabled;
 
   if (crypto.randomInt(0, 100) > 80) wishWishmail = !wishWishmail;
@@ -195,39 +216,31 @@ function createSingleWish(insertWish, randomUser, attributePools, contactMethods
     });
   }
 
-  return insertWish.run(
-    id,
-    randomUser.id,
-    content,
-    randomUser.identityAttributes,
-    desiredAttributes,
-    JSON.stringify(wishContacts),
-    wishWishmail ? 1 : 0,
-    date,
-    date,
-    0
-  );
+  return {
+    sql: INSERT_WISH_SQL,
+    args: [
+      id,
+      randomUser.id,
+      content,
+      randomUser.identityAttributes,
+      desiredAttributes,
+      JSON.stringify(wishContacts),
+      wishWishmail ? 1 : 0,
+      date,
+      date,
+      0,
+    ],
+  };
 }
 
-async function generateDemoWishes(users, wishCount, attributePools, contactMethods, demoSeeds) {
-  const insertWish = await db.prepare(`
-    INSERT INTO wishes (
-      id, user_id, content, 
-      creator_attributes, desired_attributes, 
-      contacts, wishmail_enabled,
-      created_at, updated_at, flagged
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
+function buildDemoWishStmts(users, wishCount, attributePools, contactMethods, demoSeeds) {
   // 3. Distribute wishes randomly across the users
-  const wishPromises = [];
+  const wishStmts = [];
   for (let i = 0; i < wishCount; i++) {
     const randomUser = users[crypto.randomInt(0, users.length)];
-    wishPromises.push(
-      createSingleWish(insertWish, randomUser, attributePools, contactMethods, demoSeeds)
-    );
+    wishStmts.push(buildSingleWishStmt(randomUser, attributePools, contactMethods, demoSeeds));
   }
-  await Promise.allSettled(wishPromises);
+  return wishStmts;
 }
 
 export async function generateDemoData() {
@@ -257,9 +270,11 @@ export async function generateDemoData() {
 
   logger.info('Clearing old demo data for seeder');
   await reloadRules(); // Ensure rules are loaded for exclusion checks
-  await clearDemoData();
-  const users = await generateDemoUsers(userCount, attributePools, contactMethods);
-  await generateDemoWishes(users, wishCount, attributePools, contactMethods, demoSeeds);
+  const clearStmts = buildClearDemoDataStmts();
+  const { users, userStmts } = await buildDemoUsers(userCount, attributePools, contactMethods);
+  const wishStmts = buildDemoWishStmts(users, wishCount, attributePools, contactMethods, demoSeeds);
+
+  await db.batch([...clearStmts, ...userStmts, ...wishStmts], 'write');
 
   logger.info('Demo seeder completed', { usersCreated: userCount, wishesCreated: wishCount });
   return { usersCreated: userCount, wishesCreated: wishCount };
