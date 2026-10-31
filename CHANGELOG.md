@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.34.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.0...wishboard-v1.34.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **seeder:** await Promise.allSettled on concurrent user and wish inserts ([#572](https://github.com/wishboards/wishboard/issues/572)) ([11df72f](https://github.com/wishboards/wishboard/commit/11df72f4796d80c3e1fefaf2c6f788a18158b0e2))
+
+
+### Performance Improvements
+
+* **seeder:** execute demo reset and seed in a single atomic db.batch transaction ([#574](https://github.com/wishboards/wishboard/issues/574)) ([142e3d0](https://github.com/wishboards/wishboard/commit/142e3d0430a48c2e82ec2f3a0123b282f3dbd01e))
+
 ## [1.34.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.33.2...wishboard-v1.34.0) (2026-10-31)
 
 
