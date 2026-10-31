@@ -204,7 +204,7 @@ describe('generateDemoData', () => {
     );
   });
 
-  it('waits for all concurrent user and wish inserts to settle before resolving', async () => {
+  it('executes clear, user, and wish statements in a single atomic db.batch write transaction and waits for it to settle', async () => {
     vi.mocked(getEventProfile).mockReturnValue({
       ...mockLifestyleConfig,
       demo_seeds: {
@@ -214,37 +214,35 @@ describe('generateDemoData', () => {
       },
     });
 
-    const originalPrepare = db.prepare.bind(db);
-    let settledUserInserts = 0;
-    let settledWishInserts = 0;
+    const originalBatch = db.batch.bind(db);
+    let batchSettled = false;
+    let capturedStmts = [];
+    let capturedMode = '';
 
-    const prepareSpy = vi.spyOn(db, 'prepare').mockImplementation((sql) => {
-      const stmt = originalPrepare(sql);
-      if (sql.includes('INSERT INTO users') || sql.includes('INSERT INTO wishes')) {
-        const isUserInsert = sql.includes('INSERT INTO users');
-        return {
-          ...stmt,
-          run: async (...args) => {
-            await new Promise((resolve) => setTimeout(resolve, 25));
-            const res = await stmt.run(...args);
-            if (isUserInsert) {
-              settledUserInserts++;
-            } else {
-              settledWishInserts++;
-            }
-            return res;
-          },
-        };
-      }
-      return stmt;
+    const batchSpy = vi.spyOn(db, 'batch').mockImplementation(async (stmts, mode) => {
+      capturedStmts = stmts;
+      capturedMode = mode;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const res = await originalBatch(stmts, mode);
+      batchSettled = true;
+      return res;
     });
 
     try {
       await generateDemoData();
-      expect(settledUserInserts).toBe(3);
-      expect(settledWishInserts).toBe(6);
+      expect(batchSettled).toBe(true);
+      expect(capturedMode).toBe('write');
+      // 3 delete stmts + 3 user insert stmts + 6 wish insert stmts = 12 statements
+      expect(capturedStmts).toHaveLength(12);
+      expect(capturedStmts.slice(0, 3).every((s) => s.sql.startsWith('DELETE FROM'))).toBe(true);
+      expect(capturedStmts.slice(3, 6).every((s) => s.sql.includes('INSERT INTO users'))).toBe(
+        true
+      );
+      expect(capturedStmts.slice(6, 12).every((s) => s.sql.includes('INSERT INTO wishes'))).toBe(
+        true
+      );
     } finally {
-      prepareSpy.mockRestore();
+      batchSpy.mockRestore();
     }
   });
 });
