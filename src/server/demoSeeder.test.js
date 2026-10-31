@@ -203,4 +203,48 @@ describe('generateDemoData', () => {
       'demo_seeds must contain non-empty actions, subjects, and contexts arrays'
     );
   });
+
+  it('waits for all concurrent user and wish inserts to settle before resolving', async () => {
+    vi.mocked(getEventProfile).mockReturnValue({
+      ...mockLifestyleConfig,
+      demo_seeds: {
+        ...mockLifestyleConfig.demo_seeds,
+        user_count: 3,
+        wish_count: 6,
+      },
+    });
+
+    const originalPrepare = db.prepare.bind(db);
+    let settledUserInserts = 0;
+    let settledWishInserts = 0;
+
+    const prepareSpy = vi.spyOn(db, 'prepare').mockImplementation((sql) => {
+      const stmt = originalPrepare(sql);
+      if (sql.includes('INSERT INTO users') || sql.includes('INSERT INTO wishes')) {
+        const isUserInsert = sql.includes('INSERT INTO users');
+        return {
+          ...stmt,
+          run: async (...args) => {
+            await new Promise((resolve) => setTimeout(resolve, 25));
+            const res = await stmt.run(...args);
+            if (isUserInsert) {
+              settledUserInserts++;
+            } else {
+              settledWishInserts++;
+            }
+            return res;
+          },
+        };
+      }
+      return stmt;
+    });
+
+    try {
+      await generateDemoData();
+      expect(settledUserInserts).toBe(3);
+      expect(settledWishInserts).toBe(6);
+    } finally {
+      prepareSpy.mockRestore();
+    }
+  });
 });
