@@ -6,6 +6,7 @@ title: 0011 Theming Skinning and Mobile Companion UX
 
 - **Status:** Proposed
 - **Context date:** October 2026
+- **Companion Design Document:** [Design 0003: Skinning Architecture, Tactile Card Personalization, & Mobile Companion UX](../../design/0003-skinning-and-mobile-companion-ux)
 
 ## Context
 
