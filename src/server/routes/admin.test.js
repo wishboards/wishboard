@@ -355,13 +355,7 @@ describe('Admin routes', () => {
 
   it('handles errors during demo reset', async () => {
     const token = await loginAsAdmin();
-    const originalPrepare = await db.prepare.bind(db);
-    const spy = vi.spyOn(db, 'prepare').mockImplementation((sql) => {
-      if (typeof sql === 'string' && sql.includes('DELETE FROM wishes')) {
-        throw new Error('Mock error');
-      }
-      return originalPrepare(sql);
-    });
+    const spy = vi.spyOn(db, 'batch').mockRejectedValueOnce(new Error('Mock error'));
 
     const response = await request(app)
       .post('/api/admin/reset-demo')
