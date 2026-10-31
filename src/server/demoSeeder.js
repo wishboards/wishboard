@@ -109,6 +109,7 @@ async function clearDemoData() {
 
 async function generateDemoUsers(userCount, attributePools, contactMethods) {
   const users = [];
+  const insertPromises = [];
   const insertUser = await db.prepare(`
     INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, identity_attributes, contacts, wishmail_enabled, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -136,17 +137,19 @@ async function generateDemoUsers(userCount, attributePools, contactMethods) {
     const wishmailEnabledInt = crypto.randomInt(0, 100) > 50 ? 1 : 0;
     const createdAt = new Date().toISOString();
 
-    insertUser.run(
-      id,
-      username,
-      hash,
-      salt,
-      'user',
-      identityAttributes,
-      JSON.stringify(contacts),
-      wishmailEnabledInt,
-      createdAt
-    ); // NOSONAR
+    insertPromises.push(
+      insertUser.run(
+        id,
+        username,
+        hash,
+        salt,
+        'user',
+        identityAttributes,
+        JSON.stringify(contacts),
+        wishmailEnabledInt,
+        createdAt
+      )
+    );
 
     // Keep in memory to assign wishes later
     users.push({
@@ -156,6 +159,7 @@ async function generateDemoUsers(userCount, attributePools, contactMethods) {
       wishmailEnabled: wishmailEnabledInt === 1,
     });
   }
+  await Promise.allSettled(insertPromises);
   return users;
 }
 
@@ -191,7 +195,7 @@ function createSingleWish(insertWish, randomUser, attributePools, contactMethods
     });
   }
 
-  insertWish.run(
+  return insertWish.run(
     id,
     randomUser.id,
     content,
@@ -202,7 +206,7 @@ function createSingleWish(insertWish, randomUser, attributePools, contactMethods
     date,
     date,
     0
-  ); // NOSONAR
+  );
 }
 
 async function generateDemoWishes(users, wishCount, attributePools, contactMethods, demoSeeds) {
@@ -216,10 +220,14 @@ async function generateDemoWishes(users, wishCount, attributePools, contactMetho
   `);
 
   // 3. Distribute wishes randomly across the users
+  const wishPromises = [];
   for (let i = 0; i < wishCount; i++) {
     const randomUser = users[crypto.randomInt(0, users.length)];
-    createSingleWish(insertWish, randomUser, attributePools, contactMethods, demoSeeds);
+    wishPromises.push(
+      createSingleWish(insertWish, randomUser, attributePools, contactMethods, demoSeeds)
+    );
   }
+  await Promise.allSettled(wishPromises);
 }
 
 export async function generateDemoData() {
