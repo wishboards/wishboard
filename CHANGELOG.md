@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.1...wishboard-v1.34.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update production runtime dependencies and docs packages ([d368fe9](https://github.com/wishboards/wishboard/commit/d368fe9afaf543bc2c6b46b0fba6717f7bc1a1fe))
+
 ## [1.34.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.0...wishboard-v1.34.1) (2026-10-31)
 
 
