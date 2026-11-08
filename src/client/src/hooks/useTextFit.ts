@@ -81,7 +81,6 @@ export function useTextFit<
           container.scrollWidth > container.clientWidth;
       }
 
-      // eslint-disable-next-line @eslint-react/set-state-in-effect -- DOM measurement in useLayoutEffect requires updating layout state
       setIsOverflowing(isStillOverflowing);
     };
 

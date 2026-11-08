@@ -20,7 +20,7 @@ Here is a monthly cost breakdown for a moderate-use environment (e.g., 5,000 act
 | **Total (Post-Free Tier)** |                                                       |                                                                       | **$0.55 / month**                       |
 
 > [!NOTE]
-> **No VPC, by design.** Earlier revisions ran the Lambdas in a VPC to reach a SQLite database on EFS, using a free S3 Gateway Endpoint to dodge a NAT Gateway. But that topology still ran **CloudWatch + CloudWatch Logs interface endpoints at ~$0.01/hr each (~$1/day)** — a line this table originally omitted. Moving the database to **Turso** (reachable over the public internet) removed the reason for the VPC entirely: no VPC, no EFS, no interface endpoints — and, as a bonus, server→client WebSockets now work, because a VPC-less Lambda can reach `execute-api`. See [ADR 0002](../docs/adr/0002-serverless-database-architecture.md) and [ADR 0003](../docs/adr/0003-serverless-realtime-websockets.md).
+> **No VPC, by design.** Earlier revisions ran the Lambdas in a VPC to reach a SQLite database on EFS, using a free S3 Gateway Endpoint to dodge a NAT Gateway. But that topology still ran **CloudWatch + CloudWatch Logs interface endpoints at ~$0.01/hr each (~$1/day)** — a line this table originally omitted. Moving the database to **Turso** (reachable over the public internet) removed the reason for the VPC entirely: no VPC, no EFS, no interface endpoints — and, as a bonus, server→client WebSockets now work, because a VPC-less Lambda can reach `execute-api`. See [ADR 0002](../docs/src/content/docs/adr/0002-serverless-database-architecture.md) and [ADR 0003](../docs/src/content/docs/adr/0003-serverless-realtime-websockets.md).
 
 ---
 
@@ -30,7 +30,7 @@ Before starting, make sure you have the following installed and configured on yo
 
 1. **AWS CLI** (configured with admin credentials to your AWS account).
 2. **AWS SAM CLI** (Serverless Application Model CLI) to build and deploy.
-3. **Node.js** (v22+) and **npm**.
+3. **Node.js** (v24+) and **npm**.
 4. **Vite** (already configured in the project).
 5. **Route 53 Hosted Zone ID** (Optional, if you wish to use a custom domain).
 6. **A Turso database** and its auth token stored in SSM — see **[Database (Turso)](#database-turso)** below.
@@ -241,5 +241,5 @@ If you want to completely remove Wishboard from your AWS account to stop incurri
 
 2. **Destroy the OIDC Deployment Role (Optional):**
    ```bash
-   ./scripts/destroy-oidc.sh
+   npx wishboard oidc destroy
    ```

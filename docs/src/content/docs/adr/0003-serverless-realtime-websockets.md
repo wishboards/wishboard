@@ -41,7 +41,7 @@ browser ──wss──▶ CloudFront (/socket.io/*) ──▶ API Gateway WebSo
 
 - The `websocket_connections` table is the **only shared connection state** across
   independently-scaling Lambda instances — it must live in the shared DB (now Turso,
-  see [ADR 0002](0002-serverless-database-architecture.md)), not in memory.
+  see [ADR 0002](../0002-serverless-database-architecture/)), not in memory.
 - Broadcasting reads all connection IDs and calls `PostToConnection` per client,
   pruning any that return `410 Gone`.
 
