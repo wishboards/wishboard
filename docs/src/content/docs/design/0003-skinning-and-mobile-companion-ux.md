@@ -6,7 +6,7 @@ title: 0003 Skinning and Mobile Companion UX
 
 - **Status:** Proposed
 - **Context Date:** October 2026
-- **Companion ADR:** [ADR 0011](../../adr/0011-theming-skinning-and-mobile-companion-ux)
+- **Companion ADR:** [ADR 0011](../../adr/0011-theming-skinning-and-mobile-companion-ux/)
 
 ## 1. Overview & Objectives
 
@@ -141,6 +141,18 @@ Located at `src/client/src/components/common/BottomSheet.tsx`:
 - **Accessibility:** Uses WAI-ARIA Dialog semantics (`role="dialog"`, `aria-modal="true"`, focus trapping).
 - **Gestures:** Supports downward swipe-to-dismiss and tapping the backdrop scrim.
 - **Keyboard Handling:** Sets `visualViewport` resize observers so opening on-screen mobile keyboards smoothly pans the drawer without breaking sticky `Done` buttons.
+
+### 4.3 5-Tab Thumb-Zone Navigation Specification
+
+To streamline navigation on handheld viewports (`< 768px`) and keep all primary interactions reachable within the natural thumb arc:
+
+- **5 Dedicated Tabs (`MobileBottomBar`):**
+  1. `Home` (`/`): Event overview, stats, and quick links.
+  2. `Post` (`/wish/new`): High-contrast primary action pill for 1-tap card creation.
+  3. `Search` (`/search`): Browse and filter active wishes with sticky category chips.
+  4. `Inbox` (`/inbox`): `WishmailDashboard` with unread notification badge indicator.
+  5. `Account` (`/account`): User profile, appearance preferences (`ui_preferences`), and saved wishes.
+- **Redundant Tab Removal:** The ambient `Board` (`DisplayPage`) and `Admin` pages are removed from the mobile bottom bar to prevent clutter, remaining accessible via header/footer menus or account settings.
 
 ---
 
