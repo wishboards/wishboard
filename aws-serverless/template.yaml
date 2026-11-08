@@ -249,10 +249,6 @@ Resources:
           NODE_ENV: !Ref NodeEnv
           DATABASE_URL: !Ref DatabaseUrl
           DATABASE_AUTH_TOKEN_SSM: !Ref DatabaseAuthTokenSsm
-          # No EFS: rules.yaml lives on the writable /tmp overlay. Edits are not
-          # durable across cold starts (a Turso/S3-backed rules store is the
-          # migration follow-up); the app falls back to empty rules if unseeded.
-          RULES_PATH: /tmp/rules.yaml
           AWS_S3_BUCKET: !Ref ImagesBucket
           # Public domain for the poster/Wi-Fi popup, served at runtime via /api/config.
           # Empty when no custom domain is configured — the client then falls back to

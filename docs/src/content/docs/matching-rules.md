@@ -19,14 +19,14 @@ changes propagate to the in-memory matching cache within a short cache TTL
 (`RULES_CACHE_TTL_MS`, default 60s) without requiring a server restart or redeploy.
 
 Default rules are bundled with each event profile (e.g. in `profiles/<profile>/rules.yaml`
-or inline within `profiles/<profile>/profile.yaml` — see [Event Profiles](event-profiles.md)).
+or inline within `profiles/<profile>/profile.yaml` — see [Event Profiles](../event-profiles/)).
 On first boot, if the database `rules` table is empty, the application automatically seeds it
 from the active profile's default rules. After initial seeding, the database is the authoritative
 source of truth.
 
 Identity attributes are completely dynamic and defined by the active event profile's
-`categories` schema (see [ADR 0005](adr/0005-matching-engine-generalization.md) and
-[Event Profiles](event-profiles.md)). Attributes are stored in unified `attributes`
+`categories` schema (see [ADR 0005](../adr/0005-matching-engine-generalization/) and
+[Event Profiles](../event-profiles/)). Attributes are stored in unified `attributes`
 JSON structures on users and wishes rather than hardcoded database columns. For instance,
 while the default `lifestyle` profile configures `gender`, `orientation`, and `role`, the
 `professional` profile configures networking goals (`Hiring`, `Job Seeking`, `Mentoring`),
@@ -102,7 +102,7 @@ when creating a wish or searching.
 If a wish desires a "pet", an expansion rule will automatically expand that
 requirement to also match with users identifying as a "pup" or "kitten".
 
-_(Note: Expansion rules can optionally be evaluated with context to prevent unintended matches. This context-gated evaluation was implemented in [ADR 0005](adr/0005-matching-engine-generalization.md).)_
+_(Note: Expansion rules can optionally be evaluated with context to prevent unintended matches. This context-gated evaluation was implemented in [ADR 0005](../adr/0005-matching-engine-generalization/).)_
 
 ---
 
@@ -130,7 +130,7 @@ Combined with an **Expansion** rule (e.g., "pet" expands to "pup, kitten"), a
 "handler" will automatically match with a "pup" or "kitten" without needing
 explicit rules for every combination!
 
-_(Note: Cross-match rules can optionally be evaluated with context to prevent unintended cross-community matching. This context-gated evaluation was implemented in [ADR 0005](adr/0005-matching-engine-generalization.md).)_
+_(Note: Cross-match rules can optionally be evaluated with context to prevent unintended cross-community matching. This context-gated evaluation was implemented in [ADR 0005](../adr/0005-matching-engine-generalization/).)_
 
 > In the default `lifestyle` profile, bundled defaults seed role relationships and their respective expansions:
 >

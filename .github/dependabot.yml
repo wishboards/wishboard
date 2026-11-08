@@ -16,11 +16,9 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
-    # Ignore semver-major on vitest until @stryker-mutator/vitest-runner supports Vitest 5 (tracked in #519)
+    # Ignore semver-major on typescript until typescript-eslint widens peer dependency range (tracked in #492)
     ignore:
-      - dependency-name: 'vitest'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@vitest/coverage-v8'
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
   - package-ecosystem: 'github-actions'
     directory: '/'

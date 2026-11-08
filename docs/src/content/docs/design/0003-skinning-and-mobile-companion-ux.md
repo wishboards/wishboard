@@ -18,7 +18,7 @@ It addresses three primary design goals:
 2. **Dual-Persona Skinning Contracts:**
    - **Persona A — Event Host Branding:** Runtime system branding (organization logos, brand colors, board background textures/graphics) configured live via `AdminPage` across both disconnected Raspberry Pi kiosks and AWS Serverless deployments.
    - **Persona B — Attendee Personalization:** Tactile per-wish 3×5 index card paper tints and pushpin styling, backed by database-persisted user preferences (`users.ui_preferences`).
-3. **Mobile-First Companion Interface ("Controller vs. Canvas"):** Eliminating vertical scroll fatigue on mobile viewports (`375×667` to `390×844`) through progressive-disclosure bottom sheets, a focused 4-tab thumb navigation bar, and a compact single-screen card composer.
+3. **Mobile-First Companion Interface ("Controller vs. Canvas"):** Eliminating vertical scroll fatigue on mobile viewports (`375×667` to `390×844`) through progressive-disclosure bottom sheets, a focused 5-tab thumb-zone navigation bar, and a compact single-screen card composer.
 
 ---
 
@@ -98,7 +98,7 @@ export interface CardStyle {
 - **Schema:**
   ```json
   {
-    "themeMode": "host-default" | "midnight" | "daylight" | "high-contrast",
+    "themeMode": "host-default" | "midnight" | "daylight" | "corkhouse" | "high-contrast",
     "defaultCardColor": "ivory" | "canary" | "rose" | "sky" | "sage",
     "defaultPinColor": "ruby" | "amber" | "emerald" | "sapphire" | "violet"
   }
@@ -176,7 +176,7 @@ sequenceDiagram
     participant Kiosk as Kiosk Display & Phones
 
     Host->>Server: POST /api/admin/branding/upload (multipart/form-data)
-    Note over Server: Validates MIME (PNG, JPG, WebP, SVG)<br/>Sanitizes SVG XML if present
+    Note over Server: Validates MIME (PNG, JPG, WebP)<br/>Enforces raster-only policy (no SVG)
     alt Raspberry Pi / Kiosk Mode
         Server->>Storage: Writes to data/images/branding-{id}.webp
     else AWS Serverless Mode
@@ -187,20 +187,25 @@ sequenceDiagram
     Kiosk->>Kiosk: Updates :root CSS tokens and re-renders logo/canvas live
 ```
 
-### 5.3 SVG Sanitization Security Guard
+### 5.3 Raster-Only Upload Policy & SVG Trade-Off Evaluation
 
-To prevent stored Cross-Site Scripting (XSS) attacks through malicious SVG uploads:
+To ensure operational resilience and eliminate stored Cross-Site Scripting (XSS) risks without introducing heavy dependencies into serverless Lambdas and Raspberry Pi containers:
 
-- Custom SVGs must be parsed with `DOMParser` or an XML validator on the server.
-- Script tags (`<script>`), event attributes (`onload=`, `onerror=`), and external resource references (`xlink:href="http..."`) are stripped before writing to storage.
+1. **Raster-Only Upload Policy**:
+   - Logo and background file uploads are strictly limited to raster formats (`PNG`, `JPG`, `WebP`).
+   - Rationale: Node.js does not provide a native `DOMParser` or SVG DOM sanitization runtime in standard production environments. Introducing server-side sanitization libraries (e.g., `isomorphic-dompurify`) increases package size and cold-start latency, while still exposing an XML parsing attack surface (SSRF, Billion Laughs entity expansion, polyglot payloads). Raster formats natively eliminate script execution vectors with zero extra dependencies.
+2. **SVG Trade-Off Evaluation for Future Iterations**:
+   - **Pros**: Lossless vector scaling across large 4K kiosk displays; small file size; dynamic CSS recoloring.
+   - **Cons**: Substantial XSS surface area (embedded `<script>`, `<foreignObject>`, inline event handlers); complex sanitization required; potential CSS leakage into document scopes if inlined.
+   - **Path Forward**: If vector logos are required in future phases, they should either be bundled as pre-sanitized assets in event profiles or served strictly via sandboxed `<img>` tags with strict CSP directives preventing script execution.
 
 ---
 
 ## 6. Implementation Phasing Matrix
 
-| Phase       | Milestone Name                        | Scope & Deliverables                                                                                                      | Verification Strategy                                                      |
-| :---------- | :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------- |
-| **Phase 1** | **Visual Foundation & Account Prefs** | Token cascade (`--wb-*`), `wishboards.app` Midnight Lounge theme, `users.ui_preferences` column, `GET/PUT /api/users/me`. | Unit tests for `/api/users/me`, Prettier, ESLint, Visual regression check. |
-| **Phase 2** | **Tactile Card Personalization**      | `wishes.card_style` column, zero-clutter swatches on `WishPreview`, `WishCard` rendering on Display and Search.           | Snapshot tests for `WishCard`, API schema contract tests.                  |
-| **Phase 3** | **Mobile Companion UX**               | `<BottomSheet>` component, 4-tab `MobileBottomBar`, single-screen `HomePage` and `EnterWishPage`, sticky search chips.    | Mobile viewport Playwright tests (`iPhone 14`, `Pixel 7`).                 |
-| **Phase 4** | **Host Branding Studio**              | `settings` table, `PUT /api/admin/branding`, image upload with SVG sanitization, live WebSocket broadcast.                | Admin integration tests, S3 vs. Local FS upload tests.                     |
+| Phase       | Milestone Name                        | Scope & Deliverables                                                                                                                          | Verification Strategy                                                      |
+| :---------- | :------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| **Phase 1** | **Visual Foundation & Account Prefs** | Token cascade (`--wb-*`), `wishboards.app` Midnight Lounge theme, `users.ui_preferences` column, `GET/PUT /api/users/me`, `npm run api:spec`. | Unit tests for `/api/users/me`, Prettier, ESLint, Visual regression check. |
+| **Phase 2** | **Tactile Card Personalization**      | `wishes.card_style` column, zero-clutter swatches on `WishPreview`, `WishCard` rendering on Display and Search, `npm run api:spec`.           | Snapshot tests for `WishCard`, API schema contract tests.                  |
+| **Phase 3** | **Mobile Companion UX**               | `<BottomSheet>` component, 5-tab `MobileBottomBar`, single-screen `HomePage` and `EnterWishPage`, sticky search chips.                        | Mobile viewport Playwright tests (`iPhone 14`, `Pixel 7`).                 |
+| **Phase 4** | **Host Branding Studio**              | `settings` table, `PUT /api/admin/branding`, raster-only image upload (`PNG`, `JPG`, `WebP`), live WebSocket broadcast, `npm run api:spec`.   | Admin integration tests, S3 vs. Local FS upload tests.                     |

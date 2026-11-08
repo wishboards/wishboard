@@ -163,13 +163,32 @@ describe('kiosk commands', () => {
   });
 
   describe('runKiosk', () => {
-    it('runs build-kiosk.sh with mode/domain/rules/version', () => {
+    it('runs build-kiosk.sh with mode/domain/rules/version/eventProfile', () => {
       runKiosk({ mode: 'prod', domain: 'ex.com', resetRules: true, appVersion: '3.1.4' });
       const call = vi
         .mocked(commandUtils.execCommand)
         .mock.calls.find((c) => c[0] === 'bash' && String(c[1][0]).includes('build-kiosk.sh'));
       expect(call).toBeDefined();
-      expect(call[1].slice(1)).toEqual(['prod', 'ex.com', 'reset', '3.1.4']);
+      expect(call[1].slice(1)).toEqual(['prod', 'ex.com', 'reset', '3.1.4', 'lifestyle']);
+    });
+
+    it('passes custom eventProfile when specified', () => {
+      runKiosk({
+        mode: 'dev',
+        eventProfile: 'professional',
+      });
+      const call = vi
+        .mocked(commandUtils.execCommand)
+        .mock.calls.find((c) => c[0] === 'bash' && String(c[1][0]).includes('build-kiosk.sh'));
+      expect(call).toBeDefined();
+      expect(call[1][5]).toBe('professional');
+    });
+
+    it('rejects an unknown eventProfile', () => {
+      vi.mocked(fs.existsSync).mockReturnValueOnce(false);
+      expect(() => runKiosk({ eventProfile: 'nonexistent' })).toThrow(
+        /Event profile 'nonexistent' not found/
+      );
     });
   });
 });

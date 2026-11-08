@@ -30,7 +30,7 @@ profiles/<name>/
 | File              | Required | Purpose                                                                              |
 | ----------------- | -------- | ------------------------------------------------------------------------------------ |
 | `profile.yaml`    | **Yes**  | Profile name, `contact_methods`, and `categories` (identity schema with suggestions) |
-| `rules.yaml`      | No       | Matching engine rules — see [Matching Rules](matching-rules.md)                      |
+| `rules.yaml`      | No       | Matching engine rules — see [Matching Rules](../matching-rules/)                     |
 | `stickers.yaml`   | No       | Visual sticker badge definitions keyed by category/value                             |
 | `demo_seeds.yaml` | No       | Mad Libs fragments for the demo seeder — see [Demo Seeder](#demo-seeder) below       |
 | `theme.css`       | No       | CSS custom properties to theme the frontend                                          |
@@ -179,7 +179,7 @@ To point a serverless deployment stack to an isolated database:
      --cert-domain wishboards.app
    ```
 
-## 5. Kiosk Database Architecture
+## 6. Kiosk Database Architecture
 
 For local Raspberry Pi kiosk deployments (`npx wishboard kiosk deploy`), Wishboard runs an embedded libSQL server in a Docker container on the Pi (`DATABASE_URL=http://db:8080` inside the compose network, with SQLite files stored at `./data/db`). No remote authentication token or SSM parameter is required for standard kiosk deployments.
 

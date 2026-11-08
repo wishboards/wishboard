@@ -59,7 +59,7 @@ _(Also considered and set aside: Cloudflare D1 — wrong ecosystem, we're on AWS
 **Option 2 (managed libSQL / Turso) is adopted for the serverless target**, resolving the #136 spike. The serverless `DATABASE_URL` now points at a hosted Turso database (`libsql://…`, co-located in `us-east-1`), the EFS mount is gone, and **both Lambdas leave the VPC entirely** — which was the whole point:
 
 - **Cost:** the VPC existed only to reach EFS. Removing it deleted the CloudWatch + CloudWatch Logs **interface endpoints** that were quietly costing **~$1/day** (~$29/mo) — a cost this ADR's original analysis (and the deploy guide's cost table) missed. Turso itself sits inside its free tier with >100× headroom. Net serverless DB cost: **$0**.
-- **Real-time, fixed as a side effect:** an in-VPC Lambda has no egress to `execute-api`, so server→client WebSocket broadcasts silently timed out. A VPC-less Lambda reaches `execute-api` normally, so real-time now works. See [ADR 0003](0003-serverless-realtime-websockets.md).
+- **Real-time, fixed as a side effect:** an in-VPC Lambda has no egress to `execute-api`, so server→client WebSocket broadcasts silently timed out. A VPC-less Lambda reaches `execute-api` normally, so real-time now works. See [ADR 0003](../0003-serverless-realtime-websockets/).
 - **Concurrency:** Turso is a real singleton — no NFS file locking, no `SQLITE_BUSY`-from-EFS, no reserved-concurrency workaround.
 
 Spike results (#136): free-tier limits clear by >100× on every axis (5 GB storage, 500 M row reads/mo, 10 M writes/mo, 100 DBs); the app's real `db.js` init + a write/read roundtrip validated against hosted Turso; Lambda↔Turso latency made negligible by co-locating the Turso primary in `us-east-1` (region `iad`).
@@ -93,7 +93,7 @@ Independent of the storage choice, a write that does time out now fails **safely
 - [x] **Lambda↔Turso latency** — addressed by co-locating the Turso primary in `us-east-1` (region `iad`), next to the stack (~1–2 ms vs. ~150 ms cross-region for the initial Tokyo default).
 - [x] **`busy_timeout` on the libSQL connection** — moot on Turso: it rejects the PRAGMA as unsupported, and `db.js` applies PRAGMAs individually + best-effort so it's skipped, not fatal. Still applies to the Pi's file DB.
 - [x] **`ReservedConcurrentExecutions: 1`** — not needed; Turso serializes writes server-side, so the EFS multi-writer concern is gone.
-- [ ] **WAL on the single-node (Pi)** — still open (tracked in [#239](https://github.com/wishboards/wishboard/issues/239)).
+- [x] **WAL on the single-node (Pi)** — completed via #239 / PR #250.
 
 ## Consequences
 

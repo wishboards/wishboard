@@ -198,12 +198,22 @@ export function runKiosk(options) {
   assertMode(mode);
   if (!dryRun) assertCommand('bash');
 
+  const eventProfile = getEventProfile(options);
+  const profileDir = path.resolve(PROJECT_ROOT, 'profiles', eventProfile);
+  if (!fs.existsSync(profileDir)) {
+    throw new Error(`Event profile '${eventProfile}' not found at ${profileDir}`);
+  }
+
   logStep(
-    `Bringing up the kiosk locally (mode: ${mode}, version: ${appVersion}, rules: ${deployRules})...`
+    `Bringing up the kiosk locally (mode: ${mode}, version: ${appVersion}, rules: ${deployRules}, profile: ${eventProfile})...`
   );
-  const res = execCommand('bash', [BUILD_SCRIPT, mode, domain, deployRules, appVersion], {
-    cwd: PROJECT_ROOT,
-    dryRun,
-  });
+  const res = execCommand(
+    'bash',
+    [BUILD_SCRIPT, mode, domain, deployRules, appVersion, eventProfile],
+    {
+      cwd: PROJECT_ROOT,
+      dryRun,
+    }
+  );
   if (res.status !== 0) throw new Error('build-kiosk.sh failed.');
 }

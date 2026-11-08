@@ -10,21 +10,21 @@ title: 0005 Matching Engine Generalization
 
 ## Context
 
-Wishboard's matching engine relies on matching rules defined in the database `rules` table (see [ADR 0002](0002-serverless-database-architecture.md) and [#188](https://github.com/wishboards/wishboard/issues/188)), which are seeded by default from the active event profile's `profile.yaml` (e.g., [profiles/lifestyle/profile.yaml](../../profiles/lifestyle/profile.yaml)). These rules govern how attribute categories such as `gender`, `orientation`, and `role` are matched bidirectionally between a wish creator and a searcher.
+Wishboard's matching engine relies on matching rules defined in the database `rules` table (see [ADR 0002](../0002-serverless-database-architecture/) and [#188](https://github.com/wishboards/wishboard/issues/188)), which are seeded by default from the active event profile's `profile.yaml` (e.g., `profiles/lifestyle/profile.yaml`). These rules govern how attribute categories such as `gender`, `orientation`, and `role` are matched bidirectionally between a wish creator and a searcher.
 
 In the completed work for [#206](https://github.com/wishboards/wishboard/issues/206) (see PR [#233](https://github.com/wishboards/wishboard/pull/233)), we expanded the default taxonomy for power-exchange, activity, pet-play, and rope roles. However, during that implementation, context-gated rules were deferred due to a structural limitation:
 
-Currently, rule evaluation is only context-aware (checking `context_attribute` and `context_value` via `evaluateRuleConditions`) for `enrichment` and `acceptance` rule types. The matching engine's expansion and cross-match helpers — [getExpandedDesired](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L84-L102) and [getCrossMatchedDesired](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L203-L224) — only accept a flat list of desired values and the category, ignoring the rules' `context_attribute` and `context_value` entirely.
+Currently, rule evaluation is only context-aware (checking `context_attribute` and `context_value` via `evaluateRuleConditions`) for `enrichment` and `acceptance` rule types. The matching engine's expansion and cross-match helpers — `getExpandedDesired` and `getCrossMatchedDesired` in `src/server/routes/wishes.js` — only accept a flat list of desired values and the category, ignoring the rules' `context_attribute` and `context_value` entirely.
 
 This limitation prevents us from implementing rules like: _"expand `top` to include `vers` only when the searcher's orientation is `gay`"_. This prevents unintended cross-community matching between BDSM top/bottom vocabularies and queer sexual top/bottom/vers vocabularies without resorting to ad-hoc, hardcoded checks.
 
 ## Decision & Proposed Design
 
-To resolve this limitation without introducing custom parsing helpers to [wishes.js](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js), we will generalize the matching engine to support context-gated `expansion` and `cross_match` rules.
+To resolve this limitation without introducing custom parsing helpers to `src/server/routes/wishes.js`, we will generalize the matching engine to support context-gated `expansion` and `cross_match` rules.
 
 ### 1. Context-Aware Helpers
 
-We will update [getExpandedDesired](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L84-L102) and [getCrossMatchedDesired](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L203-L224) to accept an optional `contextProfile` (the searcher's full attribute map: `{ gender, orientation, role }`).
+We will update `getExpandedDesired` and `getCrossMatchedDesired` in `src/server/routes/wishes.js` to accept an optional `contextProfile` (the searcher's full attribute map: `{ gender, orientation, role }`).
 
 When filtering and applying `expansion` and `cross_match` rules, the engine will check if the rule defines a `context_attribute` and `context_value`. If it does, the rule will only apply if the `contextProfile` matches those conditions.
 
@@ -43,11 +43,11 @@ const matchesContext = (rule, contextProfile, rules = []) => {
 
 ### 2. Matching Engine Pipeline Updates
 
-We will propagate the `searcherProfile` through [matchesAttribute](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L226-L242) and all call sites in [isCompatible](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L261-L327):
+We will propagate the `searcherProfile` through `matchesAttribute` and all call sites in `isCompatible` in `src/server/routes/wishes.js`:
 
 - For checking if the searcher matches the wish's desired attributes, the context profile is the `searcherProfile`.
 - For checking if the wish creator matches the searcher's desired attributes (where the wish creator is the "searcher" of this sub-match), the context profile is the `creatorProfile`.
-- Update [getExclusionConflicts](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js#L104-L158) to pass the written profile as the context during write-time validation, allowing context-gated expansions to be validated.
+- Update `getExclusionConflicts` in `src/server/routes/wishes.js` to pass the written profile as the context during write-time validation, allowing context-gated expansions to be validated.
 
 ---
 
@@ -103,6 +103,6 @@ To support clean multi-domain deployments without code forks, we propose introdu
 
 During the implementation of this ADR, we went beyond fixing the context-gated expansions. We completely eliminated hardcoded `gender`, `orientation`, and `role` references across both the frontend and backend.
 
-- **Frontend:** Adopted a `DomainContext` system, where attribute inputs are dynamically generated from a configuration YAML file (e.g., `defaultDomain.yaml`).
+- **Frontend:** Adopted a dynamic schema system where attribute inputs are dynamically generated from configuration. Note: The initial `DomainContext` and `defaultDomain.yaml` system later evolved into modularized event profiles under `profiles/<name>/` and `EventProfileContext` (see [Design 0002](../../design/0002-event-profiles-and-theming/)).
 - **Backend/API:** Refactored the `/api/wishes` endpoint to accept a unified `attributes` JSON payload, falling back to legacy query parameters only when necessary.
 - **Infrastructure:** Updated the AWS serverless template and `wishboard` CLI to support deploying parallel stacks to multiple domains, utilizing wildcard certificates (primary `wishboards.app`, SAN `*.wishboards.app`) and isolated Turso databases to support alternate community implementations (like a conference setup vs. the default demo).

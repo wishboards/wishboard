@@ -28,13 +28,15 @@ This document outlines the core coding conventions, architectural patterns, envi
 
 ## 3. Architecture & Matching Engine Rules
 
-- **Configuration-Driven Rules:** Do not hardcode gender, orientation, or role matching logic inside the backend code. The matchmaking system uses a dynamic rule system stored in a `rules` table in the DB (seed defaults in `profiles/**/profile.yaml`; edited live via the admin UI).
+- **Configuration-Driven Rules:** Do not hardcode gender, orientation, or role matching logic inside the backend code. The matchmaking system uses a dynamic rule system stored in a `rules` table in the DB (seed defaults in `profiles/**/rules.yaml` or inline within `profiles/**/profile.yaml`; edited live via the admin UI).
 - **Rule Types:**
   1. `enrichment`: Implicitly adds a target attribute if the trigger matches (e.g., adding `woman` if orientation is `lesbian`).
   2. `acceptance`: Overrides matching to automatically accept a broad set of targets (e.g., pan/queer orientations matching all genders).
   3. `expansion`: Synonyms and variants mapping (e.g., expanding `enby`, `non-binary` to `nonbinary`).
   4. `cross_match`: Bidirectional matches between complementary roles.
-- **Extending Matching Logic:** To add support for new identities or matching terms, add/edit rules via the admin UI (they live in the DB) — or change the seed defaults in `profiles/**/profile.yaml` — rather than introducing custom parsing helpers in `src/server/routes/wishes.js`.
+  5. `exclusion`: Hard mutually exclusive constraints that veto a match (e.g., conflicting roles or hard boundaries).
+- **Decoupled Matching Engine:** Pure matchmaking evaluation logic is decoupled into `@wishboards/matching-engine` (a standalone pure-JS library without Express, SQLite, or disk I/O dependencies).
+- **Extending Matching Logic:** To add support for new identities or matching terms, add/edit rules via the admin UI (they live in the DB) — or change the seed defaults in `profiles/**/rules.yaml` — rather than introducing custom parsing helpers in `src/server/routes/wishes.js`.
 
 ---
 

@@ -6,6 +6,9 @@ status: rejected
 
 # ADR 0009: Reject Fine-Grained Turso Permissions (Table-Level Only)
 
+- **Status:** Rejected
+- **Date:** 2026-08-14
+
 ## Context
 
 As part of defense-in-depth thinking spurred by the possibility of integrating online boards with hosting organizations' single sign-on providers, an investigation was conducted to determine if Turso's fine-grained permission model could be used to implement On-Behalf-Of (OBO) JWTs. The goal was to secure the database at the row level—for example, ensuring that an owning user could only edit or delete their _own_ wish, even if the application API logic failed to perform the authorization check.

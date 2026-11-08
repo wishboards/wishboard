@@ -12,14 +12,18 @@ Stryker can take several hours to evaluate the entire project because it runs th
 
 To avoid slowing down local development and Pull Requests, we have configured a GitHub Actions workflow (`.github/workflows/stryker.yml`) to automatically run the full suite every night at midnight UTC.
 
-### GitHub Pages Setup (For Forks & New Repositories)
+### Two-Workflow Publishing Architecture
 
-To publish the daily mutation testing report to GitHub Pages in your own fork or repository:
+To ensure deterministic deployment and avoid race conditions, mutation report publishing is split across two workflows:
+
+1. **Nightly Mutation Run (`.github/workflows/stryker.yml`)**: Runs nightly on a `schedule` + `workflow_dispatch` trigger. It evaluates mutations across the project and uploads a `mutation-report` artifact upon completion. It holds minimal permissions (`contents: read`) and publishes nothing directly.
+2. **Single GitHub Pages Deployer (`.github/workflows/pages.yml`)**: Acts as the sole deployer for GitHub Pages. It triggers on pushes to `main` as well as upon `workflow_run` completion of Stryker. It builds the documentation site, downloads the latest successful `mutation-report` artifact, and deploys both under the unified GitHub Pages site.
+
+To enable GitHub Pages in your own fork or repository:
 
 1. Go to your repository's **Settings** tab on GitHub.
 2. Select **Pages** from the left-hand sidebar menu.
-3. Under **Build and deployment** > **Source**, select **GitHub Actions** (rather than "Deploy from a branch").
-4. The `.github/workflows/stryker.yml` workflow includes all required permissions (`pages: write` and `id-token: write`). Once GitHub Pages source is set to **GitHub Actions**, the daily workflow will automatically build and publish the HTML report upon completion.
+3. Under **Build and deployment** > **Source**, select **GitHub Actions** (rather than "Deploy from a branch"). Once configured, `.github/workflows/pages.yml` handles deployment automatically.
 
 ---
 

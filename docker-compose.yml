@@ -2,7 +2,7 @@ services:
   db:
     # Pinned (not :latest) for reproducible, offline-safe deploys.
     # Bumps come via Dependabot (docker-compose) as PRs.
-    # Changing this minor/major may require recreating the db_data volume.
+    # Changing this minor/major may require recreating the ./data/db directory.
     image: ghcr.io/tursodatabase/libsql-server:v0.24.33
     container_name: wishboard-db
     volumes:

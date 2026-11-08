@@ -6,8 +6,9 @@ title: Deployment Guide
 
 This guide is designed for system owners and event managers who want to deploy a fresh instance of Wishboard on a Raspberry Pi using a custom domain.
 
-> [!NOTE]
-> If you prefer to deploy Wishboard to the cloud rather than hosting it on local Raspberry Pi hardware, see the [**AWS Deployment Guide**](../aws-serverless/deploy-instructions.md) for deploying to AWS Serverless.
+:::note
+If you prefer to deploy Wishboard to the cloud rather than hosting it on local Raspberry Pi hardware, see the [**AWS Deployment Guide**](../serverless-deployment/) for deploying to AWS Serverless.
+:::
 
 Wishboard is designed to be an offline-first kiosk application. However, to provide a seamless mobile experience for users in the venue, we use a custom domain, standard SSL certificates, and local DNS hijacking so users don't get scary browser warnings when connecting.
 
@@ -58,7 +59,7 @@ From your **local developer machine** (not the Pi), run the unified deployment c
 npx wishboard kiosk deploy --host raspberrypi.local --mode prod --domain wishboard.example.com
 ```
 
-Add `--user <name>` if your Pi login isn't `pi`, and `--dry-run` to preview the exact SSH/scp steps without executing them. `--reset-rules` re-seeds the matching rules from the profile defaults (`profiles/**/profiles.yaml`) — rules live in the database `rules` table now, not a file. It clears only the DB `rules` table and preserves uploaded images, users, and wishes (this was corrected in [#194](https://github.com/wishboards/wishboard/issues/194); it previously wiped the whole `/app/data` volume).
+Add `--user <name>` if your Pi login isn't `pi`, and `--dry-run` to preview the exact SSH/scp steps without executing them. `--reset-rules` re-seeds the matching rules from the profile defaults (`profiles/**/rules.yaml`) — rules live in the database `rules` table now, not a file. It clears only the DB `rules` table and preserves uploaded images, users, and wishes (this was corrected in [#194](https://github.com/wishboards/wishboard/issues/194); it previously wiped the whole `/app/data` volume).
 
 ### Networking Modes
 
@@ -93,7 +94,7 @@ If you need to inject special environment variables (like changing the default a
 
 3. Add your custom variables:
 
-   ```env
+   ```ini
    # Pre-populated by deployment script. WISHBOARD_DOMAIN / WISHBOARD_AP_IP are
    # read at runtime by the server and served via /api/config to the poster and
    # the kiosk Wi-Fi popup (a single image works on any domain). See #196/#197.
@@ -116,7 +117,7 @@ If you need to inject special environment variables (like changing the default a
 
 ## Updating the Application
 
-When a new version of Wishboard is published, re-run the same unified deploy command from your developer machine. It pulls the new image and cleanly restarts the container without destroying your persisted data — the matching rules and app database in the `db_data` libSQL volume, and uploaded images in the `data/` bind mount.
+When a new version of Wishboard is published, re-run the same unified deploy command from your developer machine. It pulls the new image and cleanly restarts the container without destroying your persisted data — the matching rules and app database in the `./data/db` libSQL directory, and uploaded images in the `./data/images` bind mount.
 
 ```bash
 # Upgrade to a specific version
