@@ -12,7 +12,7 @@ const dataDir = path.resolve(__dirname, '../../data');
 
 // Rules now live in the DB (a `rules` table) on every target — Pi embedded libSQL
 // and serverless Turso alike — so they persist across restarts/cold starts and are
-// shared across Lambda instances. See docs/adr/0002 and #188. An in-memory cache
+// shared across Lambda instances. See docs/src/content/docs/adr/0002-serverless-database-architecture.md and #188. An in-memory cache
 // keeps getRules() synchronous for the matching engine; writes go through to the DB.
 const RULE_COLUMNS = [
   'id',

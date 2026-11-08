@@ -40,8 +40,7 @@ If you plan to deploy the serverless stack to AWS, you must configure GitHub Act
 1. Ensure you have the [AWS CLI](https://aws.amazon.com/cli/) installed and authenticated locally with administrative permissions.
 2. From the root of the repository, run the CLI tool:
    ```bash
-   npm install
-   node src/cli/wishboard.js deploy oidc
+   npx wishboard oidc setup
    ```
 3. The tool will automatically provision an IAM role and identity provider in AWS, and it will configure the necessary `AWS_ROLE_TO_ASSUME` secret and `AWS_REGION` variable in your GitHub repository.
 
@@ -58,4 +57,7 @@ If you are deploying Wishboard to local hardware (like a Raspberry Pi), you need
    ```bash
    ssh-copy-id user@device_ip
    ```
-4. Update the inventory file or deployment scripts to point to your specific IP and user.
+4. Deploy using the unified CLI:
+   ```bash
+   npx wishboard kiosk deploy --user <user> --host <device_ip>
+   ```

@@ -4,6 +4,9 @@ title: 0002 Event Profiles And Theming
 
 # Design Document 0002: Event Profiles and Decoupled Theming (Issue #263)
 
+- **Status:** Implemented
+- **Date:** 2026-08
+
 ## Context & Vision
 
 Wishboard is a disconnected wish board designed to run on local hardware (Raspberry Pi kiosk) or serverless infrastructure (AWS Lambda) for various events. Previous versions bundled domain configuration files (`defaultDomain.yaml`) within the source code, hardcoded CSS color definitions directly in `styles.css`, and maintained fallback UI categories (Gender, Orientation, Role) in React state.
@@ -14,9 +17,12 @@ This design establishes a total separation of concerns between core application 
 
 ### 1. Event Profiles (`/profiles/`)
 
-Instead of hardcoding convention identities or configurations in the backend/frontend, all event specifics live in `/profiles/<profile_name>/`:
+Instead of hardcoding convention identities or configurations in the backend/frontend, all event specifics live in `/profiles/<profile_name>/`. Profile configuration is modularized into separate dedicated files:
 
-- `profile.yaml`: Defines event categories, suggestion pills, dynamic contact methods (`contact_methods`), sticker mappings, and rule seeds.
+- `profile.yaml`: Defines event categories, suggestion pills, dynamic contact methods (`contact_methods`), and profile metadata.
+- `rules.yaml`: Seed matching rules for the matching engine (see [Matching Rules](../../matching-rules/)).
+- `stickers.yaml`: Visual sticker badge definitions keyed by category/value.
+- `demo_seeds.yaml`: Mad Libs fragments and seed templates for demo data generation.
 - `theme.css`: Defines native CSS variables (`--header-bg`, `--app-bg`, `--card-bg`, etc.) for visual customization.
 - `assets/`: Custom logo and sticker assets specific to the event.
 

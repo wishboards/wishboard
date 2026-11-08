@@ -105,8 +105,8 @@ fi
 echo "Docker image pull policy: $PULL_POLICY (mode: $MODE)"
 $RUN_CMD compose --env-file .env up -d --pull "$PULL_POLICY"
 
-# Note: libsql-server data ownership alignment is no longer needed as the database container
-# runs directly under the wishboard user's host UID/GID on the ./data/db host bind mount.
+# Note: libsql-server data ownership alignment is handled via /etc/subuid offset mapping
+# (NODE_SUBUID = SUBUID_START + 999, SQLD_SUBUID = SUBUID_START + 665) configured above prior to container launch.
 
 if [[ "$DEPLOY_RULES" = "reset" ]]; then
     # #194: reset matching rules ONLY — do not touch users, wishes, or images.

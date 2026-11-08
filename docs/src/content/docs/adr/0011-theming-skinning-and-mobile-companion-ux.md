@@ -13,7 +13,7 @@ title: 0011 Theming Skinning and Mobile Companion UX
 Wishboard operates as a dual-surface application across two deployment targets (disconnected Raspberry Pi Kiosk and AWS Serverless):
 
 1. **Public Display Surface (`DisplayPage`, `PosterPage`):** A large-screen ambient digital corkboard and printable QR poster viewed from a distance at events.
-2. **Handheld Companion Surface (`HomePage`, `EnterWishPage`, `SearchPage`, `WishmailPage`, `AccountPage`):** A mobile web application accessed on attendees' phones via QR scan or captive portal.
+2. **Handheld Companion Surface (`HomePage`, `EnterWishPage`, `SearchPage`, `WishmailDashboard`, `AccountPage`):** A mobile web application accessed on attendees' phones via QR scan or captive portal.
 
 Three architectural and user-experience gaps currently exist:
 
@@ -31,14 +31,14 @@ We will adopt **Option 4 (Full Integrated Architecture via 4-Phase Rollout)** us
 
 All hardcoded color, surface, border, and shadow values in `src/client/src/styles.css` and inline React styles will be replaced with semantic `--wb-*` CSS custom properties resolved in three layers:
 
-1. **Tier 1 — Base Theme Defaults (`src/client/src/styles.css`):** Ships the `wishboards.app` **"Midnight Lounge"** dark glassmorphic palette (`--wb-bg-base: #080d1a`, `--wb-bg-surface: rgba(30, 41, 59, 0.78)`, `--wb-accent-primary: #f59e0b`, `Outfit` + `Inter` typography) alongside built-in `[data-theme="daylight"]`, `[data-theme="corkhouse"]`, and `[data-theme="high-contrast"]` presets.
+1. **Tier 1 — Base Theme Defaults (`src/client/src/styles.css`):** Ships the `wishboards.app` **"Midnight Lounge"** dark glassmorphic palette (`--wb-bg-canvas: #080d1a`, `--wb-bg-surface: rgba(30, 41, 59, 0.78)`, `--wb-accent-primary: #f59e0b`, `Outfit` + `Inter` typography) alongside built-in `[data-theme="daylight"]`, `[data-theme="corkhouse"]`, and `[data-theme="high-contrast"]` presets.
 2. **Tier 2 — Event Host / Organization Skin (`GET /api/config` & `PUT /api/admin/branding`):**
    - Seeded from `profiles/<name>/profile.yaml` (`branding` block) and overridable at runtime by Event Hosts via a `settings` table in SQLite/libSQL (`src/server/db.js`).
    - Supports organization `logoUrl`, `boardBackgroundUrl`, `boardTexture` (`cork`, `slate`, `linen`, `custom`), `presetSkin`, and brand color overrides (`primaryColor`, `accentColor`, `surfaceColor`).
-   - Custom uploaded host logos and board background graphics reuse Wishboard's existing dual-target image storage pipeline (`data/images/` on Raspberry Pi; `AWS_S3_BUCKET` on AWS Serverless) so branding works seamlessly in completely offline Pi Kiosk deployments.
+   - Custom uploaded host logos and board background graphics reuse Wishboard's existing dual-target image storage pipeline (`data/images/` on Raspberry Pi; `AWS_S3_BUCKET` on AWS Serverless) restricted to raster formats (`PNG`, `JPG`, `WebP`) so branding works seamlessly and securely without SVG sanitization overhead.
 3. **Tier 3 — Attendee Account Preferences (`users.ui_preferences`):**
    - Stored in a `ui_preferences` JSON column on the `users` table (`await ensureColumn('users', 'ui_preferences', 'TEXT')`) and returned on `/api/users/login`, `/api/users/register`, and `/api/users/me`, with updates persisted via `PUT /api/users/me`.
-   - Schema: `{ themeMode?: 'host-default' | 'midnight' | 'daylight' | 'high-contrast', defaultCardColor?: CardColorId, defaultPinColor?: PinColorId }`.
+   - Schema: `{ themeMode?: 'host-default' | 'midnight' | 'daylight' | 'corkhouse' | 'high-contrast', defaultCardColor?: CardColorId, defaultPinColor?: PinColorId }`.
    - Unauthenticated guests fall back to `globalThis.localStorage` (`wishboard_ui_preferences`), which automatically syncs into `users.ui_preferences` upon registration or login.
 
 ### 2. Tactile Per-Wish Card & Pushpin Personalization (`wishes.card_style`)
@@ -56,7 +56,7 @@ To bridge physical 3×5 index cards and typed digital wishes without cluttering 
 
 For handheld viewports (`< 768px`):
 
-1. **4-Tab Thumb-Zone Navigation (`MobileBottomBar`):** Consolidate to `Home`, `Post` (primary amber pill), `Search`, `Inbox` (with unread badge), and `Account`. Remove `Big Screen Display` and `Admin` from the primary phone bar (accessible via footer/Account overflow).
+1. **5-Tab Thumb-Zone Navigation (`MobileBottomBar`):** Consolidate to `Home`, `Post` (primary amber pill), `Search`, `Inbox` (with unread badge), and `Account`. Remove redundant `Board` tab on mobile viewports (accessible via header/footer/Account overflow).
 2. **Single-Viewport Companion Home (`HomePage.tsx`):** Replace the 5 stacked blue buttons with the Event Host's branded header/logo, 2 primary hero cards (_Post a Wish_ and _Find Matching Wishes_), and a compact session status pill.
 3. **Progressive-Disclosure Bottom Sheets (`EnterWishPage.tsx` & `SearchPage.tsx`):**
    - Collapse inline `AttributeInput` pill walls into compact summary trigger rows (_"About Me: 2 selected"_, _"Match Criteria: Any"_, _"Contacts & Wishmail"_, _"Scan Physical Card"_).
@@ -68,14 +68,24 @@ For handheld viewports (`< 768px`):
 
 ## 4-Phase Separable Implementation Plan
 
-Each phase is independently valuable, testable, and deployable without blocking subsequent phases:
+Each phase is independently valuable, testable, and deployable without blocking subsequent phases. Per ADR 0010, any schema additions to routes (`openapi.js`) require regenerating the committed OpenAPI specification via `npm run api:spec`:
 
-| Phase                                                                  | Scope                                                                                                                                                                                                                           | Key Files Touched                                                                                      | Complexity     | Target PRs |
-| :--------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------- | :------------- | :--------- |
-| **Phase 1: Visual Foundation, CSS Token Engine & Account Preferences** | Refactor `styles.css` to `--wb-*` tokens; port `wishboards.app` Midnight Lounge theme; add `branding` schema to `profile.yaml` & `GET /api/config` (`1B`); add `users.ui_preferences` column & `PUT /api/users/me` persistence. | `styles.css`, `theme.css`, `EventProfileContext.tsx`, `db.js`, `users.js`, `openapi.js`                | **Low**        | 1–2 PRs    |
-| **Phase 2: Tactile 3×5 Card & Pushpin Personalization**                | Add `wishes.card_style` column; add zero-clutter inline paper & pushpin color swatches to `WishPreview` on `EnterWishPage`; render paper tints & pin colors on `WishCard` (`DisplayPage` + `SearchPage`).                       | `db.js`, `wishes.js`, `EnterWishPage.tsx`, `WishCard.tsx`, `openapi.js`                                | **Low–Medium** | 1 PR       |
-| **Phase 3: Mobile Companion UX & Scroll Elimination (`Approach 3A`)**  | Redesign `HomePage` hub & 4-tab `MobileBottomBar`; build reusable `<BottomSheet>` component; convert `EnterWishPage` & `SearchPage` attribute walls to bottom sheets; add segmented tabs to `AccountPage`.                      | `App.tsx`, `HomePage.tsx`, `EnterWishPage.tsx`, `SearchPage.tsx`, `AccountPage.tsx`, `BottomSheet.tsx` | **Medium**     | 2 PRs      |
-| **Phase 4: Live Event-Host Skinning Studio (`Approach 2B`)**           | Add `settings` table in `db.js`; add `PUT /api/admin/branding` + logo/background upload (`data/images` on Pi, S3 on Serverless) + WebSocket live-reload; add **Branding & Skin** tab in `AdminPage`.                            | `db.js`, `admin.js`, `AdminPage.tsx`, `DisplayPage.tsx`, `PosterPage.tsx`, `openapi.js`                | **Medium**     | 1–2 PRs    |
+| Phase                                                                  | Scope                                                                                                                                                                                                                                                  | Key Files Touched                                                                                           | Complexity     | Target PRs |
+| :--------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- | :------------- | :--------- |
+| **Phase 1: Visual Foundation, CSS Token Engine & Account Preferences** | Refactor `styles.css` to `--wb-*` tokens; port `wishboards.app` Midnight Lounge theme; add `branding` schema to `profile.yaml` & `GET /api/config` (`1B`); add `users.ui_preferences` column & `PUT /api/users/me` persistence; update `openapi.json`. | `styles.css`, `theme.css`, `EventProfileContext.tsx`, `db.js`, `users.js`, `openapi.js`, `api/openapi.json` | **Low**        | 1–2 PRs    |
+| **Phase 2: Tactile 3×5 Card & Pushpin Personalization**                | Add `wishes.card_style` column; add zero-clutter inline paper & pushpin color swatches to `WishPreview` on `EnterWishPage`; render paper tints & pin colors on `WishCard` (`DisplayPage` + `SearchPage`); update `openapi.json`.                       | `db.js`, `wishes.js`, `EnterWishPage.tsx`, `WishCard.tsx`, `openapi.js`, `api/openapi.json`                 | **Low–Medium** | 1 PR       |
+| **Phase 3: Mobile Companion UX & Scroll Elimination (`Approach 3A`)**  | Redesign `HomePage` hub & 5-tab `MobileBottomBar`; build reusable `<BottomSheet>` component; convert `EnterWishPage` & `SearchPage` attribute walls to bottom sheets; add segmented tabs to `AccountPage`.                                             | `App.tsx`, `HomePage.tsx`, `EnterWishPage.tsx`, `SearchPage.tsx`, `AccountPage.tsx`, `BottomSheet.tsx`      | **Medium**     | 2 PRs      |
+| **Phase 4: Live Event-Host Skinning Studio (`Approach 2B`)**           | Add `settings` table in `db.js`; add `PUT /api/admin/branding` + raster-only logo/background upload (`PNG`, `JPG`, `WebP`) + WebSocket live-reload; add **Branding & Skin** tab in `AdminPage`; update `openapi.json`.                                 | `db.js`, `admin.js`, `AdminPage.tsx`, `DisplayPage.tsx`, `PosterPage.tsx`, `openapi.js`, `api/openapi.json` | **Medium**     | 1–2 PRs    |
+
+### 5. Raster-Only Upload Policy & SVG Trade-Off Evaluation
+
+In Phase 4, uploaded brand logo and background graphics are strictly restricted to raster formats (`PNG`, `JPG`, `WebP`).
+
+- **Architecture Rationale**: Node.js does not provide a native `DOMParser` runtime in production Lambda or container environments. Server-side SVG sanitization would require adding heavy external dependencies (such as `isomorphic-dompurify` or custom XML parsers) and introducing a persistent security surface for stored Cross-Site Scripting (XSS via `<script>` tags, inline event handlers, and SSRF via external entity references). Raster images bypass this vulnerability surface entirely and natively integrate with Wishboard's existing dual-target storage pipeline (`./data/images/` on Raspberry Pi and `AWS_S3_BUCKET` on AWS Serverless).
+- **SVG Trade-Off Analysis for Future Re-evaluation**:
+  - **Pros of SVG**: Infinite vector scalability without pixellation on large 4K kiosk displays; ultra-compact payload sizes for geometric event logos; potential for dynamic CSS variable fill recoloring.
+  - **Cons of SVG**: Substantial XSS attack surface; XML parsing vulnerabilities (Billion Laughs entity expansion DoS); dependency bloat for sanitization; CSS bleeding if rendered inline without shadow DOM or `<iframe>` sandboxing.
+  - **Follow-On Consideration**: If event hosts require vector logos in the future, SVGs should be gated to pre-sanitized assets bundled with event profiles or rendered strictly inside sandboxed `<img>` tags with restrictive Content Security Policies, rather than parsed server-side.
 
 ## Alternatives Considered
 
@@ -90,6 +100,7 @@ Each phase is independently valuable, testable, and deployable without blocking 
   - True dual-persona customization (Event Host macro branding + Attendee micro tactile card and pushpin styling).
   - Offline Pi + AWS Serverless feature parity using established image storage patterns.
   - 65–70% reduction in mobile scroll depth on primary creation and discovery flows.
+  - Safe asset pipeline: raster-only uploads avoid server DOM dependencies and eliminate SVG XSS vectors.
 - **Cons:**
   - Requires updating mobile E2E test selectors in Phase 3 for attribute triggers.
   - Schema additions for `users.ui_preferences`, `wishes.card_style`, and `settings` table.

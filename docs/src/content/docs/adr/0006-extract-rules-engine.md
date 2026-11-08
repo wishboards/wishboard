@@ -14,7 +14,7 @@ Wishboard's rules engine processes complex identity matching logic, including at
 
 An investigation of existing open-source rule engines confirmed that while generic Business Rule Engines (e.g., Drools, `json-rules-engine`) and Entity Resolution tools (e.g., Splink, Dedupe) exist, there are no open-source libraries specifically designed for identity-based, bidirectional matchmaking logic.
 
-Currently, this core evaluation logic resides inside [wishes.js](file:///c:/Users/pltho/wishboard/src/server/routes/wishes.js) and is tightly coupled with Express request handlers and direct database queries from [rulesManager.js](file:///c:/Users/pltho/wishboard/src/server/rulesManager.js).
+Currently, this core evaluation logic resides inside `src/server/routes/wishes.js` and is tightly coupled with Express request handlers and direct database queries from `src/server/rulesManager.js`.
 
 To allow this unique matchmaking engine to be reused in other applications and to establish a clean architecture, we want to extract the matching engine into a separate Node.js library published under the `wishboards` GitHub organization.
 

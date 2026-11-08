@@ -9,7 +9,7 @@ title: 0004 Kiosk Data Persistence
 
 ## Context
 
-The Wishboard kiosk runs on a single Raspberry Pi under **rootless Docker**, orchestrated by `docker-compose.yml` and deployed by `scripts/build-kiosk.sh`. Unlike the serverless target (Turso + no local disk, see [ADR 0002](0002-serverless-database-architecture.md)), the kiosk keeps **all** persistent state on the Pi's SD card, unified under the host `./data` directory (bind mount):
+The Wishboard kiosk runs on a single Raspberry Pi under **rootless Docker**, orchestrated by `docker-compose.yml` and deployed by `scripts/build-kiosk.sh`. Unlike the serverless target (Turso + no local disk, see [ADR 0002](../0002-serverless-database-architecture/)), the kiosk keeps **all** persistent state on the Pi's SD card, unified under the host `./data` directory (bind mount):
 
 - **Uploaded images** in `./data/images/` (mounted as `/app/data/images` in the `wishboard` service).
 - **The libSQL database files** in `./data/db/` (mounted as `/var/lib/sqld` in the `db` service).
@@ -26,12 +26,12 @@ Raspberry Pi (rootless Docker, user: wishboard)
 └── ./data  ──bind mount──▶  containers
       (host: ~wishboard/wishboard/data)
        ├── data/images/   (uploaded images)   ──▶ wishboard container /app/data/images
-       │                                            (user: node:node)
+       │                                            (container UID 1000 -> SUBUID_START + 999)
        └── data/db/       (libSQL DB files)   ──▶ wishboard-db container /var/lib/sqld
-                                                    (user: WISHBOARD_UID:WISHBOARD_GID)
+                                                    (container UID 666  -> SUBUID_START + 665)
 ```
 
-Key point: **images and the DB live under a unified `./data` host directory.** Both are host bind mounts owned by the host `wishboard` user. By running the `db` container as the host user's UID/GID, no permission adjustments or manual `chown` steps are required.
+Key point: **images and the DB live under a unified `./data` host directory.** Under rootless Docker, container UIDs map to host subuid ranges via `/etc/subuid` offsets (`NODE_SUBUID = SUBUID_START + 999`, `SQLD_SUBUID = SUBUID_START + 665`). `scripts/build-kiosk.sh` aligns host directory permissions with these subuids automatically.
 
 ## Decisions & fixes
 
@@ -58,8 +58,12 @@ This makes the migration a genuine one-time, first-run operation instead of a pe
 ### 3. Rootless-Docker ownership of the DB volume — resolved (#145)
 
 We transitioned the database storage from a Docker named volume with post-deploy `chown` to a host bind mount `./data/db` (mounted at `/var/lib/sqld`).
-To prevent permissions conflicts on the host directory under rootless Docker, the container's execution user is dynamically set to match the host user's UID and GID: `user: "${WISHBOARD_UID:-1000}:${WISHBOARD_GID:-1000}"`.
-This allows the `sqld` process to read and write database files naturally without root access or post-deploy permission modifications. The vestigial legacy standalone migration block has been completely removed.
+Under rootless Docker, container UIDs map into subuid ranges allocated in `/etc/subuid`. Specifically:
+
+- `node` runs as container UID 1000, which maps to `SUBUID_START + 999` on the host.
+- `sqld` drops root privileges to UID 666, which maps to `SUBUID_START + 665` on the host.
+
+In `scripts/build-kiosk.sh`, host directory permissions for `./data` and `./data/db` are automatically configured to match these subuid offsets (`NODE_SUBUID` and `SQLD_SUBUID`), allowing container processes to read and write database files without permission conflicts or manual chown loops. The vestigial legacy standalone migration block has been completely removed.
 
 ### 4. `--reset-rules` is destructive and misnamed (#194) — fixed in #204
 
@@ -80,7 +84,7 @@ So the flag was both destructive (images) and ineffective (rules). **Fixed in #2
 ## Consequences
 
 - The kiosk keeps **all persistent state** under a unified `./data` directory (bind mount): images in `./data/images` and the libSQL database files in `./data/db`.
-- The DB volume manual chown loop has been eliminated; the container runs under the matching host user's UID and GID.
+- The DB volume manual chown loop has been eliminated; host permissions align with container users via /etc/subuid offset mapping.
 - The legacy `wishboard_data` named volume migration code has been removed.
 - **`--reset-rules` (fixed in #204)** clears only the DB `rules` table (reseeding the bundled defaults) and leaves `/app/data` — images, and everything else — intact.
-- The serverless target is unaffected: it has no local disk, stores the DB (and rules) in Turso, and never uses either kiosk volume (see [ADR 0002](0002-serverless-database-architecture.md)).
+- The serverless target is unaffected: it has no local disk, stores the DB (and rules) in Turso, and never uses either kiosk volume (see [ADR 0002](../0002-serverless-database-architecture/)).

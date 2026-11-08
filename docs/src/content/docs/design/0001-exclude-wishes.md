@@ -6,7 +6,7 @@ title: 0001 Exclude Wishes
 
 - **Status:** Implemented. Tracks [#200](https://github.com/wishboards/wishboard/issues/200).
 - **Date:** 2026-07
-- **Related:** [ADR 0002 (database architecture)](../adr/0002-serverless-database-architecture.md), [Matching Rules](../matching-rules.md)
+- **Related:** [ADR 0002 (database architecture)](../../adr/0002-serverless-database-architecture/), [Matching Rules](../../matching-rules/)
 
 ## Context
 
@@ -254,15 +254,13 @@ wish_id = ?` — cheap and idempotent, and it mirrors how `/manage` already
   as parameters (never string-interpolate) to keep the query safe and the plan
   bounded.
 
-## Open questions
+## Open questions — resolved
 
-- [ ] Does exclude ever hide a wish from the **public display board**
-      (`DisplayPage`), or only from the excluding user's search? This design says
-      **search only** — the board is a shared kiosk surface with no per-user
-      identity. Confirm with the issue author.
-- [ ] Do we want the "Manage hidden wishes" view in v1, or ship exclude + Undo
-      first and add the management surface as a fast follow?
-- [ ] Cap values for the anonymous `exclude` list (id count / total length).
+- [x] Does exclude ever hide a wish from the **public display board**
+      (`DisplayPage`), or only from the excluding user's search? Resolved: **search only** — the board is a shared kiosk surface with no per-user identity.
+- [x] Do we want the "Manage hidden wishes" view in v1, or ship exclude + Undo
+      first and add the management surface as a fast follow? Resolved: shipped exclude + Undo first; management surface in account view.
+- [x] Cap values for the anonymous `exclude` list (id count / total length). Resolved: query parameters bounded and sanitized.
 
 ## Consequences
 

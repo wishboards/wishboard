@@ -51,7 +51,7 @@ const db = createClient(authToken ? { url, authToken } : { url });
 // The database stays in the default rollback-journal mode ON PURPOSE — do NOT
 // enable WAL on the EFS deployment: WAL coordinates via single-host shared memory
 // and will corrupt a database accessed from multiple Lambda hosts over a network
-// filesystem. See docs/adr/0002-serverless-database-architecture.md.
+// filesystem. See docs/src/content/docs/adr/0002-serverless-database-architecture.md.
 // Connection PRAGMAs are applied individually and best-effort. A remote
 // libSQL/sqld server (the Pi/container deployment, DATABASE_URL=http://…) manages
 // concurrency itself and its Hrana parser rejects these as an "unsupported
