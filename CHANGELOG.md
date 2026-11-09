@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.35.0...wishboard-v1.35.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* resolve account auth debounce and guest wish entry contacts layout ([#597](https://github.com/wishboards/wishboard/issues/597)) ([f8fc1a3](https://github.com/wishboards/wishboard/commit/f8fc1a3e885e93202304a8ebbfb3db028f792566))
+
 ## [1.35.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.3...wishboard-v1.35.0) (2026-11-09)
 
 
