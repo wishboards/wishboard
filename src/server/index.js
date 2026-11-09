@@ -103,9 +103,12 @@ const frontendLimiter = rateLimit({
 
 app.get('/api/config', async (req, res) => {
   const { getDomainConfig } = await import('./configManager.js');
+  const { getMergedBranding } = await import('./brandingManager.js');
   const domainConfig = getDomainConfig();
+  const branding = await getMergedBranding();
   res.json({
     ...domainConfig,
+    branding,
     realtimeProvider: process.env.REALTIME_PROVIDER || 'socketio',
     domain: process.env.WISHBOARD_DOMAIN || domainConfig.domain || '',
     apIp: process.env.WISHBOARD_AP_IP || '',

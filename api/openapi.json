@@ -828,7 +828,8 @@
               "midnight",
               "daylight",
               "corkhouse",
-              "high-contrast"
+              "high-contrast",
+              "custom"
             ],
             "default": "midnight",
             "example": "midnight"
@@ -837,6 +838,16 @@
             "type": "string",
             "default": "#f59e0b",
             "example": "#f59e0b"
+          },
+          "primaryColor": {
+            "type": "string",
+            "default": "#f59e0b",
+            "example": "#f59e0b"
+          },
+          "surfaceColor": {
+            "type": "string",
+            "default": "rgba(30, 41, 59, 0.78)",
+            "example": "rgba(30, 41, 59, 0.78)"
           },
           "boardTitle": {
             "type": "string",
@@ -847,6 +858,85 @@
             "type": "string",
             "default": "Pin your convention wishes",
             "example": "Pin your convention wishes"
+          },
+          "boardTexture": {
+            "type": "string",
+            "enum": [
+              "cork",
+              "slate",
+              "linen",
+              "custom",
+              "none"
+            ],
+            "default": "cork",
+            "example": "cork"
+          },
+          "logoUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "/images/branding-logo.webp"
+          },
+          "boardBgUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "/images/branding-bg.webp"
+          }
+        }
+      },
+      "UpdateBrandingInput": {
+        "type": "object",
+        "properties": {
+          "themePreset": {
+            "type": "string",
+            "enum": [
+              "midnight",
+              "daylight",
+              "corkhouse",
+              "high-contrast",
+              "custom"
+            ],
+            "example": "midnight"
+          },
+          "accentColor": {
+            "type": "string",
+            "example": "#f59e0b"
+          },
+          "primaryColor": {
+            "type": "string",
+            "example": "#f59e0b"
+          },
+          "surfaceColor": {
+            "type": "string",
+            "example": "rgba(30, 41, 59, 0.78)"
+          },
+          "boardTitle": {
+            "type": "string",
+            "example": "Wishboard"
+          },
+          "tagline": {
+            "type": "string",
+            "example": "Pin your convention wishes"
+          },
+          "boardTexture": {
+            "type": "string",
+            "enum": [
+              "cork",
+              "slate",
+              "linen",
+              "custom",
+              "none"
+            ],
+            "example": "cork"
+          },
+          "logoUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "/images/branding-logo.webp"
+          },
+          "boardBgUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "/images/branding-bg.webp"
           }
         }
       },
@@ -3200,6 +3290,235 @@
                   "additionalProperties": {
                     "nullable": true
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/branding": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Admin get active host branding configuration",
+        "description": "Admin get active host branding configuration",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin get active host branding configuration response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Branding"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Admin update host branding configuration",
+        "description": "Admin update host branding configuration",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin update host branding configuration response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "branding": {
+                      "$ref": "#/components/schemas/Branding"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "branding"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Admin reset host branding to profile defaults",
+        "description": "Admin reset host branding to profile defaults",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin reset host branding to profile defaults response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "branding": {
+                      "$ref": "#/components/schemas/Branding"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "branding"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/branding/upload": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Admin upload raster logo or board background image",
+        "description": "Admin upload raster logo or board background image",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin upload raster logo or board background image response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "url": {
+                      "type": "string",
+                      "example": "/images/branding-123.webp"
+                    },
+                    "filename": {
+                      "type": "string",
+                      "example": "branding-123.webp"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "url",
+                    "filename"
+                  ]
                 }
               }
             }

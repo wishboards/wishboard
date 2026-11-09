@@ -374,15 +374,47 @@ export const BrandingSchema = registry.register(
   'Branding',
   z.object({
     themePreset: z
-      .enum(['midnight', 'daylight', 'corkhouse', 'high-contrast'])
+      .enum(['midnight', 'daylight', 'corkhouse', 'high-contrast', 'custom'])
       .default('midnight')
       .openapi({ example: 'midnight' }),
     accentColor: z.string().default('#f59e0b').openapi({ example: '#f59e0b' }),
+    primaryColor: z.string().default('#f59e0b').openapi({ example: '#f59e0b' }),
+    surfaceColor: z
+      .string()
+      .default('rgba(30, 41, 59, 0.78)')
+      .openapi({ example: 'rgba(30, 41, 59, 0.78)' }),
     boardTitle: z.string().default('Wishboard').openapi({ example: 'Wishboard' }),
     tagline: z
       .string()
       .default('Pin your convention wishes')
       .openapi({ example: 'Pin your convention wishes' }),
+    boardTexture: z
+      .enum(['cork', 'slate', 'linen', 'custom', 'none'])
+      .default('cork')
+      .openapi({ example: 'cork' }),
+    logoUrl: z.string().nullable().optional().openapi({ example: '/images/branding-logo.webp' }),
+    boardBgUrl: z.string().nullable().optional().openapi({ example: '/images/branding-bg.webp' }),
+  })
+);
+
+export const UpdateBrandingInputSchema = registry.register(
+  'UpdateBrandingInput',
+  z.object({
+    themePreset: z
+      .enum(['midnight', 'daylight', 'corkhouse', 'high-contrast', 'custom'])
+      .optional()
+      .openapi({ example: 'midnight' }),
+    accentColor: z.string().optional().openapi({ example: '#f59e0b' }),
+    primaryColor: z.string().optional().openapi({ example: '#f59e0b' }),
+    surfaceColor: z.string().optional().openapi({ example: 'rgba(30, 41, 59, 0.78)' }),
+    boardTitle: z.string().optional().openapi({ example: 'Wishboard' }),
+    tagline: z.string().optional().openapi({ example: 'Pin your convention wishes' }),
+    boardTexture: z
+      .enum(['cork', 'slate', 'linen', 'custom', 'none'])
+      .optional()
+      .openapi({ example: 'cork' }),
+    logoUrl: z.string().nullable().optional().openapi({ example: '/images/branding-logo.webp' }),
+    boardBgUrl: z.string().nullable().optional().openapi({ example: '/images/branding-bg.webp' }),
   })
 );
 
@@ -954,6 +986,60 @@ addAdminRoute({
   path: '/api/admin/config',
   summary: 'Admin inspect server profile & config',
   responseSchema: z.record(z.string(), z.any()),
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/branding',
+  summary: 'Admin get active host branding configuration',
+  responseSchema: BrandingSchema,
+});
+
+addAdminRoute({
+  method: 'put',
+  path: '/api/admin/branding',
+  summary: 'Admin update host branding configuration',
+  requestBody: {
+    description: 'Branding overrides',
+    content: {
+      'application/json': { schema: UpdateBrandingInputSchema },
+    },
+  },
+  responseSchema: z.object({
+    success: z.boolean().openapi({ example: true }),
+    branding: BrandingSchema,
+  }),
+});
+
+addAdminRoute({
+  method: 'delete',
+  path: '/api/admin/branding',
+  summary: 'Admin reset host branding to profile defaults',
+  responseSchema: z.object({
+    success: z.boolean().openapi({ example: true }),
+    branding: BrandingSchema,
+  }),
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/branding/upload',
+  summary: 'Admin upload raster logo or board background image',
+  requestBody: {
+    description: 'Raster image file (PNG, JPG, WEBP)',
+    content: {
+      'multipart/form-data': {
+        schema: z.object({
+          file: z.any().openapi({ type: 'string', format: 'binary' }),
+        }),
+      },
+    },
+  },
+  responseSchema: z.object({
+    success: z.boolean().openapi({ example: true }),
+    url: z.string().openapi({ example: '/images/branding-123.webp' }),
+    filename: z.string().openapi({ example: 'branding-123.webp' }),
+  }),
 });
 
 addAdminRoute({

@@ -138,6 +138,12 @@ await db.executeMultiple(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (wish_id) REFERENCES wishes(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 // WAL is opt-in for single-node deployments (the Pi/kiosk, set via

@@ -6,9 +6,11 @@ import db, { mapArg } from '../db.js';
 import { requireAdmin } from '../auth.js';
 import { generateDemoData } from '../demoSeeder.js';
 import logger, { stringifyIfNotEmpty } from '../logger.js';
-import { emitWishDeleted } from '../socket.js';
+import { emitWishDeleted, emitBrandingUpdated } from '../socket.js';
 import { getEventProfile } from '../configManager.js';
 import { reloadRules } from '../rulesManager.js';
+import { getMergedBranding, updateBranding, resetBranding } from '../brandingManager.js';
+import { createUploadMiddleware, processUploadedImage } from '../utils/imageStorage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -362,6 +364,42 @@ router.get('/config', requireAdmin, async (req, res) => {
   res.json({
     isProduction: process.env.NODE_ENV === 'production',
     hasDemoSeeds: config.demo_seeds != null,
+  });
+});
+
+router.get('/branding', requireAdmin, async (req, res) => {
+  const branding = await getMergedBranding();
+  res.json(branding);
+});
+
+router.put('/branding', requireAdmin, async (req, res) => {
+  const updated = await updateBranding(req.body);
+  emitBrandingUpdated(updated);
+  logger.info('Admin updated branding', { admin_user_id: req.user.id });
+  res.json({ success: true, branding: updated });
+});
+
+router.delete('/branding', requireAdmin, async (req, res) => {
+  const reset = await resetBranding();
+  emitBrandingUpdated(reset);
+  logger.info('Admin reset branding to profile defaults', { admin_user_id: req.user.id });
+  res.json({ success: true, branding: reset });
+});
+
+const brandingUpload = createUploadMiddleware('branding');
+
+router.post('/branding/upload', requireAdmin, brandingUpload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file uploaded.' });
+  }
+  const processed = await processUploadedImage(req.file);
+  if (processed.error) {
+    return res.status(500).json({ error: processed.error });
+  }
+  res.json({
+    success: true,
+    url: processed.url,
+    filename: processed.filename,
   });
 });
 
