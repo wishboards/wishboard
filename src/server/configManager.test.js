@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getEventProfile, getDomainConfig, clearConfigCache } from './configManager.js';
+import {
+  getEventProfile,
+  getDomainConfig,
+  clearConfigCache,
+  validateBranding,
+  DEFAULT_BRANDING,
+} from './configManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -198,5 +204,31 @@ describe('configManager', () => {
     );
     expect(config.branding.boardTitle).toBeDefined();
     expect(config.branding.accentColor).toBeDefined();
+
+    // Direct validateBranding unit tests covering edge cases & invalid values
+    expect(validateBranding(null)).toEqual(DEFAULT_BRANDING);
+    expect(validateBranding('invalid')).toEqual(DEFAULT_BRANDING);
+    expect(
+      validateBranding({
+        themePreset: 'neon-glow', // Invalid theme preset
+        accentColor: '', // Empty accent color
+        boardTitle: '   ', // Whitespace-only title
+        tagline: null, // Non-string tagline
+      })
+    ).toEqual(DEFAULT_BRANDING);
+
+    expect(
+      validateBranding({
+        themePreset: 'corkhouse',
+        accentColor: '#10b981',
+        boardTitle: 'Custom Board',
+        tagline: 'Custom Tagline',
+      })
+    ).toEqual({
+      themePreset: 'corkhouse',
+      accentColor: '#10b981',
+      boardTitle: 'Custom Board',
+      tagline: 'Custom Tagline',
+    });
   });
 });

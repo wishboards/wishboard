@@ -164,4 +164,17 @@ describe('useTheme hook', () => {
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
+
+  it('ignores invalid theme modes passed to setThemeMode', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const { result } = renderHook(() => useTheme());
+
+    await act(async () => {
+      // @ts-expect-error testing invalid theme runtime guard
+      await result.current.setThemeMode('invalid-neon-theme');
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
 });
