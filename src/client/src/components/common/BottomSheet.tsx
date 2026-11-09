@@ -110,7 +110,7 @@ export default function BottomSheet({
       }
 
       const first = elements[0];
-      const last = elements[elements.length - 1];
+      const last = elements.at(-1)!;
 
       if (e.shiftKey) {
         if (
@@ -120,14 +120,12 @@ export default function BottomSheet({
           e.preventDefault();
           last.focus();
         }
-      } else {
-        if (
-          doc?.activeElement === last ||
-          !drawerRef.current?.contains(doc?.activeElement ?? null)
-        ) {
-          e.preventDefault();
-          first.focus();
-        }
+      } else if (
+        doc?.activeElement === last ||
+        !drawerRef.current?.contains(doc?.activeElement ?? null)
+      ) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
@@ -142,6 +140,21 @@ export default function BottomSheet({
   }, [isOpen]);
 
   // 4. Touch Gesture Handlers
+  // Stop click propagation inside drawer to prevent accidental backdrop dismissal,
+  // but allow button clicks to bubble to React synthetic listeners.
+  useEffect(() => {
+    const el = drawerRef.current;
+    if (!el || !isOpen) return;
+    const handleDrawerClick = (e: MouseEvent) => {
+      if ((e.target as HTMLElement)?.closest?.('button')) return;
+      e.stopPropagation();
+    };
+    el.addEventListener('click', handleDrawerClick);
+    return () => {
+      el.removeEventListener('click', handleDrawerClick);
+    };
+  }, [isOpen]);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
 
@@ -209,10 +222,12 @@ export default function BottomSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="bottom-sheet-overlay" role="presentation" data-testid="bottom-sheet-overlay">
-      <div
+    <div className="bottom-sheet-overlay" data-testid="bottom-sheet-overlay">
+      <button
+        type="button"
         className="bottom-sheet-backdrop"
-        aria-hidden="true"
+        aria-label="Close drawer"
+        tabIndex={-1}
         data-testid="bottom-sheet-backdrop"
         onClick={handleBackdropClick}
       />
@@ -233,7 +248,6 @@ export default function BottomSheet({
           transform: translateY > 0 ? `translateY(${translateY}px)` : undefined,
           transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {showHandle && (
           <div

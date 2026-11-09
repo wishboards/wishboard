@@ -572,7 +572,7 @@ function AuthenticatedAccountPage() {
 
   const [activeTab, setActiveTab] = useState<AccountTab>(getInitialAccountTab);
 
-  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     const tabs: readonly AccountTab[] = ['wishes', 'identity', 'appearance'];
     const currentIndex = tabs.indexOf(activeTab);
     let nextIndex: number | null = null;
@@ -808,6 +808,7 @@ function AuthenticatedAccountPage() {
         className="account-tabs-nav"
         role="tablist"
         aria-label="Account sections"
+        tabIndex={0}
         onKeyDown={handleTabKeyDown}
       >
         {ACCOUNT_TABS.map((tab) => {
@@ -823,6 +824,7 @@ function AuthenticatedAccountPage() {
               tabIndex={isSelected ? 0 : -1}
               className={`account-tab-btn ${isSelected ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
+              onKeyDown={handleTabKeyDown}
             >
               <span className="account-tab-icon" aria-hidden="true">
                 {tab.icon}

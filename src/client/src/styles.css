@@ -2090,6 +2090,12 @@ table.responsive-table td {
   animation: sheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet-drawer {
+    animation: none;
+  }
+}
+
 @keyframes sheetSlideUp {
   from {
     transform: translateY(100%);
@@ -2254,7 +2260,10 @@ table.responsive-table td {
   font-size: 0.95rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
   white-space: nowrap;
 }
 
@@ -2283,7 +2292,7 @@ table.responsive-table td {
 }
 
 .account-tabpanel[hidden] {
-  display: none !important;
+  display: none;
 }
 
 /* ==========================================================================
@@ -2310,7 +2319,9 @@ table.responsive-table td {
   font-weight: 600;
   color: var(--wb-text-primary, #0f172a);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -2343,7 +2354,7 @@ table.responsive-table td {
 
 .mobile-attribute-pill .pill-count-badge.has-active {
   background: var(--wb-accent-primary, #f59e0b);
-  color: #ffffff;
+  color: var(--wb-accent-contrast, #0f172a);
 }
 
 .mobile-attribute-pill .pill-chevron {
@@ -2382,6 +2393,6 @@ table.responsive-table td {
 
 @media (min-width: 768px) {
   .mobile-only {
-    display: none !important;
+    display: none;
   }
 }

@@ -94,6 +94,17 @@ const AccountIcon = () => (
   </svg>
 );
 
+const getTabButtonClass = (isPost: boolean | undefined, isActive: boolean): string => {
+  const base = isPost ? 'mobile-tab-button mobile-tab-post' : 'mobile-tab-button';
+  return isActive ? `${base} active` : base;
+};
+
+const getTabAriaLabel = (label: string, unread: number | undefined): string => {
+  if (!unread || unread <= 0) return label;
+  const suffix = unread === 1 ? '' : 's';
+  return `${label}, ${unread} unread message${suffix}`;
+};
+
 export default React.memo(function MobileBottomBar({
   page,
   navigate,
@@ -150,9 +161,7 @@ export default React.memo(function MobileBottomBar({
       {tabs.map((tab) => {
         const isActive =
           page === tab.targetPage || (tab.id === 'inbox' && page === 'wishmail-dashboard');
-        const buttonClass = tab.isPost
-          ? `mobile-tab-button mobile-tab-post ${isActive ? 'active' : ''}`
-          : `mobile-tab-button ${isActive ? 'active' : ''}`;
+        const buttonClass = getTabButtonClass(tab.isPost, isActive);
 
         return (
           <button
@@ -160,11 +169,7 @@ export default React.memo(function MobileBottomBar({
             key={tab.id}
             className={buttonClass}
             aria-current={isActive ? 'page' : undefined}
-            aria-label={
-              tab.unread && tab.unread > 0
-                ? `${tab.label}, ${tab.unread} unread message${tab.unread === 1 ? '' : 's'}`
-                : tab.label
-            }
+            aria-label={getTabAriaLabel(tab.label, tab.unread)}
             onClick={() => navigate(tab.targetPage)}
           >
             <div className="mobile-tab-icon-wrapper">

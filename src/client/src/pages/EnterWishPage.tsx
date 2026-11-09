@@ -4,7 +4,12 @@ import { useEventProfile } from '../EventProfileContext';
 import { QRCodeSVG } from 'qrcode.react';
 import InfoToggle from '../components/InfoToggle';
 import AttributeInput from '../components/AttributeInput';
-import { parseAttributesString, fetchConflicts, getConflictWarning } from '../utils/conflicts';
+import {
+  parseAttributesString,
+  fetchConflicts,
+  getConflictWarning,
+  Conflict,
+} from '../utils/conflicts';
 import WishPreview from '../components/WishPreview';
 import {
   CardPaperColor,
@@ -40,6 +45,100 @@ function loadImage(file: File): Promise<TempImageElement> {
       reject(new Error('Failed to load image file.'));
     };
   });
+}
+
+interface MobileAttributeTriggerProps {
+  readonly title: string;
+  readonly icon: string;
+  readonly count: number;
+  readonly countLabel?: string;
+  readonly onClick: () => void;
+  readonly style?: React.CSSProperties;
+}
+
+function MobileAttributeTrigger({
+  title,
+  icon,
+  count,
+  countLabel,
+  onClick,
+  style,
+}: MobileAttributeTriggerProps) {
+  const label = countLabel ?? `${count} selected`;
+  return (
+    <div className="mobile-attribute-controls mobile-only" style={style}>
+      <button
+        type="button"
+        className="mobile-attribute-pill"
+        onClick={onClick}
+        aria-haspopup="dialog"
+        aria-label={`${title}, ${label}`}
+      >
+        <div className="pill-left">
+          <span className="pill-icon" aria-hidden="true">
+            {icon}
+          </span>
+          <span className="pill-title">{title}</span>
+        </div>
+        <div className="pill-right">
+          <span className={`pill-count-badge ${count > 0 ? 'has-active' : ''}`}>{label}</span>
+          <span className="pill-chevron" aria-hidden="true">
+            ›
+          </span>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+interface MobileAttributeSheetBodyProps {
+  readonly description: string;
+  readonly categories: Array<{ id: string; label: string; suggestions?: string[] }>;
+  readonly prefix: string;
+  readonly labelPrefix: string;
+  readonly attributes: Record<string, string>;
+  readonly onChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
+  readonly conflicts: Conflict[];
+  readonly onDone: () => void;
+}
+
+function MobileAttributeSheetBody({
+  description,
+  categories,
+  prefix,
+  labelPrefix,
+  attributes,
+  onChange,
+  conflicts,
+  onDone,
+}: MobileAttributeSheetBodyProps) {
+  return (
+    <div className="sheet-attribute-content">
+      <p className="sheet-description">{description}</p>
+      {categories.map((cat) => {
+        const suggs = cat.suggestions || [];
+        return (
+          <div key={cat.id} className="sheet-attribute-field">
+            <label htmlFor={`${prefix}-${cat.id}`}>
+              {labelPrefix} {cat.label}s
+            </label>
+            <AttributeInput
+              id={`${prefix}-${cat.id}`}
+              category={cat.id}
+              value={attributes[cat.id] || ''}
+              onChange={(val) => onChange((prev) => ({ ...prev, [cat.id]: val }))}
+              placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+              suggestions={suggs}
+              warning={getConflictWarning(conflicts, cat.id)}
+            />
+          </div>
+        );
+      })}
+      <button type="button" className="primary-button sheet-done-button" onClick={onDone}>
+        Done
+      </button>
+    </div>
+  );
 }
 
 export default function EnterWishPage() {
@@ -414,30 +513,12 @@ export default function EnterWishPage() {
                 />
               </div>
               {isMobile ? (
-                <div className="mobile-attribute-controls mobile-only">
-                  <button
-                    type="button"
-                    className="mobile-attribute-pill"
-                    onClick={() => setActiveSheet('creator')}
-                    aria-haspopup="dialog"
-                    aria-label={`Creator Attributes, ${creatorCount} selected`}
-                  >
-                    <div className="pill-left">
-                      <span className="pill-icon" aria-hidden="true">
-                        👤
-                      </span>
-                      <span className="pill-title">Creator Attributes</span>
-                    </div>
-                    <div className="pill-right">
-                      <span className={`pill-count-badge ${creatorCount > 0 ? 'has-active' : ''}`}>
-                        {creatorCount} selected
-                      </span>
-                      <span className="pill-chevron" aria-hidden="true">
-                        ›
-                      </span>
-                    </div>
-                  </button>
-                </div>
+                <MobileAttributeTrigger
+                  title="Creator Attributes"
+                  icon="👤"
+                  count={creatorCount}
+                  onClick={() => setActiveSheet('creator')}
+                />
               ) : (
                 <div className="desktop-attribute-controls desktop-only">
                   {categories.map((cat) => {
@@ -466,30 +547,14 @@ export default function EnterWishPage() {
           )}
 
           {isMobile ? (
-            <div className="mobile-attribute-controls mobile-only" style={{ margin: '16px 0' }}>
-              <button
-                type="button"
-                className="mobile-attribute-pill"
-                onClick={() => setActiveSheet('desired')}
-                aria-haspopup="dialog"
-                aria-label={`Desired Attributes, ${desiredCount} required`}
-              >
-                <div className="pill-left">
-                  <span className="pill-icon" aria-hidden="true">
-                    🎯
-                  </span>
-                  <span className="pill-title">Desired Attributes</span>
-                </div>
-                <div className="pill-right">
-                  <span className={`pill-count-badge ${desiredCount > 0 ? 'has-active' : ''}`}>
-                    {desiredCount > 0 ? `${desiredCount} required` : 'Any'}
-                  </span>
-                  <span className="pill-chevron" aria-hidden="true">
-                    ›
-                  </span>
-                </div>
-              </button>
-            </div>
+            <MobileAttributeTrigger
+              title="Desired Attributes"
+              icon="🎯"
+              count={desiredCount}
+              countLabel={desiredCount > 0 ? `${desiredCount} required` : 'Any'}
+              style={{ margin: '16px 0' }}
+              onClick={() => setActiveSheet('desired')}
+            />
           ) : (
             <>
               <div
@@ -659,35 +724,16 @@ export default function EnterWishPage() {
         onClose={() => setActiveSheet(null)}
         title={`Creator Attributes (${creatorCount})`}
       >
-        <div className="sheet-attribute-content">
-          <p className="sheet-description">
-            Select your identity attributes. These are used to match you with compatible fulfillers.
-          </p>
-          {categories.map((cat) => {
-            const suggs = cat.suggestions || [];
-            return (
-              <div key={cat.id} className="sheet-attribute-field">
-                <label htmlFor={`mobile-creator-${cat.id}`}>Creator {cat.label}s</label>
-                <AttributeInput
-                  id={`mobile-creator-${cat.id}`}
-                  category={cat.id}
-                  value={creatorAttributes[cat.id] || ''}
-                  onChange={(val) => setCreatorAttributes((prev) => ({ ...prev, [cat.id]: val }))}
-                  placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                  suggestions={suggs}
-                  warning={getConflictWarning(creatorConflicts, cat.id)}
-                />
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            className="primary-button sheet-done-button"
-            onClick={() => setActiveSheet(null)}
-          >
-            Done
-          </button>
-        </div>
+        <MobileAttributeSheetBody
+          description="Select your identity attributes. These are used to match you with compatible fulfillers."
+          categories={categories}
+          prefix="mobile-creator"
+          labelPrefix="Creator"
+          attributes={creatorAttributes}
+          onChange={setCreatorAttributes}
+          conflicts={creatorConflicts}
+          onDone={() => setActiveSheet(null)}
+        />
       </BottomSheet>
 
       <BottomSheet
@@ -695,33 +741,16 @@ export default function EnterWishPage() {
         onClose={() => setActiveSheet(null)}
         title={`Desired Attributes (${desiredCount})`}
       >
-        <div className="sheet-attribute-content">
-          <p className="sheet-description">Strict requirements for who can view this wish.</p>
-          {categories.map((cat) => {
-            const suggs = cat.suggestions || [];
-            return (
-              <div key={cat.id} className="sheet-attribute-field">
-                <label htmlFor={`mobile-desired-${cat.id}`}>Strictly required {cat.label}s</label>
-                <AttributeInput
-                  id={`mobile-desired-${cat.id}`}
-                  category={cat.id}
-                  value={desiredAttributes[cat.id] || ''}
-                  onChange={(val) => setDesiredAttributes((prev) => ({ ...prev, [cat.id]: val }))}
-                  placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                  suggestions={suggs}
-                  warning={getConflictWarning(desiredConflicts, cat.id)}
-                />
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            className="primary-button sheet-done-button"
-            onClick={() => setActiveSheet(null)}
-          >
-            Done
-          </button>
-        </div>
+        <MobileAttributeSheetBody
+          description="Strict requirements for who can view this wish."
+          categories={categories}
+          prefix="mobile-desired"
+          labelPrefix="Strictly required"
+          attributes={desiredAttributes}
+          onChange={setDesiredAttributes}
+          conflicts={desiredConflicts}
+          onDone={() => setActiveSheet(null)}
+        />
       </BottomSheet>
     </section>
   );
