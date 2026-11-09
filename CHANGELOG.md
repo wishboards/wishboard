@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.35.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.3...wishboard-v1.35.0) (2026-11-09)
+
+
+### Features
+
+* **ui:** implement mobile companion UX, bottom sheet drawers, and 5-tab navigation (ADR 0011 Phase 3) ([#595](https://github.com/wishboards/wishboard/issues/595)) ([85bedd6](https://github.com/wishboards/wishboard/commit/85bedd65bddf2cd30025c4b568dcf87128f30444))
+* **ui:** implement tactile 3x5 card styling and pushpin personalization (ADR 0011 Phase 2) ([#594](https://github.com/wishboards/wishboard/issues/594)) ([c90d3ef](https://github.com/wishboards/wishboard/commit/c90d3effa19c2d63828f050d3bc1d65c890dd1e1))
+* **ui:** implement visual foundation and CSS token engine (ADR 0011 Phase 1) ([#591](https://github.com/wishboards/wishboard/issues/591)) ([7afe443](https://github.com/wishboards/wishboard/commit/7afe44383f74f600236c7ecec2cedcde6dca60f7))
+
 ## [1.34.3](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.2...wishboard-v1.34.3) (2026-11-09)
 
 
