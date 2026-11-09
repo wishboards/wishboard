@@ -53,29 +53,56 @@ export default function WishFormFields({
 
       <fieldset
         style={{
-          border: '1px solid #d7dee5',
+          border: '1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.12))',
           borderRadius: '12px',
           padding: '16px',
-          background: '#f8fafc',
+          background: 'var(--wb-bg-surface, rgba(30, 41, 59, 0.78))',
+          color: 'var(--wb-text-primary, #f8fafc)',
           marginTop: '4px',
         }}
       >
-        <legend style={{ fontWeight: 600, padding: '0 8px' }}>Contacts & Wishmail</legend>
+        <legend
+          style={{
+            fontWeight: 600,
+            padding: '0 8px',
+            color: 'var(--wb-text-primary, #f8fafc)',
+          }}
+        >
+          Contacts & Wishmail
+        </legend>
         <div style={{ display: 'grid', gap: '12px' }}>
-          <label
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'normal' }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <input
+              id="wishmail-enabled"
               type="checkbox"
               checked={wishmailEnabled}
               onChange={(e) => setWishmailEnabled(e.target.checked)}
-              style={{ width: 'auto', minHeight: 'auto' }}
-            />{' '}
-            Enable Wishmail (allow others to message you about this wish)
-          </label>
+            />
+            <label
+              htmlFor="wishmail-enabled"
+              style={{
+                fontWeight: 'normal',
+                cursor: 'pointer',
+                color: 'var(--wb-text-primary, #f8fafc)',
+                margin: 0,
+                display: 'inline',
+              }}
+            >
+              Enable Wishmail (allow others to message you about this wish)
+            </label>
+          </div>
 
           <div>
-            <p style={{ margin: '8px 0', fontWeight: 600, fontSize: '0.9rem' }}>Contact Methods</p>
+            <p
+              style={{
+                margin: '8px 0',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                color: 'var(--wb-text-primary, #f8fafc)',
+              }}
+            >
+              Contact Methods
+            </p>
             <ContactEditor contacts={contacts} setContacts={setContacts} />
           </div>
         </div>

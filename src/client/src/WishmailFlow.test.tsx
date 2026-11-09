@@ -79,16 +79,15 @@ describe('Wishmail UI Flow', () => {
     // 1. Go to Login
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
 
-    // Switch to login tab
-    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
-
-    // Simulate typing and logging in
+    // Simulate typing username (auto-debounces and transitions mode to Login for existing user)
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'usera' } });
-    fireEvent.change(screen.getByLabelText('Passphrase'), { target: { value: 'passwordA' } });
 
-    // Submit
-    const loginButtons = screen.getAllByRole('button', { name: 'Login' });
-    fireEvent.click(loginButtons[loginButtons.length - 1]);
+    // Wait for debounced existence check to switch submit button to Login
+    const loginButton = await screen.findByRole('button', { name: 'Login' });
+
+    // Enter passphrase and submit login
+    fireEvent.change(screen.getByLabelText('Passphrase'), { target: { value: 'passwordA' } });
+    fireEvent.click(loginButton);
 
     await waitFor(() => {
       expect(screen.getByText(/Welcome back, usera/i)).toBeInTheDocument();

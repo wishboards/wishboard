@@ -49,9 +49,9 @@ describe('WishFormFields', () => {
     expect(textarea).toHaveClass('overflowing-textarea');
   });
 
-  it('toggles wishmail checkbox', () => {
+  it('renders Contacts & Wishmail fieldset with semantic tokens and accessible Wishmail checkbox', () => {
     const setWishmailEnabled = vi.fn();
-    render(
+    const { container } = render(
       <WishFormFields
         content=""
         setContent={vi.fn()}
@@ -61,15 +61,40 @@ describe('WishFormFields', () => {
         setWishmailEnabled={setWishmailEnabled}
       />
     );
-    const checkbox = screen.getByRole('checkbox', { name: /Enable Wishmail/i });
+
+    // Verify fieldset adopts semantic design tokens
+    const fieldset = container.querySelector('fieldset');
+    expect(fieldset).not.toBeNull();
+    expect(fieldset?.style.background).toContain('var(--wb-bg-surface');
+    expect(fieldset?.style.border).toContain('var(--wb-border-subtle');
+
+    // Verify legend text and styling
+    const legend = screen.getByText('Contacts & Wishmail');
+    expect(legend).toBeInTheDocument();
+    expect(legend.style.color).toContain('var(--wb-text-primary');
+
+    // Verify explicit label and checkbox association
+    const checkbox = screen.getByRole('checkbox', {
+      name: 'Enable Wishmail (allow others to message you about this wish)',
+    });
     expect(checkbox).not.toBeChecked();
+    expect(checkbox).toHaveAttribute('id', 'wishmail-enabled');
+
+    const label = screen.getByText('Enable Wishmail (allow others to message you about this wish)');
+    expect(label).toHaveAttribute('for', 'wishmail-enabled');
+
+    // Toggle via label click
+    fireEvent.click(label);
+    expect(setWishmailEnabled).toHaveBeenCalledWith(true);
+
+    // Toggle via checkbox click directly
     fireEvent.click(checkbox);
     expect(setWishmailEnabled).toHaveBeenCalledWith(true);
   });
 
-  it('adds, updates, and removes contacts', () => {
+  it('adds, updates, and removes contacts with responsive styling and accessibility attributes', () => {
     const setContacts = vi.fn();
-    const contacts = [{ type: 'FetLife', value: 'user1' }];
+    const contacts = [{ type: 'Phone', value: 'user1' }];
 
     render(
       <WishFormFields
@@ -87,22 +112,21 @@ describe('WishFormFields', () => {
     fireEvent.click(addButton);
     expect(setContacts).toHaveBeenCalledWith([...contacts, { type: 'Phone', value: '' }]);
 
-    // Update contact type
-    const selects = screen.getAllByRole('combobox');
-    expect(selects.length).toBe(1);
-    fireEvent.change(selects[0], { target: { value: 'Email' } });
-
-    // Test updateContact callback payload
+    // Update contact type using accessible combobox name
+    const typeSelect = screen.getByRole('combobox', { name: 'Contact 1 type' });
+    expect(typeSelect).toHaveValue('Phone');
+    fireEvent.change(typeSelect, { target: { value: 'Email' } });
     expect(setContacts).toHaveBeenCalledWith([{ type: 'Email', value: 'user1' }]);
 
-    // Update contact value
-    const textInputs = screen.getAllByPlaceholderText('Username, number, etc.');
-    expect(textInputs.length).toBe(1);
-    fireEvent.change(textInputs[0], { target: { value: 'newval' } });
-    expect(setContacts).toHaveBeenCalledWith([{ type: 'FetLife', value: 'newval' }]);
+    // Update contact value using accessible input name
+    const valueInput = screen.getByRole('textbox', { name: 'Contact 1 value' });
+    expect(valueInput).toHaveValue('user1');
+    fireEvent.change(valueInput, { target: { value: 'newval' } });
+    expect(setContacts).toHaveBeenCalledWith([{ type: 'Phone', value: 'newval' }]);
 
-    // Remove contact
-    const removeButton = screen.getByRole('button', { name: 'X' });
+    // Remove contact using accessible remove button name
+    const removeButton = screen.getByRole('button', { name: 'Remove contact method 1' });
+    expect(removeButton).toBeInTheDocument();
     fireEvent.click(removeButton);
     expect(setContacts).toHaveBeenCalledWith([]);
   });

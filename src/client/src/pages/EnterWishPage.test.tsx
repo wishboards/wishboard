@@ -41,9 +41,11 @@ vi.mock('../cardProcessor', () => ({
 
 describe('EnterWishPage', () => {
   let originalImage: any;
+  let originalMatchMedia: any;
 
   beforeEach(() => {
     mockEngineReject = false;
+    originalMatchMedia = (globalThis as any).matchMedia;
 
     originalImage = globalThis.Image;
     globalThis.Image = class {
@@ -73,6 +75,19 @@ describe('EnterWishPage', () => {
 
   afterEach(() => {
     globalThis.Image = originalImage;
+    if (originalMatchMedia !== undefined) {
+      Object.defineProperty(globalThis, 'matchMedia', {
+        writable: true,
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    } else {
+      try {
+        delete (globalThis as any).matchMedia;
+      } catch {
+        (globalThis as any).matchMedia = undefined;
+      }
+    }
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -472,6 +487,7 @@ describe('EnterWishPage', () => {
   it('opens mobile bottom sheet drawers for creator and desired attributes on mobile viewports', async () => {
     Object.defineProperty(globalThis, 'matchMedia', {
       writable: true,
+      configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
         matches: query === '(max-width: 767px)',
         media: query,
@@ -524,5 +540,92 @@ describe('EnterWishPage', () => {
     expect(
       screen.getByRole('button', { name: /Desired Attributes, 2 required/i })
     ).toBeInTheDocument();
+  });
+
+  it('submits guest wish with wishmail enabled and contacts payload using semantic token layout', async () => {
+    render(<EnterWishPage />);
+
+    // Verify Contacts & Wishmail fieldset adopts semantic design tokens
+    const contactsLegend = screen.getByText('Contacts & Wishmail');
+    const contactsFieldset = contactsLegend.closest('fieldset');
+    expect(contactsFieldset).not.toBeNull();
+    expect(contactsFieldset?.style.background).toContain('var(--wb-bg-surface');
+    expect(contactsFieldset?.style.border).toContain('var(--wb-border-subtle');
+
+    // Verify upload card container adopts semantic design tokens
+    const uploadText = screen.getByText('Have a physical 3x5 wish card?');
+    const uploadCard = uploadText.closest('div[style*="margin: 16px 0"]') as HTMLElement;
+    expect(uploadCard).not.toBeNull();
+    expect(uploadCard?.style.background).toContain('var(--wb-bg-surface');
+    expect(uploadCard?.style.border).toContain('var(--wb-border-subtle');
+
+    // Fill wish content
+    fireEvent.change(screen.getByPlaceholderText(/Type your wish here/i), {
+      target: { value: 'Guest wish with wishmail and contacts' },
+    });
+
+    // Check accessible Wishmail checkbox
+    const wishmailCheckbox = screen.getByRole('checkbox', {
+      name: /Enable Wishmail \(allow others to message you about this wish\)/i,
+    });
+    expect(wishmailCheckbox).not.toBeChecked();
+    fireEvent.click(wishmailCheckbox);
+    expect(wishmailCheckbox).toBeChecked();
+
+    // Add a contact method and fill it
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Contact Method' }));
+    const typeSelect = screen.getByRole('combobox', { name: 'Contact 1 type' });
+    fireEvent.change(typeSelect, { target: { value: 'Email' } });
+    const valueInput = screen.getByRole('textbox', { name: 'Contact 1 value' });
+    fireEvent.change(valueInput, { target: { value: 'guest_attendee@example.com' } });
+
+    // Submit wish
+    fireEvent.click(screen.getByRole('button', { name: /Submit Wish/i }));
+
+    await waitFor(() => expect(screen.getByText(/Wish saved! ID:/i)).toBeInTheDocument());
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/wishes',
+      expect.objectContaining({
+        method: 'POST',
+      })
+    );
+
+    const callArgs = vi.mocked(globalThis.fetch).mock.calls[0];
+    const sentPayload = JSON.parse(callArgs[1]?.body as string);
+    expect(sentPayload.content).toBe('Guest wish with wishmail and contacts');
+    expect(sentPayload.wishmail_enabled).toBe(true);
+    expect(sentPayload.contacts).toEqual([{ type: 'Email', value: 'guest_attendee@example.com' }]);
+
+    await act(async () => {
+      await delay(0);
+    });
+  });
+
+  it('renders advanced match criteria fieldset on desktop with semantic tokens', () => {
+    Object.defineProperty(globalThis, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+
+    render(<EnterWishPage />);
+
+    // Open desktop advanced match criteria
+    const showAdvancedBtn = screen.getByRole('button', {
+      name: /Show Advanced Match Criteria/i,
+    });
+    fireEvent.click(showAdvancedBtn);
+
+    const advancedLegend = screen.getByText('Advanced Match Criteria');
+    const advancedFieldset = advancedLegend.closest('fieldset');
+    expect(advancedFieldset).not.toBeNull();
+    expect(advancedFieldset?.style.background).toContain('var(--wb-bg-surface');
+    expect(advancedFieldset?.style.border).toContain('var(--wb-border-subtle');
   });
 });

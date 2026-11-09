@@ -13,18 +13,14 @@ import ConfirmDeleteAccountModal from './components/ConfirmDeleteAccountModal';
 import { parseAttributesString, fetchConflicts, getConflictWarning } from './utils/conflicts';
 import { useEventProfile, Category } from './EventProfileContext';
 
-function useUsernameExistence(username: string) {
+// eslint-disable-next-line react-refresh/only-export-components -- Exported hook co-located with AccountPage for unit testing
+export function useUsernameExistence(username: string) {
   const [existingUsername, setExistingUsername] = useState(false);
-  const [mode, setMode] = useState<'login' | 'register'>('register');
   const [prevUsername, setPrevUsername] = useState(username);
 
-  const trimmed = username.trim();
   if (username !== prevUsername) {
     setPrevUsername(username);
-    if (!trimmed) {
-      setExistingUsername(false);
-      setMode('register');
-    }
+    setExistingUsername(false);
   }
 
   useEffect(() => {
@@ -43,12 +39,10 @@ function useUsernameExistence(username: string) {
         }
         const exists = response.ok ? Boolean((await response.json()).exists) : false;
         setExistingUsername(exists);
-        setMode(exists ? 'login' : 'register');
       } catch (err) {
         console.error(err);
         if (active) {
           setExistingUsername(false);
-          setMode('register');
         }
       }
     }, 250);
@@ -59,7 +53,7 @@ function useUsernameExistence(username: string) {
     };
   }, [username]);
 
-  return { existingUsername, mode, setMode };
+  return { existingUsername };
 }
 
 function useClaimWish(token: string | null, loadWishes: () => void) {
@@ -195,35 +189,7 @@ function IdentityAttributesFields({
   );
 }
 
-interface AccountTabsProps {
-  mode: 'login' | 'register';
-  setMode: (mode: 'login' | 'register') => void;
-}
-
-function AccountTabs({ mode, setMode }: Readonly<AccountTabsProps>) {
-  return (
-    <div className="tab-buttons">
-      <button
-        type="button"
-        className={mode === 'login' ? 'nav-button active' : 'nav-button'}
-        onClick={() => setMode('login')}
-      >
-        Login
-      </button>
-      <button
-        type="button"
-        className={mode === 'register' ? 'nav-button active' : 'nav-button'}
-        onClick={() => setMode('register')}
-      >
-        Register
-      </button>
-    </div>
-  );
-}
-
 interface UnauthenticatedAccountViewProps {
-  mode: 'login' | 'register';
-  setMode: (mode: 'login' | 'register') => void;
   effectiveMode: 'login' | 'register';
   onLogin: (event: React.SyntheticEvent<HTMLFormElement>) => Promise<void>;
   onRegister: (event: React.SyntheticEvent<HTMLFormElement>) => Promise<void>;
@@ -240,8 +206,6 @@ interface UnauthenticatedAccountViewProps {
 }
 
 function UnauthenticatedAccountView({
-  mode,
-  setMode,
   effectiveMode,
   onLogin,
   onRegister,
@@ -261,7 +225,6 @@ function UnauthenticatedAccountView({
     <section>
       <h1>My Account</h1>
       <p>Create an account to manage multiple wishes, or log in if you already have one.</p>
-      <AccountTabs mode={mode} setMode={setMode} />
       <form className="form-card" onSubmit={effectiveMode === 'login' ? onLogin : onRegister}>
         <label>
           Username{' '}
@@ -392,8 +355,9 @@ function UnauthenticatedAccountPage() {
     Array<{ message: string; target_attribute: string }>
   >([]);
 
-  const { existingUsername, mode, setMode } = useUsernameExistence(username);
-  const effectiveMode = existingUsername ? 'login' : mode;
+  const { existingUsername } = useUsernameExistence(username);
+  const effectiveMode: 'login' | 'register' =
+    username.trim() && existingUsername ? 'login' : 'register';
 
   // Debounced conflict check for registration form
   useEffect(() => {
@@ -485,8 +449,6 @@ function UnauthenticatedAccountPage() {
   return (
     <>
       <UnauthenticatedAccountView
-        mode={mode}
-        setMode={setMode}
         effectiveMode={effectiveMode}
         onLogin={onLogin}
         onRegister={onRegister}
