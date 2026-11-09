@@ -10,9 +10,10 @@ package-lock.json
 *.ttf
 *.log
 
-# Managed by release-please; its changelog formatting isn't Prettier-compatible.
+# Managed by release-please; its formatting isn't Prettier-compatible.
 CHANGELOG.md
 api/CHANGELOG.md
+api/openapi.json
 
 # Astro's generated type/content cache. Prettier only reads this top-level
 # ignore file, not docs/.gitignore, so building the docs locally would otherwise

@@ -128,9 +128,13 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   e2e-tests:
-    name: Playwright E2E Tests
+    name: Playwright E2E Tests (${{ matrix.project }})
     if: ${{ !startsWith(github.head_ref, 'release-please-') }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit]
     permissions:
       contents: read
     steps:
@@ -152,13 +156,14 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-${{ matrix.project }}
           restore-keys: |
+            ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}-
             ${{ runner.os }}-playwright-
       - name: Install Playwright Browsers & System Deps
-        run: npx --no-install playwright install --with-deps
-      - name: Run Playwright E2E Smoke Tests
-        run: npm run test:e2e
+        run: npx --no-install playwright install ${{ matrix.project }} --with-deps
+      - name: Run Playwright E2E Smoke Tests (${{ matrix.project }})
+        run: npm run test:e2e -- --project=${{ matrix.project }}
         env:
           WISHBOARD_ADMIN_SECRET: e2e-admin-password
       - name: Clean up E2E Test DB
