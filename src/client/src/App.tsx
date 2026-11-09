@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth, AuthUser } from './AuthContext';
 import { EventProfileProvider } from './EventProfileContext';
+import { useTheme } from './hooks/useTheme';
 import HomePage from './pages/HomePage';
 import EnterWishPage from './pages/EnterWishPage';
 import SearchPage from './pages/SearchPage';
@@ -411,6 +412,7 @@ const ExitKioskModal = React.memo(function ExitKioskModal({
 });
 
 function AppContent() {
+  useTheme();
   const [page, setPage] = useState<PageId>(getHashPage);
   const [isKiosk, setIsKiosk] = useState<boolean>(checkIsKioskParam);
   const [showExitPrompt, setShowExitPrompt] = useState(false);

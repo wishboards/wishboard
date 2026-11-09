@@ -1,0 +1,214 @@
+/* ==========================================================================
+   Design Tokens & 3-Tier CSS Variable Architecture (ADR 0011 / Design 0003)
+   ========================================================================== */
+
+/* Tier 1: Base Theme Defaults (Midnight Lounge) */
+:root,
+[data-theme='midnight'] {
+  color-scheme: dark;
+  --color-scheme: dark;
+
+  /* Viewport & Canvas */
+  --wb-bg-canvas: #080d1a;
+  --wb-bg-surface: rgba(30, 41, 59, 0.78);
+  --wb-bg-surface-elevated: rgba(51, 65, 85, 0.85);
+
+  /* Borders & Dividers */
+  --wb-border-subtle: rgba(255, 255, 255, 0.12);
+  --wb-border-strong: rgba(255, 255, 255, 0.25);
+
+  /* Typography Colors */
+  --wb-text-primary: #f8fafc;
+  --wb-text-secondary: #94a3b8;
+  --wb-text-muted: #64748b;
+
+  /* Tier 2: Brand & Accent Defaults (Warm Amber) */
+  --wb-accent-primary: #f59e0b;
+  --wb-accent-hover: #d97706;
+  --wb-accent-subtle: rgba(245, 158, 11, 0.15);
+  --wb-accent-contrast: #0f172a;
+  --wb-brand-logo-url: url('/logo.svg');
+  --wb-board-texture: url('/textures/cork.webp');
+
+  /* Tier 3: Tactile Card & Pushpin Defaults */
+  --wb-card-paper-bg: #fffdf3;
+  --wb-card-ink: #1e293b;
+  --wb-pin-color: #ef4444;
+
+  /* Shadows */
+  --wb-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --wb-shadow-elevated: 0 20px 40px rgba(0, 0, 0, 0.6);
+
+  /* Semantic Feedback */
+  --wb-danger: #ef4444;
+  --wb-danger-hover: #dc2626;
+  --wb-danger-bg: rgba(239, 68, 68, 0.15);
+  --wb-success: #10b981;
+  --wb-success-hover: #059669;
+  --wb-success-bg: rgba(16, 185, 129, 0.15);
+
+  /* Legacy Backward Compatibility Mappings */
+  --app-bg: var(--wb-bg-canvas);
+  --card-bg: var(--wb-bg-surface);
+  --header-bg: var(--wb-bg-surface-elevated);
+  --header-text: var(--wb-text-primary);
+  --text-main: var(--wb-text-primary);
+  --card-shadow: var(--wb-shadow-card);
+  --font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Built-in Theme Presets */
+
+/* 1. Daylight (Warm Light Mode) */
+[data-theme='daylight'] {
+  color-scheme: light;
+  --color-scheme: light;
+
+  --wb-bg-canvas: #f8fafc;
+  --wb-bg-surface: #ffffff;
+  --wb-bg-surface-elevated: #f1f5f9;
+
+  --wb-border-subtle: #e2e8f0;
+  --wb-border-strong: #cbd5e1;
+
+  --wb-text-primary: #0f172a;
+  --wb-text-secondary: #475569;
+  --wb-text-muted: #94a3b8;
+
+  --wb-accent-primary: #2563eb;
+  --wb-accent-hover: #1d4ed8;
+  --wb-accent-subtle: rgba(37, 99, 235, 0.1);
+  --wb-accent-contrast: #ffffff;
+
+  --wb-card-paper-bg: #fffdf3;
+  --wb-card-ink: #1e293b;
+  --wb-pin-color: #ef4444;
+
+  --wb-shadow-card: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --wb-shadow-elevated: 0 10px 25px rgba(15, 23, 42, 0.12);
+
+  --wb-danger: #dc2626;
+  --wb-danger-hover: #b91c1c;
+  --wb-danger-bg: #fee2e2;
+  --wb-success: #16a34a;
+  --wb-success-hover: #15803d;
+  --wb-success-bg: #eef6ef;
+
+  /* Legacy aliases */
+  --app-bg: var(--wb-bg-canvas);
+  --card-bg: var(--wb-bg-surface);
+  --header-bg: #1a73e8;
+  --header-text: #ffffff;
+  --text-main: var(--wb-text-primary);
+  --card-shadow: var(--wb-shadow-card);
+}
+
+/* 2. Corkhouse (Warm Textured Corkboard Palette) */
+[data-theme='corkhouse'] {
+  color-scheme: dark;
+  --color-scheme: dark;
+
+  --wb-bg-canvas: #2b1f14;
+  --wb-bg-surface: rgba(58, 43, 31, 0.88);
+  --wb-bg-surface-elevated: rgba(78, 58, 42, 0.95);
+
+  --wb-border-subtle: rgba(217, 180, 142, 0.2);
+  --wb-border-strong: rgba(217, 180, 142, 0.4);
+
+  --wb-text-primary: #fbf7ee;
+  --wb-text-secondary: #d6c7b2;
+  --wb-text-muted: #a89880;
+
+  --wb-accent-primary: #d97706;
+  --wb-accent-hover: #b45309;
+  --wb-accent-subtle: rgba(217, 119, 6, 0.2);
+  --wb-accent-contrast: #ffffff;
+
+  --wb-card-paper-bg: #fffdf3;
+  --wb-card-ink: #1e293b;
+  --wb-pin-color: #ef4444;
+
+  --wb-shadow-card: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --wb-shadow-elevated: 0 16px 36px rgba(0, 0, 0, 0.7);
+
+  --wb-danger: #ef4444;
+  --wb-danger-hover: #dc2626;
+  --wb-danger-bg: rgba(239, 68, 68, 0.2);
+  --wb-success: #10b981;
+  --wb-success-hover: #059669;
+  --wb-success-bg: rgba(16, 185, 129, 0.2);
+
+  /* Legacy aliases */
+  --app-bg: var(--wb-bg-canvas);
+  --card-bg: var(--wb-bg-surface);
+  --header-bg: var(--wb-bg-surface-elevated);
+  --header-text: var(--wb-text-primary);
+  --text-main: var(--wb-text-primary);
+  --card-shadow: var(--wb-shadow-card);
+}
+
+/* 3. High-Contrast (WCAG AAA >= 7:1 Compliant) */
+[data-theme='high-contrast'] {
+  color-scheme: dark;
+  --color-scheme: dark;
+
+  --wb-bg-canvas: #000000;
+  --wb-bg-surface: #000000;
+  --wb-bg-surface-elevated: #121212;
+
+  --wb-border-subtle: #ffffff;
+  --wb-border-strong: #ffff00;
+
+  --wb-text-primary: #ffffff;
+  --wb-text-secondary: #ffff00;
+  --wb-text-muted: #e2e8f0;
+
+  --wb-accent-primary: #ffff00;
+  --wb-accent-hover: #ffffff;
+  --wb-accent-subtle: rgba(255, 255, 0, 0.2);
+  --wb-accent-contrast: #000000;
+
+  --wb-card-paper-bg: #000000;
+  --wb-card-ink: #ffffff;
+  --wb-pin-color: #ffff00;
+
+  --wb-shadow-card: 0 0 0 2px #ffffff;
+  --wb-shadow-elevated: 0 0 0 3px #ffff00;
+
+  --wb-danger: #ff4d4f;
+  --wb-danger-hover: #ff7875;
+  --wb-danger-bg: rgba(255, 77, 79, 0.2);
+  --wb-success: #52c41a;
+  --wb-success-hover: #73d13d;
+  --wb-success-bg: rgba(82, 196, 26, 0.2);
+
+  /* Legacy aliases */
+  --app-bg: var(--wb-bg-canvas);
+  --card-bg: var(--wb-bg-surface);
+  --header-bg: #000000;
+  --header-text: #ffff00;
+  --text-main: #ffffff;
+  --card-shadow: var(--wb-shadow-card);
+}
+
+/* Tactile 3x5 Card Paper Swatches (Design 0003 Section 3.1) */
+[data-card-paper='ivory'] {
+  --wb-card-paper-bg: #fdfbf7;
+  --wb-card-ink: #1e293b;
+}
+[data-card-paper='canary'] {
+  --wb-card-paper-bg: #fef9c3;
+  --wb-card-ink: #1e293b;
+}
+[data-card-paper='rose'] {
+  --wb-card-paper-bg: #ffe4e6;
+  --wb-card-ink: #1e293b;
+}
+[data-card-paper='sky'] {
+  --wb-card-paper-bg: #e0f2fe;
+  --wb-card-ink: #1e293b;
+}
+[data-card-paper='sage'] {
+  --wb-card-paper-bg: #dcfce7;
+  --wb-card-ink: #1e293b;
+}

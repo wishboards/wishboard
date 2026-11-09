@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useAuth, AuthUser } from './AuthContext';
+import { useAuth, AuthUser, ThemeMode } from './AuthContext';
+import { useTheme } from './hooks/useTheme';
 import { useExcludedWishes } from './hooks/useExcludedWishes';
 import { generatePassphrase } from './passphrase.js';
 import InfoToggle from './components/InfoToggle';
@@ -330,10 +331,19 @@ interface Wish {
   unread_wishmail_count?: number;
 }
 
+const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: string }> = [
+  { id: 'host-default', label: 'Event Default', icon: '🎨' },
+  { id: 'midnight', label: 'Midnight Lounge', icon: '🌙' },
+  { id: 'daylight', label: 'Daylight', icon: '☀️' },
+  { id: 'corkhouse', label: 'Corkhouse', icon: '📌' },
+  { id: 'high-contrast', label: 'High Contrast', icon: '👁️' },
+];
+
 function UnauthenticatedAccountPage() {
   const { login, register } = useAuth();
   const { excludedIds, unexcludeWish } = useExcludedWishes();
   const { categories } = useEventProfile();
+  const { themeMode, setThemeMode } = useTheme();
 
   const [username, setUsername] = useState('');
   const [passphrase, setPassphrase] = useState('');
@@ -454,6 +464,32 @@ function UnauthenticatedAccountPage() {
         error={error}
         isSubmitDisabled={regConflicts.length > 0}
       />
+      <div className="profile-edit theme-selector-card" style={{ marginTop: '24px' }}>
+        <h2 style={{ margin: '0 0 8px 0' }}>Appearance & Theme</h2>
+        <p
+          style={{
+            margin: '0 0 16px 0',
+            fontSize: '0.9rem',
+            color: 'var(--wb-text-secondary, #94a3b8)',
+          }}
+        >
+          Choose how Wishboard looks on your device. &apos;Event Default&apos; matches the
+          convention&apos;s branding.
+        </p>
+        <div className="theme-options-grid">
+          {THEME_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              className={`theme-option-btn ${themeMode === opt.id ? 'selected' : ''}`}
+              onClick={() => void setThemeMode(opt.id)}
+            >
+              <span style={{ fontSize: '1.25rem' }}>{opt.icon}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       {hiddenWishes.length > 0 && (
         <div style={{ marginTop: '40px', marginBottom: '32px' }}>
           <h2>Hidden Wishes (Not Interested)</h2>
@@ -493,6 +529,7 @@ function getInitialProfileAttributes(user: AuthUser | null): Record<string, stri
 function AuthenticatedAccountPage() {
   const { user, token, logout, refreshUser } = useAuth();
   const { categories } = useEventProfile();
+  const { themeMode, setThemeMode } = useTheme();
 
   const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>(() =>
     getInitialProfileAttributes(user)
@@ -848,6 +885,33 @@ function AuthenticatedAccountPage() {
         >
           Save attributes
         </button>
+      </div>
+
+      <div className="profile-edit theme-selector-card" style={{ marginBottom: '24px' }}>
+        <h2 style={{ margin: '0 0 8px 0' }}>Appearance & Theme</h2>
+        <p
+          style={{
+            margin: '0 0 16px 0',
+            fontSize: '0.9rem',
+            color: 'var(--wb-text-secondary, #94a3b8)',
+          }}
+        >
+          Choose how Wishboard looks on your device. &apos;Event Default&apos; matches the
+          convention&apos;s branding.
+        </p>
+        <div className="theme-options-grid">
+          {THEME_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              className={`theme-option-btn ${themeMode === opt.id ? 'selected' : ''}`}
+              onClick={() => void setThemeMode(opt.id)}
+            >
+              <span style={{ fontSize: '1.25rem' }}>{opt.icon}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="profile-edit" style={{ border: '1px solid #e53e3e', marginBottom: '32px' }}>

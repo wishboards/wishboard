@@ -1,4 +1,9 @@
 profile: lifestyle
+branding:
+  themePreset: 'midnight'
+  accentColor: '#f59e0b'
+  boardTitle: 'Wishboard'
+  tagline: 'Pin your convention wishes'
 contact_methods:
   - FetLife
   - Phone

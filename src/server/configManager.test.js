@@ -189,4 +189,14 @@ describe('configManager', () => {
     expect(config.rules.length).toBeGreaterThan(0);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('rules.yaml takes precedence'));
   });
+
+  it('validates and applies defaults for branding block', () => {
+    const config = getEventProfile();
+    expect(config.branding).toBeDefined();
+    expect(['midnight', 'daylight', 'corkhouse', 'high-contrast']).toContain(
+      config.branding.themePreset
+    );
+    expect(config.branding.boardTitle).toBeDefined();
+    expect(config.branding.accentColor).toBeDefined();
+  });
 });

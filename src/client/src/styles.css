@@ -1,3 +1,5 @@
+@import './theme.css';
+
 @font-face {
   font-family: 'Noto Color Emoji';
   font-style: normal;
@@ -7,10 +9,10 @@
 }
 
 :root {
-  color-scheme: var(--color-scheme, light);
-  font-family: var(--font-family, Inter, system-ui, sans-serif);
-  background: var(--app-bg, #fafafa);
-  color: var(--text-main, #212121);
+  color-scheme: var(--color-scheme, dark);
+  font-family: var(--font-family, 'Outfit', 'Inter', system-ui, sans-serif);
+  background: var(--wb-bg-canvas, #080d1a);
+  color: var(--wb-text-primary, #f8fafc);
 }
 
 * {
@@ -20,8 +22,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--app-bg, #f1f3f5);
-  color: var(--text-main, #212121);
+  background: var(--wb-bg-canvas, #080d1a);
+  color: var(--wb-text-primary, #f8fafc);
 }
 
 .app-shell {
@@ -47,8 +49,9 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 18px 24px;
-  background: var(--header-bg, #1a73e8);
-  color: var(--header-text, #ffffff);
+  background: var(--wb-bg-surface-elevated, #1e293b);
+  border-bottom: 1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.12));
+  color: var(--wb-text-primary, #f8fafc);
 }
 
 @media print {
@@ -137,14 +140,17 @@ body {
 }
 
 section {
-  background: var(--card-bg, #ffffff);
+  background: var(--wb-bg-surface, rgba(30, 41, 59, 0.78));
+  border: 1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.12));
   border-radius: 20px;
   padding: 24px;
-  box-shadow: var(--card-shadow, 0 10px 30px rgba(15, 23, 42, 0.08));
+  box-shadow: var(--wb-shadow-card, 0 10px 30px rgba(0, 0, 0, 0.4));
+  color: var(--wb-text-primary, #f8fafc);
 }
 
 h1 {
   margin-top: 0;
+  color: var(--wb-text-primary, #f8fafc);
 }
 
 .form-card {
@@ -157,17 +163,27 @@ label {
   display: grid;
   gap: 8px;
   font-weight: 600;
+  color: var(--wb-text-primary, #f8fafc);
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
-  border: 1px solid #d7dee5;
+  border: 1px solid var(--wb-border-subtle, #d7dee5);
   border-radius: 12px;
   padding: 14px 16px;
   font: inherit;
-  background: #f8fafc;
+  background: var(--wb-bg-surface-elevated, #f8fafc);
+  color: var(--wb-text-primary, inherit);
   min-height: 48px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--wb-accent-primary, #f59e0b);
+  border-color: var(--wb-accent-primary, #f59e0b);
 }
 
 textarea {
@@ -187,9 +203,9 @@ textarea {
 }
 
 .pill-btn {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #475569;
+  background: var(--wb-bg-surface-elevated, #f1f5f9);
+  border: 1px solid var(--wb-border-subtle, #e2e8f0);
+  color: var(--wb-text-secondary, #475569);
   border-radius: 16px;
   padding: 6px 12px;
   font-size: 0.85rem;
@@ -200,23 +216,23 @@ textarea {
 }
 
 .pill-btn:hover {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--wb-border-strong, #e2e8f0);
+  color: var(--wb-text-primary, #334155);
   transform: translateY(0);
 }
 
 .pill-btn.selected {
-  background: #e8f0fe;
-  border-color: #1a73e8;
-  color: #0d47a1;
+  background: var(--wb-accent-subtle, #e8f0fe);
+  border-color: var(--wb-accent-primary, #1a73e8);
+  color: var(--wb-accent-primary, #0d47a1);
   font-weight: 600;
 }
 
 button {
   appearance: none;
   border: none;
-  background: #1a73e8;
-  color: white;
+  background: var(--wb-accent-primary, #1a73e8);
+  color: var(--wb-accent-contrast, white);
   padding: 12px 18px;
   border-radius: 14px;
   cursor: pointer;
@@ -229,7 +245,18 @@ button {
 
 button:hover {
   transform: translateY(-1px);
-  background: #1668c5;
+  background: var(--wb-accent-hover, #1668c5);
+}
+
+.secondary-button {
+  background: transparent;
+  color: var(--wb-text-primary, #f8fafc);
+  border: 1px solid var(--wb-border-strong, rgba(255, 255, 255, 0.25));
+}
+
+.secondary-button:hover {
+  background: var(--wb-accent-subtle, rgba(245, 158, 11, 0.15));
+  border-color: var(--wb-accent-primary, #f59e0b);
 }
 
 .message {
@@ -239,13 +266,15 @@ button:hover {
 }
 
 .message.success {
-  background: #eef6ef;
-  color: #1b5e20;
+  background: var(--wb-success-bg, #eef6ef);
+  color: var(--wb-success, #1b5e20);
+  border: 1px solid var(--wb-success, #1b5e20);
 }
 
 .message.error {
-  background: #fdecea;
-  color: #b91717;
+  background: var(--wb-danger-bg, #fdecea);
+  color: var(--wb-danger, #b91717);
+  border: 1px solid var(--wb-danger, #b91717);
 }
 
 .home-actions {
@@ -301,6 +330,7 @@ button:hover {
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 4px;
   padding: 16px 18px 18px 18px;
+  color: var(--wb-card-ink, #1e293b);
   background: 
     /* Red line at top margin */
     linear-gradient(
@@ -317,7 +347,7 @@ button:hover {
         rgba(33, 150, 243, 0.08) 23px,
         rgba(33, 150, 243, 0.08) 24px
       ),
-    #fffdf3;
+    var(--wb-card-paper-bg, #fffdf3);
   background-size:
     100% 100%,
     100% 24px;
@@ -348,7 +378,7 @@ button:hover {
   transform: translateX(-50%);
   width: 14px;
   height: 14px;
-  background: radial-gradient(circle at 4px 4px, #ff5252 20%, #c62828 80%);
+  background: radial-gradient(circle at 4px 4px, var(--wb-pin-color, #ff5252) 20%, #c62828 80%);
   border-radius: 50%;
   box-shadow:
     0 10px 8px rgba(0, 0, 0, 0.3),
@@ -1845,4 +1875,47 @@ table.responsive-table td {
 .passphrase-toggle-btn svg {
   width: 16px;
   height: 16px;
+}
+
+/* Theme Selector UI (ADR 0011 Phase 1) */
+.theme-selector-card {
+  margin-top: 24px;
+}
+
+.theme-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.theme-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 10px;
+  border-radius: 14px;
+  border: 2px solid var(--wb-border-subtle);
+  background: var(--wb-bg-surface-elevated);
+  color: var(--wb-text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  min-height: 76px;
+}
+
+.theme-option-btn:hover {
+  border-color: var(--wb-accent-primary);
+  transform: translateY(-2px);
+}
+
+.theme-option-btn.selected {
+  border-color: var(--wb-accent-primary);
+  background: var(--wb-accent-subtle);
+  color: var(--wb-accent-primary);
+  box-shadow: 0 0 0 1px var(--wb-accent-primary);
 }

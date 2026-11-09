@@ -6,6 +6,43 @@ import logger from './logger.js';
 
 export const DEFAULT_EVENT_PROFILE = 'lifestyle';
 
+export const DEFAULT_BRANDING = {
+  themePreset: 'midnight',
+  accentColor: '#f59e0b',
+  boardTitle: 'Wishboard',
+  tagline: 'Pin your convention wishes',
+};
+
+const VALID_THEME_PRESETS = ['midnight', 'daylight', 'corkhouse', 'high-contrast'];
+
+export const validateBranding = (rawBranding) => {
+  if (!rawBranding || typeof rawBranding !== 'object') {
+    return { ...DEFAULT_BRANDING };
+  }
+  const themePreset = VALID_THEME_PRESETS.includes(rawBranding.themePreset)
+    ? rawBranding.themePreset
+    : DEFAULT_BRANDING.themePreset;
+  const accentColor =
+    typeof rawBranding.accentColor === 'string' && rawBranding.accentColor.trim()
+      ? rawBranding.accentColor.trim()
+      : DEFAULT_BRANDING.accentColor;
+  const boardTitle =
+    typeof rawBranding.boardTitle === 'string' && rawBranding.boardTitle.trim()
+      ? rawBranding.boardTitle.trim()
+      : DEFAULT_BRANDING.boardTitle;
+  const tagline =
+    typeof rawBranding.tagline === 'string' && rawBranding.tagline.trim()
+      ? rawBranding.tagline.trim()
+      : DEFAULT_BRANDING.tagline;
+
+  return {
+    themePreset,
+    accentColor,
+    boardTitle,
+    tagline,
+  };
+};
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -115,6 +152,8 @@ export const getEventProfile = () => {
   if (!config.contact_methods) {
     config.contact_methods = ['Phone', 'Email'];
   }
+
+  config.branding = validateBranding(config.branding);
 
   cachedConfig = config;
   return config;
