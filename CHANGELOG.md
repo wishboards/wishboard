@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.36.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.35.1...wishboard-v1.36.0) (2026-11-09)
+
+
+### Features
+
+* **ui:** implement event-host branding studio and dynamic client re-theming (ADR 0011 Phase 4) ([#599](https://github.com/wishboards/wishboard/issues/599)) ([7cf4f8b](https://github.com/wishboards/wishboard/commit/7cf4f8b06212b589d40d67baa66099f98c2cdfe3))
+
 ## [1.35.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.35.0...wishboard-v1.35.1) (2026-11-09)
 
 
