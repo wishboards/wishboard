@@ -1,4 +1,9 @@
 profile: professional
+branding:
+  themePreset: 'daylight'
+  accentColor: '#2563eb'
+  boardTitle: 'Wishboard'
+  tagline: 'Connect with convention peers'
 contact_methods:
   - LinkedIn
   - Phone

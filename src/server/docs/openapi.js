@@ -196,6 +196,7 @@ export const RegisterUserInputSchema = registry.register(
     contacts: z.any().optional(),
     wishmail_enabled: z.any().optional(),
     identity_attributes: z.any().optional(),
+    ui_preferences: z.any().optional(),
   })
 );
 
@@ -215,6 +216,18 @@ export const LoginInputSchema = registry.register(
   })
 );
 
+export const UIPreferencesSchema = registry.register(
+  'UIPreferences',
+  z.object({
+    themeMode: z
+      .enum(['host-default', 'midnight', 'daylight', 'corkhouse', 'high-contrast'])
+      .default('host-default')
+      .openapi({ example: 'host-default' }),
+    defaultCardColor: z.string().optional().openapi({ example: 'canary' }),
+    defaultPinColor: z.string().optional().openapi({ example: 'ruby' }),
+  })
+);
+
 export const UserProfileSchema = registry.register(
   'UserProfile',
   z.object({
@@ -226,6 +239,7 @@ export const UserProfileSchema = registry.register(
     contacts: z.array(z.string()).default([]),
     wishmail_enabled: z.boolean().default(true),
     identity_attributes: z.record(z.string(), z.any()).default({}),
+    ui_preferences: UIPreferencesSchema.default({ themeMode: 'host-default' }),
   })
 );
 
@@ -235,6 +249,7 @@ export const UpdateUserInputSchema = registry.register(
     contacts: z.any().optional(),
     wishmail_enabled: z.union([z.boolean(), z.number()]).optional(),
     identity_attributes: z.record(z.string(), z.any()).optional(),
+    ui_preferences: UIPreferencesSchema.optional(),
   })
 );
 
@@ -304,6 +319,22 @@ export const ResetPasswordInputSchema = registry.register(
   })
 );
 
+export const BrandingSchema = registry.register(
+  'Branding',
+  z.object({
+    themePreset: z
+      .enum(['midnight', 'daylight', 'corkhouse', 'high-contrast'])
+      .default('midnight')
+      .openapi({ example: 'midnight' }),
+    accentColor: z.string().default('#f59e0b').openapi({ example: '#f59e0b' }),
+    boardTitle: z.string().default('Wishboard').openapi({ example: 'Wishboard' }),
+    tagline: z
+      .string()
+      .default('Pin your convention wishes')
+      .openapi({ example: 'Pin your convention wishes' }),
+  })
+);
+
 export const ConfigResponseSchema = registry.register(
   'ConfigResponse',
   z.object({
@@ -313,6 +344,7 @@ export const ConfigResponseSchema = registry.register(
     isServerless: z.boolean().openapi({ example: false }),
     apiVersion: z.string().openapi({ example: '1.0.0' }),
     appVersion: z.string().openapi({ example: '1.32.1' }),
+    branding: BrandingSchema.optional(),
   })
 );
 

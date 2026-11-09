@@ -1300,4 +1300,33 @@ describe('AccountPage', () => {
       '#account?token=mobile-auth-token-123'
     );
   });
+
+  it('renders theme options and allows selecting a theme preset', async () => {
+    const refreshUser = vi.fn();
+    useAuthMock.mockReturnValue({
+      user: {
+        id: 'u1',
+        username: 'theme_user',
+        role: 'user',
+        ui_preferences: { themeMode: 'host-default' },
+      },
+      token: 'token-theme-user',
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      refreshUser,
+    });
+
+    render(<AccountPage />);
+
+    expect(screen.getByText('Appearance & Theme')).toBeInTheDocument();
+    const daylightBtn = screen.getByRole('button', { name: /Daylight/i });
+    expect(daylightBtn).toBeInTheDocument();
+
+    fireEvent.click(daylightBtn);
+
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute('data-theme')).toBe('daylight');
+    });
+  });
 });

@@ -75,6 +75,7 @@ await db.executeMultiple(`
     passphrase_salt TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     identity_attributes TEXT,
+    ui_preferences TEXT DEFAULT '{"themeMode":"host-default"}',
     created_at TEXT NOT NULL
   );
 
@@ -166,6 +167,7 @@ await ensureColumn('users', 'identity_attributes', 'TEXT');
 await ensureColumn('users', 'contacts', 'TEXT');
 await ensureColumn('users', 'wishmail_enabled', 'INTEGER DEFAULT 0');
 await ensureColumn('users', 'is_active', 'INTEGER DEFAULT 1');
+await ensureColumn('users', 'ui_preferences', 'TEXT DEFAULT \'{"themeMode":"host-default"}\'');
 await ensureColumn('wishes', 'creator_attributes', 'TEXT');
 await ensureColumn('wishes', 'desired_attributes', 'TEXT');
 await ensureColumn('wishes', 'contacts', 'TEXT');

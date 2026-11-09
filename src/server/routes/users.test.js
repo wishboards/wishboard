@@ -306,5 +306,47 @@ describe('User registration and login', () => {
       expect(wishes.status).toBe(200);
       expect(Array.isArray(wishes.body)).toBe(true);
     });
+
+    it('persists and updates UI preferences on registration and PUT /api/users/me', async () => {
+      const reg = await request(app)
+        .post('/api/users/register')
+        .send({
+          username: 'ui_pref_user',
+          passphrase: 'password123',
+          ui_preferences: { themeMode: 'corkhouse', defaultCardColor: 'canary' },
+        });
+
+      expect(reg.status).toBe(200);
+      expect(reg.body.ui_preferences).toEqual({
+        themeMode: 'corkhouse',
+        defaultCardColor: 'canary',
+      });
+      const token = reg.body.token;
+
+      // GET /me
+      const meRes = await request(app).get('/api/users/me').set('Authorization', `Bearer ${token}`);
+      expect(meRes.status).toBe(200);
+      expect(meRes.body.ui_preferences.themeMode).toBe('corkhouse');
+
+      // Update via PUT /me
+      const putRes = await request(app)
+        .put('/api/users/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          ui_preferences: { themeMode: 'daylight', defaultPinColor: 'sapphire' },
+        });
+
+      expect(putRes.status).toBe(200);
+      expect(putRes.body.ui_preferences.themeMode).toBe('daylight');
+      expect(putRes.body.ui_preferences.defaultPinColor).toBe('sapphire');
+
+      // Login returns updated ui_preferences
+      const loginRes = await request(app)
+        .post('/api/users/login')
+        .send({ username: 'ui_pref_user', passphrase: 'password123' });
+
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.ui_preferences.themeMode).toBe('daylight');
+    });
   });
 });

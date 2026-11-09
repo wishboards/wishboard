@@ -8,6 +8,14 @@ import React, {
   ReactNode,
 } from 'react';
 
+export type ThemeMode = 'host-default' | 'midnight' | 'daylight' | 'corkhouse' | 'high-contrast';
+
+export interface UIPreferences {
+  themeMode?: ThemeMode;
+  defaultCardColor?: string;
+  defaultPinColor?: string;
+}
+
 export type AuthUser = {
   id: string;
   username: string;
@@ -16,6 +24,7 @@ export type AuthUser = {
   contacts: { type: string; value: string }[];
   wishmail_enabled: boolean;
   is_active: boolean;
+  ui_preferences?: UIPreferences;
 };
 
 type AuthContextValue = {
@@ -54,10 +63,42 @@ const mapToAuthUser = (data: Record<string, unknown>): AuthUser => ({
   contacts: (data.contacts || []) as { type: string; value: string }[],
   wishmail_enabled: Boolean(data.wishmail_enabled),
   is_active: data.is_active === undefined ? true : Boolean(data.is_active),
+  ui_preferences: (data.ui_preferences as UIPreferences) || { themeMode: 'host-default' },
 });
 
+const syncLocalStoragePreferences = async (token: string, remotePrefs?: UIPreferences) => {
+  const localRaw = globalThis.localStorage?.getItem('wishboard_ui_preferences');
+  if (!localRaw) {
+    if (remotePrefs) {
+      globalThis.localStorage?.setItem('wishboard_ui_preferences', JSON.stringify(remotePrefs));
+    }
+    return;
+  }
+  try {
+    const localPrefs = JSON.parse(localRaw) as UIPreferences;
+    if (
+      localPrefs?.themeMode &&
+      localPrefs.themeMode !== 'host-default' &&
+      (!remotePrefs || remotePrefs.themeMode === 'host-default')
+    ) {
+      await fetch('/api/users/me', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ui_preferences: localPrefs }),
+      });
+    } else if (remotePrefs) {
+      globalThis.localStorage?.setItem('wishboard_ui_preferences', JSON.stringify(remotePrefs));
+    }
+  } catch (err) {
+    console.warn('Failed to sync local storage UI preferences:', err);
+  }
+};
+
 const migrateLocalStorageExclusions = async (token: string) => {
-  const localRaw = localStorage.getItem('wishboard_excluded_wishes'); // NOSONAR
+  const localRaw = globalThis.localStorage?.getItem('wishboard_excluded_wishes'); // NOSONAR
   if (!localRaw) return;
   try {
     const localIds: string[] = JSON.parse(localRaw);
@@ -100,7 +141,7 @@ function useRefreshUser({
     });
 
     if (!response.ok) {
-      localStorage.removeItem(storageKey); // NOSONAR
+      globalThis.localStorage?.removeItem(storageKey); // NOSONAR
       setToken(null);
       setUser(null);
       return;
@@ -138,9 +179,10 @@ function useAuthOperations({
       }
 
       setToken(data.token);
-      localStorage.setItem(storageKey, data.token); // NOSONAR
+      globalThis.localStorage?.setItem(storageKey, data.token); // NOSONAR
       setUser(mapToAuthUser(data));
       await migrateLocalStorageExclusions(data.token);
+      await syncLocalStoragePreferences(data.token, data.ui_preferences);
       return { success: true, role: data.role };
     },
     [setToken, setUser]
@@ -154,6 +196,16 @@ function useAuthOperations({
       contacts?: { type: string; value: string }[],
       wishmailEnabled?: boolean
     ) => {
+      let localPrefs: UIPreferences | undefined;
+      const localRaw = globalThis.localStorage?.getItem('wishboard_ui_preferences');
+      if (localRaw) {
+        try {
+          localPrefs = JSON.parse(localRaw) as UIPreferences;
+        } catch {
+          // ignore invalid json
+        }
+      }
+
       const response = await fetch('/api/users/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,6 +215,7 @@ function useAuthOperations({
           identity_attributes: identityAttributes,
           contacts,
           wishmail_enabled: wishmailEnabled,
+          ...(localPrefs ? { ui_preferences: localPrefs } : {}),
         }),
       });
 
@@ -172,16 +225,17 @@ function useAuthOperations({
       }
 
       setToken(data.token);
-      localStorage.setItem(storageKey, data.token); // NOSONAR
+      globalThis.localStorage?.setItem(storageKey, data.token); // NOSONAR
       setUser(mapToAuthUser(data));
       await migrateLocalStorageExclusions(data.token);
+      await syncLocalStoragePreferences(data.token, data.ui_preferences);
       return { success: true, secret: data.secret, role: data.role };
     },
     [setToken, setUser]
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem(storageKey); // NOSONAR
+    globalThis.localStorage?.removeItem(storageKey); // NOSONAR
     setToken(null);
     setUser(null);
   }, [setToken, setUser]);
@@ -189,7 +243,7 @@ function useAuthOperations({
   const setTokenExternally = useCallback(
     (newToken: string) => {
       setToken(newToken);
-      localStorage.setItem(storageKey, newToken); // NOSONAR
+      globalThis.localStorage?.setItem(storageKey, newToken); // NOSONAR
     },
     [setToken]
   );

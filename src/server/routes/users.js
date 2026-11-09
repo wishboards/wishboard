@@ -25,6 +25,23 @@ import {
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
 
+const VALID_THEME_MODES = ['host-default', 'midnight', 'daylight', 'corkhouse', 'high-contrast'];
+
+const parseUiPreferencesInput = (input) => {
+  if (!input || typeof input !== 'object') {
+    return { themeMode: 'host-default' };
+  }
+  const themeMode = VALID_THEME_MODES.includes(input.themeMode) ? input.themeMode : 'host-default';
+  const result = { themeMode };
+  if (typeof input.defaultCardColor === 'string' && input.defaultCardColor.trim()) {
+    result.defaultCardColor = input.defaultCardColor.trim();
+  }
+  if (typeof input.defaultPinColor === 'string' && input.defaultPinColor.trim()) {
+    result.defaultPinColor = input.defaultPinColor.trim();
+  }
+  return result;
+};
+
 router.get('/exists', validateQuery(UsernameCheckQuerySchema), async (req, res) => {
   const { username } = req.validatedQuery;
 
@@ -47,7 +64,7 @@ const validateProfile = (identityAttrs) => {
 };
 
 router.post('/register', validateBody(RegisterUserInputSchema), async (req, res) => {
-  const { username, passphrase, contacts, wishmail_enabled } = req.validatedBody;
+  const { username, passphrase, contacts, wishmail_enabled, ui_preferences } = req.validatedBody;
 
   const existingUser = await db
     .prepare('SELECT id FROM users WHERE username = ?')
@@ -71,10 +88,11 @@ router.post('/register', validateBody(RegisterUserInputSchema), async (req, res)
   }
 
   const wishmailEnabledInt = wishmail_enabled ? 1 : 0;
+  const userUiPreferences = parseUiPreferencesInput(ui_preferences);
 
   await db
     .prepare(
-      'INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, contacts, wishmail_enabled, created_at, identity_attributes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, contacts, wishmail_enabled, created_at, identity_attributes, ui_preferences) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       userId,
@@ -85,7 +103,8 @@ router.post('/register', validateBody(RegisterUserInputSchema), async (req, res)
       JSON.stringify(contacts || []),
       wishmailEnabledInt,
       now,
-      JSON.stringify(identityAttrs)
+      JSON.stringify(identityAttrs),
+      JSON.stringify(userUiPreferences)
     );
 
   logger.info('New user registered', { user_id: userId, username: username.trim() });
@@ -100,6 +119,7 @@ router.post('/register', validateBody(RegisterUserInputSchema), async (req, res)
     contacts: contacts || [],
     wishmail_enabled: Boolean(wishmailEnabledInt),
     identity_attributes: identityAttrs,
+    ui_preferences: userUiPreferences,
   });
 });
 
@@ -115,7 +135,7 @@ router.use('/me', async (req, res, next) => {
 router.put('/me', async (req, res) => {
   const user = req.user;
 
-  const { contacts, wishmail_enabled } = req.body;
+  const { contacts, wishmail_enabled, ui_preferences } = req.body;
   const identityAttrs = parseAttributesInput(req.body.identity_attributes);
 
   const { error } = validateProfile(identityAttrs);
@@ -125,14 +145,20 @@ router.put('/me', async (req, res) => {
 
   const wishmailEnabledInt = wishmail_enabled ? 1 : 0;
 
+  let updatedUiPreferences = user.ui_preferences || { themeMode: 'host-default' };
+  if (ui_preferences && typeof ui_preferences === 'object') {
+    updatedUiPreferences = parseUiPreferencesInput({ ...updatedUiPreferences, ...ui_preferences });
+  }
+
   await db
     .prepare(
-      'UPDATE users SET contacts = ?, wishmail_enabled = ?, identity_attributes = ? WHERE id = ?'
+      'UPDATE users SET contacts = ?, wishmail_enabled = ?, identity_attributes = ?, ui_preferences = ? WHERE id = ?'
     )
     .run(
       JSON.stringify(contacts || []),
       wishmailEnabledInt,
       JSON.stringify(identityAttrs),
+      JSON.stringify(updatedUiPreferences),
       user.id
     );
 
@@ -143,6 +169,7 @@ router.put('/me', async (req, res) => {
     contacts: contacts || [],
     wishmail_enabled: Boolean(wishmailEnabledInt),
     identity_attributes: identityAttrs,
+    ui_preferences: updatedUiPreferences,
   });
 });
 
@@ -151,7 +178,7 @@ router.post('/login', validateBody(LoginInputSchema), async (req, res) => {
 
   const user = await db
     .prepare(
-      'SELECT id, username, role, is_active, passphrase_hash, passphrase_salt, contacts, wishmail_enabled, identity_attributes FROM users WHERE username = ?'
+      'SELECT id, username, role, is_active, passphrase_hash, passphrase_salt, contacts, wishmail_enabled, identity_attributes, ui_preferences FROM users WHERE username = ?'
     )
     .get(username.trim());
   if (
@@ -173,6 +200,10 @@ router.post('/login', validateBody(LoginInputSchema), async (req, res) => {
     contacts: parseJsonArray(user.contacts),
     wishmail_enabled: Boolean(user.wishmail_enabled),
     identity_attributes: parseJsonObject(user.identity_attributes),
+    ui_preferences: {
+      themeMode: 'host-default',
+      ...parseJsonObject(user.ui_preferences),
+    },
   });
 });
 

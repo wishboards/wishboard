@@ -79,7 +79,7 @@ export const getUserFromToken = async (token) => {
   }
   const row = await db
     .prepare(
-      'SELECT u.id, u.username, u.role, u.is_active, u.contacts, u.wishmail_enabled, u.identity_attributes FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ?'
+      'SELECT u.id, u.username, u.role, u.is_active, u.contacts, u.wishmail_enabled, u.identity_attributes, u.ui_preferences FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ? AND s.expires_at > ?'
     )
     .get(token, new Date().toISOString());
   if (!row) {
@@ -93,6 +93,10 @@ export const getUserFromToken = async (token) => {
     contacts: parseJsonArray(row.contacts),
     wishmail_enabled: Boolean(row.wishmail_enabled),
     identity_attributes: parseJsonObject(row.identity_attributes),
+    ui_preferences: {
+      themeMode: 'host-default',
+      ...parseJsonObject(row.ui_preferences),
+    },
   };
 };
 

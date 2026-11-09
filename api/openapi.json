@@ -425,6 +425,9 @@
           },
           "identity_attributes": {
             "nullable": true
+          },
+          "ui_preferences": {
+            "nullable": true
           }
         },
         "required": ["username"]
@@ -444,6 +447,25 @@
           }
         },
         "required": ["username", "passphrase"]
+      },
+      "UIPreferences": {
+        "type": "object",
+        "properties": {
+          "themeMode": {
+            "type": "string",
+            "enum": ["host-default", "midnight", "daylight", "corkhouse", "high-contrast"],
+            "default": "host-default",
+            "example": "host-default"
+          },
+          "defaultCardColor": {
+            "type": "string",
+            "example": "canary"
+          },
+          "defaultPinColor": {
+            "type": "string",
+            "example": "ruby"
+          }
+        }
       },
       "UserProfile": {
         "type": "object",
@@ -486,6 +508,9 @@
               "nullable": true
             },
             "default": {}
+          },
+          "ui_preferences": {
+            "$ref": "#/components/schemas/UIPreferences"
           }
         },
         "required": ["id", "username", "role", "is_active"]
@@ -511,6 +536,9 @@
             "additionalProperties": {
               "nullable": true
             }
+          },
+          "ui_preferences": {
+            "$ref": "#/components/schemas/UIPreferences"
           }
         }
       },
@@ -649,6 +677,32 @@
           }
         }
       },
+      "Branding": {
+        "type": "object",
+        "properties": {
+          "themePreset": {
+            "type": "string",
+            "enum": ["midnight", "daylight", "corkhouse", "high-contrast"],
+            "default": "midnight",
+            "example": "midnight"
+          },
+          "accentColor": {
+            "type": "string",
+            "default": "#f59e0b",
+            "example": "#f59e0b"
+          },
+          "boardTitle": {
+            "type": "string",
+            "default": "Wishboard",
+            "example": "Wishboard"
+          },
+          "tagline": {
+            "type": "string",
+            "default": "Pin your convention wishes",
+            "example": "Pin your convention wishes"
+          }
+        }
+      },
       "ConfigResponse": {
         "type": "object",
         "properties": {
@@ -675,6 +729,9 @@
           "appVersion": {
             "type": "string",
             "example": "1.32.1"
+          },
+          "branding": {
+            "$ref": "#/components/schemas/Branding"
           }
         },
         "required": [

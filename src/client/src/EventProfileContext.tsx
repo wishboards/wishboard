@@ -7,11 +7,21 @@ export interface Category {
   suggestions?: string[];
 }
 
+export type ThemePreset = 'midnight' | 'daylight' | 'corkhouse' | 'high-contrast';
+
+export interface BrandingConfig {
+  themePreset?: ThemePreset;
+  accentColor?: string;
+  boardTitle?: string;
+  tagline?: string;
+}
+
 export interface EventProfile {
   profile: string;
   title?: string;
   contact_methods: string[];
   categories: Category[];
+  branding?: BrandingConfig;
   stickers?: Record<
     string,
     Record<
@@ -35,6 +45,12 @@ const emptyProfile: EventProfile = {
   profile: '',
   contact_methods: ['Phone', 'Email'],
   categories: [],
+  branding: {
+    themePreset: 'midnight',
+    accentColor: '#f59e0b',
+    boardTitle: 'Wishboard',
+    tagline: 'Pin your convention wishes',
+  },
   realtimeProvider: 'socketio',
   apIp: '',
   isServerless: false,
