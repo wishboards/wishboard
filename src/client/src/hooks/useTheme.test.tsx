@@ -129,5 +129,39 @@ describe('useTheme hook', () => {
 
     globalThis.localStorage.setItem(STORAGE_PREFERENCES_KEY, 'invalid-json');
     expect(getStoredPreferences().themeMode).toBe('host-default');
+
+    // Test localStorage error in setStoredPreferences
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceeded');
+    });
+    setStoredPreferences({ themeMode: 'midnight' });
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+    setItemSpy.mockRestore();
+  });
+
+  it('handles network failure gracefully when persisting theme preference to server', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    useAuthMock.mockReturnValue({
+      user: {
+        id: 'user-1',
+        username: 'alice',
+        ui_preferences: { themeMode: 'host-default' },
+      },
+      token: 'jwt-alice',
+      refreshUser: vi.fn(),
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+
+    const { result } = renderHook(() => useTheme());
+
+    await act(async () => {
+      await result.current.setThemeMode('high-contrast');
+    });
+
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
