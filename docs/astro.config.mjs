@@ -46,6 +46,7 @@ export default defineConfig({
             { label: 'Forking & Bootstrapping Guide', slug: 'forking-guide' },
             { label: 'Deployment Guide', slug: 'deployment-guide' },
             { label: 'Serverless Deployment', slug: 'serverless-deployment' },
+            { label: 'Hardware & Kiosk Validation Matrix', slug: 'hardware-validation-matrix' },
             { label: 'Event Profiles', slug: 'event-profiles' },
             { label: 'Matching Rules', slug: 'matching-rules' },
             { label: 'Mutation Testing', slug: 'mutation-testing' },
