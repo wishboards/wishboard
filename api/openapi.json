@@ -69,6 +69,39 @@
         },
         "required": ["success"]
       },
+      "CardPaperColor": {
+        "type": "string",
+        "enum": ["ivory", "canary", "rose", "sky", "sage"]
+      },
+      "CardPinColor": {
+        "type": "string",
+        "enum": ["ruby", "amber", "emerald", "sapphire", "violet"]
+      },
+      "CardStyle": {
+        "type": "object",
+        "properties": {
+          "paperColor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardPaperColor"
+              },
+              {
+                "example": "ivory"
+              }
+            ]
+          },
+          "pinColor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardPinColor"
+              },
+              {
+                "example": "ruby"
+              }
+            ]
+          }
+        }
+      },
       "Wish": {
         "type": "object",
         "properties": {
@@ -146,6 +179,9 @@
             "type": "string",
             "nullable": true,
             "example": "/images/card_123.jpg"
+          },
+          "card_style": {
+            "$ref": "#/components/schemas/CardStyle"
           }
         },
         "required": ["id", "content", "created_at", "status"]
@@ -286,6 +322,16 @@
           "passphrase": {
             "type": "string",
             "example": "apple-river-forest"
+          },
+          "card_style": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardStyle"
+              },
+              {
+                "nullable": true
+              }
+            ]
           }
         },
         "required": ["content"]

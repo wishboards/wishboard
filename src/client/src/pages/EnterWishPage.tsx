@@ -6,6 +6,15 @@ import InfoToggle from '../components/InfoToggle';
 import AttributeInput from '../components/AttributeInput';
 import { parseAttributesString, fetchConflicts, getConflictWarning } from '../utils/conflicts';
 import WishPreview from '../components/WishPreview';
+import {
+  CardPaperColor,
+  CardPinColor,
+  DEFAULT_PAPER_COLOR,
+  DEFAULT_PIN_COLOR,
+  PAPER_COLORS,
+  PIN_COLORS,
+} from '../components/WishCard';
+import { getStoredPreferences } from '../hooks/useTheme';
 import WishFormFields from '../components/WishFormFields';
 import PassphraseInput from '../components/PassphraseInput';
 const WishScanner = React.lazy(() => import('../components/WishScanner'));
@@ -52,11 +61,41 @@ export default function EnterWishPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
 
+  const getPreferredColors = React.useCallback(() => {
+    const prefs = user?.ui_preferences || getStoredPreferences();
+    const p =
+      typeof prefs?.defaultCardColor === 'string' &&
+      (PAPER_COLORS as readonly string[]).includes(prefs.defaultCardColor)
+        ? (prefs.defaultCardColor as CardPaperColor)
+        : DEFAULT_PAPER_COLOR;
+    const pin =
+      typeof prefs?.defaultPinColor === 'string' &&
+      (PIN_COLORS as readonly string[]).includes(prefs.defaultPinColor)
+        ? (prefs.defaultPinColor as CardPinColor)
+        : DEFAULT_PIN_COLOR;
+    return { paper: p, pin };
+  }, [user?.ui_preferences]);
+
+  const [paperColor, setPaperColor] = useState<CardPaperColor>(() => getPreferredColors().paper);
+  const [pinColor, setPinColor] = useState<CardPinColor>(() => getPreferredColors().pin);
+
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
     if (user) {
       setContacts(user.contacts || []);
       setWishmailEnabled(user.wishmail_enabled || false);
+      if (
+        typeof user.ui_preferences?.defaultCardColor === 'string' &&
+        (PAPER_COLORS as readonly string[]).includes(user.ui_preferences.defaultCardColor)
+      ) {
+        setPaperColor(user.ui_preferences.defaultCardColor as CardPaperColor);
+      }
+      if (
+        typeof user.ui_preferences?.defaultPinColor === 'string' &&
+        (PIN_COLORS as readonly string[]).includes(user.ui_preferences.defaultPinColor)
+      ) {
+        setPinColor(user.ui_preferences.defaultPinColor as CardPinColor);
+      }
     }
   }
 
@@ -118,6 +157,7 @@ export default function EnterWishPage() {
       formData.append('desired_attributes', JSON.stringify(desiredAttributes));
       formData.append('contacts', JSON.stringify(contacts));
       formData.append('wishmail_enabled', wishmailEnabled ? 'true' : '');
+      formData.append('card_style', JSON.stringify({ paperColor, pinColor }));
       formData.append('image', imageBlob, 'wish.jpg');
       body = formData;
     } else {
@@ -128,6 +168,7 @@ export default function EnterWishPage() {
         desired_attributes: desiredAttributes,
         contacts,
         wishmail_enabled: wishmailEnabled,
+        card_style: { paperColor, pinColor },
       });
     }
 
@@ -166,6 +207,9 @@ export default function EnterWishPage() {
     setWishmailEnabled(false);
     setIsOverflowing(false);
     setImageBlob(null);
+    const defaults = getPreferredColors();
+    setPaperColor(defaults.paper);
+    setPinColor(defaults.pin);
   };
 
   const parsedCreatorAttributes: Record<string, string[]> = {};
@@ -196,6 +240,7 @@ export default function EnterWishPage() {
     contacts: contacts.filter((c) => c.value.trim()),
     wishmail_enabled: wishmailEnabled,
     image_url: previewImageUrl,
+    card_style: { paperColor, pinColor },
   };
 
   const renderUploadSection = () => {
@@ -452,7 +497,12 @@ export default function EnterWishPage() {
           </button>
         </form>
 
-        <WishPreview wish={previewWish} onOverflowChange={setIsOverflowing} />
+        <WishPreview
+          wish={previewWish}
+          onOverflowChange={setIsOverflowing}
+          onPaperColorChange={setPaperColor}
+          onPinColorChange={setPinColor}
+        />
       </div>
 
       {result && (

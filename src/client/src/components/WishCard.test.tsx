@@ -266,4 +266,84 @@ describe('WishCard', () => {
       expect(container.querySelector('.identity-stickers')).toBeNull();
     });
   });
+
+  describe('Tactile 3x5 Card & Pushpin styling', () => {
+    it('applies default ivory paper and ruby pin attributes when card_style is omitted', () => {
+      const wish = { id: 'w-default-style', content: 'Default card style' };
+      const { container } = render(<WishCard wish={wish} />);
+      const article = container.querySelector('article');
+
+      expect(article).toHaveAttribute('data-card-paper', 'ivory');
+      expect(article).toHaveAttribute('data-card-pin', 'ruby');
+    });
+
+    it('applies custom paper and pin attributes from card_style object', () => {
+      const wish = {
+        id: 'w-custom-style',
+        content: 'Custom style',
+        card_style: { paperColor: 'sage', pinColor: 'sapphire' } as const,
+      };
+      const { container } = render(<WishCard wish={wish} />);
+      const article = container.querySelector('article');
+
+      expect(article).toHaveAttribute('data-card-paper', 'sage');
+      expect(article).toHaveAttribute('data-card-pin', 'sapphire');
+    });
+
+    it('parses stringified JSON card_style safely', () => {
+      const wish = {
+        id: 'w-json-style',
+        content: 'JSON style',
+        card_style: JSON.stringify({ paperColor: 'canary', pinColor: 'emerald' }),
+      };
+      const { container } = render(<WishCard wish={wish} />);
+      const article = container.querySelector('article');
+
+      expect(article).toHaveAttribute('data-card-paper', 'canary');
+      expect(article).toHaveAttribute('data-card-pin', 'emerald');
+    });
+
+    it('falls back to defaults for invalid color strings in card_style', () => {
+      const wish = {
+        id: 'w-invalid-style',
+        content: 'Invalid style',
+        card_style: { paperColor: 'neon' as any, pinColor: 'black' as any },
+      };
+      const { container } = render(<WishCard wish={wish} />);
+      const article = container.querySelector('article');
+
+      expect(article).toHaveAttribute('data-card-paper', 'ivory');
+      expect(article).toHaveAttribute('data-card-pin', 'ruby');
+    });
+
+    it('renders interactive pushpin button when onPinClick is provided', () => {
+      const wish = { id: 'w-interactive-pin', content: 'Interactive pin' };
+      const onPinClick = vi.fn();
+      const { container } = render(<WishCard wish={wish} onPinClick={onPinClick} />);
+
+      const article = container.querySelector('article');
+      expect(article).toHaveClass('has-interactive-pin');
+
+      const pinBtn = screen.getByRole('button', { name: /Pushpin: ruby/i });
+      expect(pinBtn).toBeInTheDocument();
+
+      fireEvent.click(pinBtn);
+      expect(onPinClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders paper color swatches and fires onPaperColorChange when clicked', () => {
+      const wish = { id: 'w-swatches', content: 'Card swatches' };
+      const onPaperColorChange = vi.fn();
+      render(<WishCard wish={wish} onPaperColorChange={onPaperColorChange} />);
+
+      const radioGroup = screen.getByRole('radiogroup', { name: 'Card paper color' });
+      expect(radioGroup).toBeInTheDocument();
+
+      const canaryBtn = screen.getByRole('radio', { name: 'Select canary paper' });
+      expect(canaryBtn).toBeInTheDocument();
+
+      fireEvent.click(canaryBtn);
+      expect(onPaperColorChange).toHaveBeenCalledWith('canary');
+    });
+  });
 });

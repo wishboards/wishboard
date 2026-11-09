@@ -97,13 +97,17 @@ const INSERT_USER_SQL = `
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
+const CARD_PAPER_COLORS = ['ivory', 'canary', 'rose', 'sky', 'sage'];
+const CARD_PIN_COLORS = ['ruby', 'amber', 'emerald', 'sapphire', 'violet'];
+
 const INSERT_WISH_SQL = `
   INSERT INTO wishes (
     id, user_id, content,
     creator_attributes, desired_attributes,
     contacts, wishmail_enabled,
-    created_at, updated_at, flagged
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    created_at, updated_at, flagged,
+    card_style
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
 function buildClearDemoDataStmts() {
@@ -216,6 +220,10 @@ function buildSingleWishStmt(randomUser, attributePools, contactMethods, demoSee
     });
   }
 
+  const paperColor = CARD_PAPER_COLORS[crypto.randomInt(0, CARD_PAPER_COLORS.length)];
+  const pinColor = CARD_PIN_COLORS[crypto.randomInt(0, CARD_PIN_COLORS.length)];
+  const cardStyle = JSON.stringify({ paperColor, pinColor });
+
   return {
     sql: INSERT_WISH_SQL,
     args: [
@@ -229,6 +237,7 @@ function buildSingleWishStmt(randomUser, attributePools, contactMethods, demoSee
       date,
       date,
       0,
+      cardStyle,
     ],
   };
 }

@@ -683,4 +683,137 @@ describe('Wish creation, claim, and management API edge cases', () => {
     expect(queryRes.status).toBe(200);
     expect(queryRes.body.length).toBe(2);
   });
+
+  describe('Card style validation and persistence', () => {
+    it('persists default card style when omitted or null', async () => {
+      const omittedRes = await request(app)
+        .post('/api/wishes')
+        .send({ content: 'Wish without card style' });
+      expect(omittedRes.status).toBe(201);
+
+      const getRes1 = await request(app).get(`/api/wishes/${omittedRes.body.id}`);
+      expect(getRes1.status).toBe(200);
+      expect(getRes1.body.card_style).toEqual({ paperColor: 'ivory', pinColor: 'ruby' });
+
+      const nullRes = await request(app)
+        .post('/api/wishes')
+        .send({ content: 'Wish with null card style', card_style: null });
+      expect(nullRes.status).toBe(201);
+
+      const getRes2 = await request(app).get(`/api/wishes/${nullRes.body.id}`);
+      expect(getRes2.status).toBe(200);
+      expect(getRes2.body.card_style).toEqual({ paperColor: 'ivory', pinColor: 'ruby' });
+    });
+
+    it('persists explicit card style correctly', async () => {
+      const createRes = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Rose and sapphire wish',
+          card_style: { paperColor: 'rose', pinColor: 'sapphire' },
+        });
+      expect(createRes.status).toBe(201);
+
+      const getRes = await request(app).get(`/api/wishes/${createRes.body.id}`);
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.card_style).toEqual({ paperColor: 'rose', pinColor: 'sapphire' });
+    });
+
+    it('defaults missing properties when partial card style is provided', async () => {
+      const paperOnlyRes = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Sky paper only',
+          card_style: { paperColor: 'sky' },
+        });
+      expect(paperOnlyRes.status).toBe(201);
+
+      const getRes1 = await request(app).get(`/api/wishes/${paperOnlyRes.body.id}`);
+      expect(getRes1.status).toBe(200);
+      expect(getRes1.body.card_style).toEqual({ paperColor: 'sky', pinColor: 'ruby' });
+
+      const pinOnlyRes = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Emerald pin only',
+          card_style: { pinColor: 'emerald' },
+        });
+      expect(pinOnlyRes.status).toBe(201);
+
+      const getRes2 = await request(app).get(`/api/wishes/${pinOnlyRes.body.id}`);
+      expect(getRes2.status).toBe(200);
+      expect(getRes2.body.card_style).toEqual({ paperColor: 'ivory', pinColor: 'emerald' });
+    });
+
+    it('rejects invalid paperColor with HTTP 400', async () => {
+      const res = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Bad paper color',
+          card_style: { paperColor: 'hotpink' },
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('paperColor');
+    });
+
+    it('rejects invalid pinColor with HTTP 400', async () => {
+      const res = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Bad pin color',
+          card_style: { pinColor: 'black' },
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('pinColor');
+    });
+
+    it('parses stringified card_style from multipart/form-data upload', async () => {
+      const res = await request(app)
+        .post('/api/wishes')
+        .field('content', 'Multipart with card style')
+        .field('card_style', JSON.stringify({ paperColor: 'sage', pinColor: 'amber' }));
+
+      expect(res.status).toBe(201);
+
+      const getRes = await request(app).get(`/api/wishes/${res.body.id}`);
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.card_style).toEqual({ paperColor: 'sage', pinColor: 'amber' });
+    });
+
+    it('rejects malformed JSON string card_style with HTTP 400', async () => {
+      const res = await request(app)
+        .post('/api/wishes')
+        .field('content', 'Malformed json style')
+        .field('card_style', '{ not-valid-json');
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Invalid card_style payload');
+    });
+
+    it('returns default card_style for legacy wishes with NULL in database', async () => {
+      const now = new Date().toISOString();
+      await db
+        .prepare(
+          'INSERT INTO wishes (id, content, created_at, updated_at, card_style) VALUES (?, ?, ?, ?, NULL)'
+        )
+        .run('legacy_wish_1', 'Legacy wish without style', now, now);
+
+      const getRes = await request(app).get('/api/wishes/legacy_wish_1');
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.card_style).toEqual({ paperColor: 'ivory', pinColor: 'ruby' });
+
+      const listRes = await request(app).get('/api/wishes').query({ ignore_attributes: '1' });
+      expect(listRes.status).toBe(200);
+      const legacyInList = listRes.body.find((w) => w.id === 'legacy_wish_1');
+      expect(legacyInList).toBeDefined();
+      expect(legacyInList.card_style).toEqual({ paperColor: 'ivory', pinColor: 'ruby' });
+
+      const randomRes = await request(app).get('/api/wishes/random').query({ limit: 10 });
+      expect(randomRes.status).toBe(200);
+      const legacyInRandom = randomRes.body.find((w) => w.id === 'legacy_wish_1');
+      if (legacyInRandom) {
+        expect(legacyInRandom.card_style).toEqual({ paperColor: 'ivory', pinColor: 'ruby' });
+      }
+    });
+  });
 });

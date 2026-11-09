@@ -293,11 +293,19 @@ describe('User registration and login', () => {
       expect(react.body.success).toBe(true);
     });
 
-    it('returns user wishes list with unread wishmail count', async () => {
+    it('returns user wishes list with unread wishmail count and card_style', async () => {
       const reg = await request(app)
         .post('/api/users/register')
         .send({ username: 'wishes_list_user', passphrase: 'password123' });
       const token = reg.body.token;
+
+      await request(app)
+        .post('/api/wishes')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          content: 'My styled user wish',
+          card_style: { paperColor: 'canary', pinColor: 'emerald' },
+        });
 
       const wishes = await request(app)
         .get('/api/users/me/wishes')
@@ -305,6 +313,8 @@ describe('User registration and login', () => {
 
       expect(wishes.status).toBe(200);
       expect(Array.isArray(wishes.body)).toBe(true);
+      expect(wishes.body.length).toBe(1);
+      expect(wishes.body[0].card_style).toEqual({ paperColor: 'canary', pinColor: 'emerald' });
     });
 
     it('persists and updates UI preferences on registration and PUT /api/users/me', async () => {

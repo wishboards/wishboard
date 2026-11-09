@@ -20,6 +20,9 @@ describe('OpenAPI Specification Generator', () => {
     expect(schemas).toBeDefined();
     expect(schemas).toHaveProperty('Wish');
     expect(schemas).toHaveProperty('CreateWishInput');
+    expect(schemas).toHaveProperty('CardStyle');
+    expect(schemas).toHaveProperty('CardPaperColor');
+    expect(schemas).toHaveProperty('CardPinColor');
     expect(schemas).toHaveProperty('ManageWishInput');
     expect(schemas).toHaveProperty('ClaimWishInput');
     expect(schemas).toHaveProperty('ExclusionImportInput');

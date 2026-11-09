@@ -63,6 +63,23 @@ import { ensureArray } from '../utils/arrays.js';
 import { validateBody } from '../utils/validation.js';
 import { CreateWishInputSchema } from '../docs/openapi.js';
 
+export const CARD_PAPER_COLORS = ['ivory', 'canary', 'rose', 'sky', 'sage'];
+export const CARD_PIN_COLORS = ['ruby', 'amber', 'emerald', 'sapphire', 'violet'];
+export const DEFAULT_CARD_STYLE = Object.freeze({ paperColor: 'ivory', pinColor: 'ruby' });
+
+export function parseCardStyle(raw) {
+  if (!raw) return { ...DEFAULT_CARD_STYLE };
+  const parsed = typeof raw === 'string' ? parseJsonSafe(raw) : raw;
+  return {
+    paperColor: CARD_PAPER_COLORS.includes(parsed?.paperColor)
+      ? parsed.paperColor
+      : DEFAULT_CARD_STYLE.paperColor,
+    pinColor: CARD_PIN_COLORS.includes(parsed?.pinColor)
+      ? parsed.pinColor
+      : DEFAULT_CARD_STYLE.pinColor,
+  };
+}
+
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
 
@@ -128,7 +145,7 @@ const uploadImageToS3 = async (file) => {
 };
 
 router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), async (req, res) => {
-  const { content, passphrase, contacts, wishmail_enabled } = req.validatedBody;
+  const { content, passphrase, contacts, wishmail_enabled, card_style } = req.validatedBody;
 
   const imageId = req.file ? req.file.filename : null;
 
@@ -185,7 +202,7 @@ router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), as
   const now = new Date().toISOString();
   await db
     .prepare(
-      'INSERT INTO wishes (id, user_id, content, secret_hash, contacts, wishmail_enabled, created_at, updated_at, image_id, creator_attributes, desired_attributes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO wishes (id, user_id, content, secret_hash, contacts, wishmail_enabled, created_at, updated_at, image_id, creator_attributes, desired_attributes, card_style) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       id,
@@ -198,7 +215,8 @@ router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), as
       now,
       imageId,
       JSON.stringify(creatorAttrs),
-      JSON.stringify(desiredAttrs)
+      JSON.stringify(desiredAttrs),
+      JSON.stringify(card_style)
     );
 
   logger.info('Wish created', { user_id: userId, wish_id: id });
@@ -212,6 +230,7 @@ router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), as
     wishmail_enabled: Boolean(wme),
     image_id: imageId,
     is_active: true,
+    card_style,
   };
   emitNewWish(newWish);
 
@@ -222,7 +241,7 @@ router.get('/random', async (req, res) => {
   const limit = Number(req.query.limit || 12);
   const rows = await db
     .prepare(
-      'SELECT w.id, w.content, w.creator_attributes, w.contacts, w.wishmail_enabled, w.image_id FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1) ORDER BY RANDOM() LIMIT ?'
+      'SELECT w.id, w.content, w.creator_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1) ORDER BY RANDOM() LIMIT ?'
     )
     .all(limit);
   res.json(
@@ -233,6 +252,7 @@ router.get('/random', async (req, res) => {
       contacts: parseJsonArray(wish.contacts),
       wishmail_enabled: Boolean(wish.wishmail_enabled),
       image_id: wish.image_id,
+      card_style: parseCardStyle(wish.card_style),
     }))
   );
 });
@@ -380,7 +400,7 @@ router.get('/', async (req, res) => {
   };
 
   let sql =
-    'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1)';
+    'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1)';
   let args = [];
 
   if (query) {
@@ -425,6 +445,7 @@ router.get('/', async (req, res) => {
       contacts: parseJsonArray(wish.contacts),
       wishmail_enabled: Boolean(wish.wishmail_enabled),
       image_id: wish.image_id,
+      card_style: parseCardStyle(wish.card_style),
     }))
   );
 });
@@ -444,7 +465,7 @@ router.get('/exclusions', requireAuth, async (req, res) => {
   const userId = req.user.id;
   const rows = await db
     .prepare(
-      'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id FROM wish_exclusions x JOIN wishes w ON x.wish_id = w.id WHERE x.user_id = ?'
+      'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wish_exclusions x JOIN wishes w ON x.wish_id = w.id WHERE x.user_id = ?'
     )
     .all(userId);
 
@@ -457,6 +478,7 @@ router.get('/exclusions', requireAuth, async (req, res) => {
       contacts: parseJsonArray(wish.contacts),
       wishmail_enabled: Boolean(wish.wishmail_enabled),
       image_id: wish.image_id,
+      card_style: parseCardStyle(wish.card_style),
     }))
   );
 });
@@ -510,7 +532,7 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
   const row = await db
     .prepare(
-      'SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id FROM wishes WHERE id = ?'
+      'SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id, card_style FROM wishes WHERE id = ?'
     )
     .get(id);
   if (!row) {
@@ -519,6 +541,7 @@ router.get('/:id', async (req, res) => {
   row.contacts = parseJsonArray(row.contacts);
   row.wishmail_enabled = Boolean(row.wishmail_enabled);
   row.is_active = Boolean(row.is_active);
+  row.card_style = parseCardStyle(row.card_style);
   res.json(row);
 });
 
@@ -615,7 +638,7 @@ router.post('/:id/reactivate', async (req, res) => {
 
   const wish = await db
     .prepare(
-      'SELECT id, content, creator_attributes, contacts, wishmail_enabled, image_id FROM wishes WHERE id = ?'
+      'SELECT id, content, creator_attributes, contacts, wishmail_enabled, image_id, card_style FROM wishes WHERE id = ?'
     )
     .get(auth.id);
 
@@ -630,6 +653,7 @@ router.post('/:id/reactivate', async (req, res) => {
     contacts: parseJsonArray(wish.contacts),
     wishmail_enabled: Boolean(wish.wishmail_enabled),
     image_id: wish.image_id,
+    card_style: parseCardStyle(wish.card_style),
   });
 
   res.json({ success: true });

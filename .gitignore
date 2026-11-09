@@ -41,3 +41,6 @@ src/client/public/assets/*
 *.orig
 *.rej
 patch*.diff
+
+# Subagent teamwork run state
+.agents/teamwork/
