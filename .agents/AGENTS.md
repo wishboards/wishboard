@@ -113,7 +113,8 @@ This document outlines the core coding conventions, architectural patterns, envi
 - **Backlog Pruning in Resolving PRs:** When a PR resolves or supersedes an issue tracked in `BACKLOG.md`, that PR _must_ prune the item (and any empty category headings) from `BACKLOG.md` directly.
 - **Documentation Hygiene:** Every PR introducing user-facing behavioral changes or architectural changes must update corresponding documentation:
   - User/operator documentation in `docs/` (Starlight documentation site).
-  - Architecture Decision Records (ADRs) in `docs/src/content/docs/adr/` for structural design choices.
+  - Architecture Decision Records (ADRs) in `docs/src/content/docs/adr/` and Design Documents in `docs/src/content/docs/design/` for structural design choices.
+  - **Contemporaneous ADR & Design Lifecycle Synchronization:** Whenever a PR begins implementing an accepted or proposed architectural decision or design, or implements a discrete phase of a multi-phase document (similar to ADR 0008), the resolving PR must update the document's `- **Status:**` header to reflect acceptance and active phase progression (e.g., `Accepted (Phase 1 implemented; Phase 2 in progress)`), advancing to `Implemented` upon milestone completion.
   - Hardware/kiosk or deployment guides for scripts and infrastructure changes.
 - **Remote Branch Deletion:** Pass `--no-verify` when executing `git push origin --delete <branch_name>` to bypass pre-push hooks during branch cleanup.
 - **CI Status Watching:** When waiting for GitHub PR status checks, use `gh pr checks <pr> --watch` rather than repeatedly polling or executing status checks in a loop.
