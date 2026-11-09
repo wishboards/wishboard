@@ -4,13 +4,13 @@ import { useEventProfile, ThemePreset } from '../EventProfileContext';
 
 export const STORAGE_PREFERENCES_KEY = 'wishboard_ui_preferences';
 
-const VALID_THEMES: ThemeMode[] = [
+const VALID_THEMES: ReadonlySet<ThemeMode> = new Set([
   'host-default',
   'midnight',
   'daylight',
   'corkhouse',
   'high-contrast',
-];
+]);
 
 export const getStoredPreferences = (): UIPreferences => {
   if (typeof globalThis === 'undefined' || !globalThis.localStorage) {
@@ -55,7 +55,7 @@ export function useTheme() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    document.documentElement.setAttribute('data-theme', effectiveTheme);
+    document.documentElement.dataset.theme = effectiveTheme;
 
     if (branding?.accentColor && themeMode === 'host-default') {
       document.documentElement.style.setProperty('--wb-accent-primary', branding.accentColor);
@@ -66,7 +66,7 @@ export function useTheme() {
 
   const setThemeMode = useCallback(
     async (newTheme: ThemeMode) => {
-      if (!VALID_THEMES.includes(newTheme)) return;
+      if (!VALID_THEMES.has(newTheme)) return;
 
       const currentPrefs: UIPreferences = user?.ui_preferences || getStoredPreferences();
       const updatedPrefs: UIPreferences = { ...currentPrefs, themeMode: newTheme };

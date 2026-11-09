@@ -347,6 +347,17 @@ describe('User registration and login', () => {
 
       expect(loginRes.status).toBe(200);
       expect(loginRes.body.ui_preferences.themeMode).toBe('daylight');
+
+      // Update with invalid themeMode falls back to host-default
+      const invalidRes = await request(app)
+        .put('/api/users/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          ui_preferences: { themeMode: 'invalid-mode' },
+        });
+
+      expect(invalidRes.status).toBe(200);
+      expect(invalidRes.body.ui_preferences.themeMode).toBe('host-default');
     });
   });
 });

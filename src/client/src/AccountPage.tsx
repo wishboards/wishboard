@@ -340,9 +340,9 @@ const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: string }> = [
 ];
 
 interface ThemeSelectorCardProps {
-  themeMode: ThemeMode;
-  setThemeMode: (mode: ThemeMode) => Promise<void>;
-  style?: React.CSSProperties;
+  readonly themeMode: ThemeMode;
+  readonly setThemeMode: (mode: ThemeMode) => Promise<void>;
+  readonly style?: React.CSSProperties;
 }
 
 function ThemeSelectorCard({ themeMode, setThemeMode, style }: ThemeSelectorCardProps) {

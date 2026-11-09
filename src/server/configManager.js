@@ -13,13 +13,13 @@ export const DEFAULT_BRANDING = {
   tagline: 'Pin your convention wishes',
 };
 
-const VALID_THEME_PRESETS = ['midnight', 'daylight', 'corkhouse', 'high-contrast'];
+const VALID_THEME_PRESETS = new Set(['midnight', 'daylight', 'corkhouse', 'high-contrast']);
 
 export const validateBranding = (rawBranding) => {
   if (!rawBranding || typeof rawBranding !== 'object') {
     return { ...DEFAULT_BRANDING };
   }
-  const themePreset = VALID_THEME_PRESETS.includes(rawBranding.themePreset)
+  const themePreset = VALID_THEME_PRESETS.has(rawBranding.themePreset)
     ? rawBranding.themePreset
     : DEFAULT_BRANDING.themePreset;
   const accentColor =

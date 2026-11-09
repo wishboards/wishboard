@@ -25,13 +25,19 @@ import {
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
 
-const VALID_THEME_MODES = ['host-default', 'midnight', 'daylight', 'corkhouse', 'high-contrast'];
+const VALID_THEME_MODES = new Set([
+  'host-default',
+  'midnight',
+  'daylight',
+  'corkhouse',
+  'high-contrast',
+]);
 
 const parseUiPreferencesInput = (input) => {
   if (!input || typeof input !== 'object') {
     return { themeMode: 'host-default' };
   }
-  const themeMode = VALID_THEME_MODES.includes(input.themeMode) ? input.themeMode : 'host-default';
+  const themeMode = VALID_THEME_MODES.has(input.themeMode) ? input.themeMode : 'host-default';
   const result = { themeMode };
   if (typeof input.defaultCardColor === 'string' && input.defaultCardColor.trim()) {
     result.defaultCardColor = input.defaultCardColor.trim();
