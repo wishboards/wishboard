@@ -273,6 +273,8 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Identity & Match' }));
+
     fireEvent.change(screen.getByLabelText('Genders'), { target: { value: 'woman' } });
     fireEvent.change(screen.getByLabelText('Orientations'), { target: { value: 'queer' } });
     fireEvent.change(screen.getByLabelText('Roles'), { target: { value: 'speaker' } });
@@ -478,6 +480,8 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
+
     // Click delete account
     const deleteBtn = screen.getByRole('button', { name: 'Delete Account' });
     fireEvent.click(deleteBtn);
@@ -538,6 +542,8 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Account' }));
     await waitFor(() =>
@@ -788,6 +794,8 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
+
     const toggleBtn = screen.getByRole('button', { name: 'Deactivate Profile' });
     fireEvent.click(toggleBtn);
 
@@ -819,6 +827,8 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Identity & Match' }));
 
     // Change contact value
     const input = screen.getByPlaceholderText('Username, number, etc.');
@@ -859,6 +869,8 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Identity & Match' }));
 
     const checkbox = screen.getByLabelText('Enable Wishmail by default');
     expect(checkbox).not.toBeChecked();
@@ -1010,6 +1022,8 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Identity & Match' }));
+
     const saveButton = screen.getByRole('button', { name: 'Save attributes' });
 
     // 1. API error handling
@@ -1079,6 +1093,8 @@ describe('AccountPage', () => {
 
     const { rerender } = render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
+
     const deactivateBtn = screen.getByRole('button', { name: 'Deactivate Profile' });
     fireEvent.click(deactivateBtn);
 
@@ -1109,6 +1125,8 @@ describe('AccountPage', () => {
     );
 
     rerender(<AccountPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
 
     expect(screen.getByText('Inactive')).toBeInTheDocument();
     const reactivateBtn = screen.getByRole('button', { name: 'Reactivate Profile' });
@@ -1143,6 +1161,7 @@ describe('AccountPage', () => {
     );
 
     render(<AccountPage />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
     const deleteAccountBtn = screen.getByRole('button', { name: 'Delete Account' });
     fireEvent.click(deleteAccountBtn);
 
@@ -1294,6 +1313,8 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
+
     expect(await screen.findByText('Easy Mobile Login')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Bookmark this auto-login link' })).toHaveAttribute(
       'href',
@@ -1319,6 +1340,8 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
+    fireEvent.click(screen.getByRole('tab', { name: 'Appearance & Security' }));
+
     expect(screen.getByText('Appearance & Theme')).toBeInTheDocument();
     const daylightBtn = screen.getByRole('button', { name: /Daylight/i });
     expect(daylightBtn).toBeInTheDocument();
@@ -1328,5 +1351,96 @@ describe('AccountPage', () => {
     await waitFor(() => {
       expect(document.documentElement.getAttribute('data-theme')).toBe('daylight');
     });
+  });
+
+  it('supports WAI-ARIA tab navigation, keyboard controls, and draft state preservation', async () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        id: 'user-tabs',
+        username: 'tabs_user',
+        role: 'user',
+        attributes: {},
+      },
+      token: 'fake-token',
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+
+    render(<AccountPage />);
+
+    const tabWishes = screen.getByRole('tab', { name: 'My Wishes' });
+    const tabIdentity = screen.getByRole('tab', { name: 'Identity & Match' });
+    const tabAppearance = screen.getByRole('tab', { name: 'Appearance & Security' });
+
+    // Initial state: My Wishes selected
+    expect(tabWishes).toHaveAttribute('aria-selected', 'true');
+    expect(tabIdentity).toHaveAttribute('aria-selected', 'false');
+    expect(tabAppearance).toHaveAttribute('aria-selected', 'false');
+
+    // Switch to Identity tab via click
+    fireEvent.click(tabIdentity);
+    expect(tabIdentity).toHaveAttribute('aria-selected', 'true');
+    expect(tabWishes).toHaveAttribute('aria-selected', 'false');
+
+    // Enter draft data into Identity attributes
+    const genderInput = screen.getByLabelText('Genders');
+    fireEvent.change(genderInput, { target: { value: 'nonbinary, queer' } });
+    expect(genderInput).toHaveValue('nonbinary, queer');
+
+    // Keyboard navigation: ArrowRight to Appearance
+    const tablist = screen.getByRole('tablist');
+    fireEvent.keyDown(tablist, { key: 'ArrowRight' });
+    expect(tabAppearance).toHaveAttribute('aria-selected', 'true');
+
+    // ArrowRight wraps to My Wishes
+    fireEvent.keyDown(tablist, { key: 'ArrowRight' });
+    expect(tabWishes).toHaveAttribute('aria-selected', 'true');
+
+    // ArrowLeft wraps back to Appearance
+    fireEvent.keyDown(tablist, { key: 'ArrowLeft' });
+    expect(tabAppearance).toHaveAttribute('aria-selected', 'true');
+
+    // Home key jumps to first tab (My Wishes)
+    fireEvent.keyDown(tablist, { key: 'Home' });
+    expect(tabWishes).toHaveAttribute('aria-selected', 'true');
+
+    // End key jumps to last tab (Appearance)
+    fireEvent.keyDown(tablist, { key: 'End' });
+    expect(tabAppearance).toHaveAttribute('aria-selected', 'true');
+
+    // Return to Identity tab to verify draft state preservation
+    fireEvent.click(tabIdentity);
+    expect(screen.getByLabelText('Genders')).toHaveValue('nonbinary, queer');
+  });
+
+  it('initializes active tab from URL hash parameter', () => {
+    globalThis.location.hash = '#account?tab=identity';
+    useAuthMock.mockReturnValue({
+      user: {
+        id: 'u-hash',
+        username: 'hash_user',
+        role: 'user',
+        attributes: {},
+      },
+      token: 'fake-token',
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+
+    render(<AccountPage />);
+
+    expect(screen.getByRole('tab', { name: 'Identity & Match' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    expect(screen.getByRole('tab', { name: 'My Wishes' })).toHaveAttribute(
+      'aria-selected',
+      'false'
+    );
+    globalThis.location.hash = '';
   });
 });

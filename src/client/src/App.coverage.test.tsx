@@ -133,54 +133,25 @@ describe('App Coverage', () => {
   it('navigates through mobile tab bar', async () => {
     globalThis.window.location.hash = '#home';
     render(<App />);
-    const searchTab = screen
-      .getAllByText('Search Wishes')[1]
-      .closest('button') as HTMLButtonElement;
+    const searchTab = screen.getByRole('button', { name: 'Search' });
     fireEvent.click(searchTab);
     expect(globalThis.window.location.hash).toBe('#search');
   });
 
-  it('toggles mobile hamburger menu and navigates', async () => {
+  it('navigates to post, inbox, and account through mobile bottom bar', async () => {
+    globalThis.window.location.hash = '#home';
     render(<App />);
-    const moreTab = screen.getByText('More').closest('button') as HTMLButtonElement;
-    fireEvent.click(moreTab);
+    const postTab = screen.getByRole('button', { name: 'Post' });
+    fireEvent.click(postTab);
+    expect(globalThis.window.location.hash).toBe('#enter');
 
-    // Test navigation inside hamburger
-    const aboutBtn = screen
-      .getAllByText('About')
-      .find((el) => el.tagName === 'BUTTON' && el.className.includes('hamburger-item'));
-    if (aboutBtn) {
-      fireEvent.click(aboutBtn);
-      expect(globalThis.window.location.hash).toBe('#about');
-    }
-  });
+    const inboxTab = screen.getByRole('button', { name: 'Inbox' });
+    fireEvent.click(inboxTab);
+    expect(globalThis.window.location.hash).toBe('#wishmail-dashboard');
 
-  it('closes mobile hamburger menu with Escape key', async () => {
-    render(<App />);
-    const moreTab = screen.getByText('More').closest('button') as HTMLButtonElement;
-    fireEvent.click(moreTab);
-
-    // Wait for the menu overlay to be in document. It has aria-label="Close menu".
-    const closeMenuArea = screen.getByLabelText('Close menu');
-    fireEvent.keyDown(closeMenuArea, { key: 'Escape', code: 'Escape' });
-
-    await waitFor(() => {
-      expect(screen.queryByLabelText('Close menu')).not.toBeInTheDocument();
-    });
-  });
-
-  it('closes mobile hamburger menu with X button', async () => {
-    render(<App />);
-    const moreTab = screen.getByText('More').closest('button') as HTMLButtonElement;
-    fireEvent.click(moreTab);
-
-    // The X button has text ✕
-    const xBtn = screen.getByText('✕');
-    fireEvent.click(xBtn);
-
-    await waitFor(() => {
-      expect(screen.queryByLabelText('Close menu')).not.toBeInTheDocument();
-    });
+    const accountTab = screen.getByRole('button', { name: 'Account' });
+    fireEvent.click(accountTab);
+    expect(globalThis.window.location.hash).toBe('#account');
   });
 
   it('cancels kiosk exit prompt', async () => {

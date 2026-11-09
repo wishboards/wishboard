@@ -468,4 +468,61 @@ describe('EnterWishPage', () => {
       JSON.stringify({ paperColor: 'sage', pinColor: 'ruby' })
     );
   });
+
+  it('opens mobile bottom sheet drawers for creator and desired attributes on mobile viewports', async () => {
+    Object.defineProperty(globalThis, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 767px)',
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+
+    render(<EnterWishPage />);
+
+    // Check creator attributes trigger pill
+    const creatorPill = screen.getByRole('button', { name: /Creator Attributes, 0 selected/i });
+    expect(creatorPill).toBeInTheDocument();
+
+    // Open creator attributes bottom sheet
+    fireEvent.click(creatorPill);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Creator Attributes (0)')).toBeInTheDocument();
+
+    // Select an attribute inside sheet
+    const genderInput = screen.getByLabelText(/Creator Genders/i);
+    fireEvent.change(genderInput, { target: { value: 'woman' } });
+
+    // Close sheet via Done button
+    const doneButtons = screen.getAllByRole('button', { name: 'Done' });
+    fireEvent.click(doneButtons[0]);
+
+    // Pill now reflects 1 selected
+    expect(
+      screen.getByRole('button', { name: /Creator Attributes, 1 selected/i })
+    ).toBeInTheDocument();
+
+    // Check desired attributes trigger pill
+    const desiredPill = screen.getByRole('button', { name: /Desired Attributes/i });
+    expect(desiredPill).toBeInTheDocument();
+
+    // Open desired attributes bottom sheet
+    fireEvent.click(desiredPill);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Desired Attributes (0)')).toBeInTheDocument();
+
+    // Set desired attribute
+    const desiredGenderInput = screen.getByLabelText(/Strictly required Genders/i);
+    fireEvent.change(desiredGenderInput, { target: { value: 'man, nonbinary' } });
+
+    // Close sheet
+    const doneButton2 = screen.getByRole('button', { name: 'Done' });
+    fireEvent.click(doneButton2);
+
+    expect(
+      screen.getByRole('button', { name: /Desired Attributes, 2 required/i })
+    ).toBeInTheDocument();
+  });
 });

@@ -8,6 +8,8 @@ import SendWishmailModal from '../components/SendWishmailModal';
 import { useEventProfile } from '../EventProfileContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useExcludedWishes } from '../hooks/useExcludedWishes';
+import BottomSheet from '../components/common/BottomSheet';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 interface Wish {
   id: string;
@@ -88,6 +90,15 @@ export default function SearchPage() {
   const [prevUserId, setPrevUserId] = useState(currentUserId);
   const [useProfileAttributes, setUseProfileAttributes] = useState<boolean>(Boolean(user));
   const [manualAttributes, setManualAttributes] = useState<Record<string, string>>({});
+  const isMobile = useIsMobile();
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+  const filterCount = React.useMemo(() => {
+    return Object.values(manualAttributes).reduce(
+      (acc, val) => acc + (val ? val.split(',').filter((s) => s.trim().length > 0).length : 0),
+      0
+    );
+  }, [manualAttributes]);
 
   if (currentUserId !== prevUserId) {
     setPrevUserId(currentUserId);
@@ -259,38 +270,111 @@ export default function SearchPage() {
             </InfoToggle>
           </div>
         ) : (
-          <div style={{ marginTop: '16px' }}>
-            <div className="label-with-info" style={{ marginBottom: '8px' }}>
-              <span style={{ fontWeight: 'bold' }}>Your Attributes</span>
-              <InfoToggle>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: '#556275' }}>
-                  Select or type attributes to filter compatible wishes. Commas separate multiple
-                  options.
-                </p>
-              </InfoToggle>
-            </div>
-            {categories.map((cat) => {
-              const suggs = cat.suggestions || [];
-              return (
-                <div key={cat.id} style={{ marginTop: '16px' }}>
-                  <label
-                    htmlFor={`search-${cat.id}`}
-                    style={{ fontWeight: 'bold', display: 'block' }}
-                  >
-                    Your {cat.label}(s)
-                  </label>
-                  <AttributeInput
-                    id={`search-${cat.id}`}
-                    category={cat.id}
-                    value={manualAttributes[cat.id] || ''}
-                    onChange={(val) => setManualAttributes((prev) => ({ ...prev, [cat.id]: val }))}
-                    placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                    suggestions={suggs}
-                  />
+          <>
+            {isMobile ? (
+              <div className="mobile-attribute-controls mobile-only" style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="mobile-attribute-pill"
+                  onClick={() => setIsFilterSheetOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-label={`Filter Attributes, ${filterCount} selected`}
+                >
+                  <div className="pill-left">
+                    <span className="pill-icon" aria-hidden="true">
+                      🔍
+                    </span>
+                    <span className="pill-title">Filter by Attributes</span>
+                  </div>
+                  <div className="pill-right">
+                    <span className={`pill-count-badge ${filterCount > 0 ? 'has-active' : ''}`}>
+                      {filterCount > 0 ? `${filterCount} selected` : 'All'}
+                    </span>
+                    <span className="pill-chevron" aria-hidden="true">
+                      ›
+                    </span>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div
+                className="desktop-attribute-controls desktop-only"
+                style={{ marginTop: '16px' }}
+              >
+                <div className="label-with-info" style={{ marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 'bold' }}>Your Attributes</span>
+                  <InfoToggle>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#556275' }}>
+                      Select or type attributes to filter compatible wishes. Commas separate
+                      multiple options.
+                    </p>
+                  </InfoToggle>
                 </div>
-              );
-            })}
-          </div>
+                {categories.map((cat) => {
+                  const suggs = cat.suggestions || [];
+                  return (
+                    <div key={cat.id} style={{ marginTop: '16px' }}>
+                      <label
+                        htmlFor={`search-${cat.id}`}
+                        style={{ fontWeight: 'bold', display: 'block' }}
+                      >
+                        Your {cat.label}(s)
+                      </label>
+                      <AttributeInput
+                        id={`search-${cat.id}`}
+                        category={cat.id}
+                        value={manualAttributes[cat.id] || ''}
+                        onChange={(val) =>
+                          setManualAttributes((prev) => ({ ...prev, [cat.id]: val }))
+                        }
+                        placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+                        suggestions={suggs}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <BottomSheet
+              isOpen={isFilterSheetOpen}
+              onClose={() => setIsFilterSheetOpen(false)}
+              title={`Filter Attributes (${filterCount})`}
+            >
+              <div className="sheet-attribute-content">
+                <p className="sheet-description">
+                  Select or type attributes to filter compatible wishes.
+                </p>
+                {categories.map((cat) => {
+                  const suggs = cat.suggestions || [];
+                  return (
+                    <div key={cat.id} className="sheet-attribute-field">
+                      <label htmlFor={`mobile-search-${cat.id}`} style={{ fontWeight: 'bold' }}>
+                        Your {cat.label}(s)
+                      </label>
+                      <AttributeInput
+                        id={`mobile-search-${cat.id}`}
+                        category={cat.id}
+                        value={manualAttributes[cat.id] || ''}
+                        onChange={(val) =>
+                          setManualAttributes((prev) => ({ ...prev, [cat.id]: val }))
+                        }
+                        placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+                        suggestions={suggs}
+                      />
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="primary-button sheet-done-button"
+                  onClick={() => setIsFilterSheetOpen(false)}
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </BottomSheet>
+          </>
         )}
 
         {error && <div className="error-message">{error}</div>}

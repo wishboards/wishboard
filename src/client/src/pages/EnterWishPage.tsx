@@ -4,7 +4,12 @@ import { useEventProfile } from '../EventProfileContext';
 import { QRCodeSVG } from 'qrcode.react';
 import InfoToggle from '../components/InfoToggle';
 import AttributeInput from '../components/AttributeInput';
-import { parseAttributesString, fetchConflicts, getConflictWarning } from '../utils/conflicts';
+import {
+  parseAttributesString,
+  fetchConflicts,
+  getConflictWarning,
+  Conflict,
+} from '../utils/conflicts';
 import WishPreview from '../components/WishPreview';
 import {
   CardPaperColor,
@@ -17,6 +22,8 @@ import {
 import { getStoredPreferences } from '../hooks/useTheme';
 import WishFormFields from '../components/WishFormFields';
 import PassphraseInput from '../components/PassphraseInput';
+import BottomSheet from '../components/common/BottomSheet';
+import { useIsMobile } from '../hooks/useMediaQuery';
 const WishScanner = React.lazy(() => import('../components/WishScanner'));
 // cardProcessor pulls in the ~15.6 MB @techstark/opencv-js blob. Import it
 // dynamically at the point of use (card upload / scan) so it is not fetched
@@ -40,6 +47,100 @@ function loadImage(file: File): Promise<TempImageElement> {
   });
 }
 
+interface MobileAttributeTriggerProps {
+  readonly title: string;
+  readonly icon: string;
+  readonly count: number;
+  readonly countLabel?: string;
+  readonly onClick: () => void;
+  readonly style?: React.CSSProperties;
+}
+
+function MobileAttributeTrigger({
+  title,
+  icon,
+  count,
+  countLabel,
+  onClick,
+  style,
+}: MobileAttributeTriggerProps) {
+  const label = countLabel ?? `${count} selected`;
+  return (
+    <div className="mobile-attribute-controls mobile-only" style={style}>
+      <button
+        type="button"
+        className="mobile-attribute-pill"
+        onClick={onClick}
+        aria-haspopup="dialog"
+        aria-label={`${title}, ${label}`}
+      >
+        <div className="pill-left">
+          <span className="pill-icon" aria-hidden="true">
+            {icon}
+          </span>
+          <span className="pill-title">{title}</span>
+        </div>
+        <div className="pill-right">
+          <span className={`pill-count-badge ${count > 0 ? 'has-active' : ''}`}>{label}</span>
+          <span className="pill-chevron" aria-hidden="true">
+            ›
+          </span>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+interface MobileAttributeSheetBodyProps {
+  readonly description: string;
+  readonly categories: Array<{ id: string; label: string; suggestions?: string[] }>;
+  readonly prefix: string;
+  readonly labelPrefix: string;
+  readonly attributes: Record<string, string>;
+  readonly onChange: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
+  readonly conflicts: Conflict[];
+  readonly onDone: () => void;
+}
+
+function MobileAttributeSheetBody({
+  description,
+  categories,
+  prefix,
+  labelPrefix,
+  attributes,
+  onChange,
+  conflicts,
+  onDone,
+}: MobileAttributeSheetBodyProps) {
+  return (
+    <div className="sheet-attribute-content">
+      <p className="sheet-description">{description}</p>
+      {categories.map((cat) => {
+        const suggs = cat.suggestions || [];
+        return (
+          <div key={cat.id} className="sheet-attribute-field">
+            <label htmlFor={`${prefix}-${cat.id}`}>
+              {labelPrefix} {cat.label}s
+            </label>
+            <AttributeInput
+              id={`${prefix}-${cat.id}`}
+              category={cat.id}
+              value={attributes[cat.id] || ''}
+              onChange={(val) => onChange((prev) => ({ ...prev, [cat.id]: val }))}
+              placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+              suggestions={suggs}
+              warning={getConflictWarning(conflicts, cat.id)}
+            />
+          </div>
+        );
+      })}
+      <button type="button" className="primary-button sheet-done-button" onClick={onDone}>
+        Done
+      </button>
+    </div>
+  );
+}
+
 export default function EnterWishPage() {
   const { token, user } = useAuth();
   const [content, setContent] = useState('');
@@ -47,6 +148,22 @@ export default function EnterWishPage() {
   const { categories = [] } = useEventProfile();
   const [creatorAttributes, setCreatorAttributes] = useState<Record<string, string>>({});
   const [desiredAttributes, setDesiredAttributes] = useState<Record<string, string>>({});
+  const isMobile = useIsMobile();
+  const [activeSheet, setActiveSheet] = useState<'creator' | 'desired' | null>(null);
+
+  const creatorCount = useMemo(() => {
+    return Object.values(creatorAttributes).reduce(
+      (acc, val) => acc + (val ? val.split(',').filter((s) => s.trim().length > 0).length : 0),
+      0
+    );
+  }, [creatorAttributes]);
+
+  const desiredCount = useMemo(() => {
+    return Object.values(desiredAttributes).reduce(
+      (acc, val) => acc + (val ? val.split(',').filter((s) => s.trim().length > 0).length : 0),
+      0
+    );
+  }, [desiredAttributes]);
 
   const currentUserId = user?.id ?? user?.username ?? null;
   const [prevUserId, setPrevUserId] = useState(currentUserId);
@@ -395,97 +512,134 @@ export default function EnterWishPage() {
                   placeholder="Leave blank for automatic code phrase"
                 />
               </div>
-              {categories.map((cat) => {
-                const suggs = cat.suggestions || [];
-                return (
-                  <label key={cat.id}>
-                    Creator {cat.label}s (anonymous only)
-                    <AttributeInput
-                      category={cat.id}
-                      value={creatorAttributes[cat.id] || ''}
-                      onChange={(val) =>
-                        setCreatorAttributes((prev) => ({ ...prev, [cat.id]: val }))
-                      }
-                      placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                      suggestions={suggs}
-                      warning={getConflictWarning(creatorConflicts, cat.id)}
-                    />
-                  </label>
-                );
-              })}
+              {isMobile ? (
+                <MobileAttributeTrigger
+                  title="Creator Attributes"
+                  icon="👤"
+                  count={creatorCount}
+                  onClick={() => setActiveSheet('creator')}
+                />
+              ) : (
+                <div className="desktop-attribute-controls desktop-only">
+                  {categories.map((cat) => {
+                    const suggs = cat.suggestions || [];
+                    return (
+                      <label key={cat.id}>
+                        Creator {cat.label}s (anonymous only)
+                        <AttributeInput
+                          category={cat.id}
+                          value={creatorAttributes[cat.id] || ''}
+                          onChange={(val) =>
+                            setCreatorAttributes((prev) => ({ ...prev, [cat.id]: val }))
+                          }
+                          placeholder={
+                            suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''
+                          }
+                          suggestions={suggs}
+                          warning={getConflictWarning(creatorConflicts, cat.id)}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
-          <div className="advanced-criteria-toggle" style={{ margin: '24px 0 16px 0' }}>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <span>{showAdvanced ? 'Hide' : 'Show'} Advanced Match Criteria</span>
-              <span>{showAdvanced ? '▲' : '▼'}</span>
-            </button>
-            {!showAdvanced && (
-              <p
-                style={{
-                  fontSize: '0.85rem',
-                  color: '#64748b',
-                  marginTop: '8px',
-                  textAlign: 'center',
-                }}
-              >
-                By default, we smartly guess who you want to match with based on your own identity.
-                Open this to set strict requirements for who can view this wish.
-              </p>
-            )}
-          </div>
 
-          {showAdvanced && (
-            <fieldset
-              style={{
-                border: '1px solid #d7dee5',
-                borderRadius: '12px',
-                padding: '16px',
-                background: '#f8fafc',
-                marginBottom: '16px',
-              }}
-            >
-              <legend style={{ fontWeight: 600, padding: '0 8px' }}>Advanced Match Criteria</legend>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {categories.map((cat, idx) => {
-                  const suggs = cat.suggestions || [];
-                  return (
-                    <div
-                      key={cat.id}
-                      style={{ display: 'grid', gap: '8px', marginTop: idx > 0 ? '12px' : '0' }}
-                    >
-                      <div className="label-with-info">
-                        <label htmlFor={`desired-${cat.id}`}>Strictly required {cat.label}s</label>
-                        <InfoToggle>
-                          Only users with these {cat.label}s will be able to see this wish.
-                        </InfoToggle>
-                      </div>
-                      <AttributeInput
-                        id={`desired-${cat.id}`}
-                        category={cat.id}
-                        value={desiredAttributes[cat.id] || ''}
-                        onChange={(val) =>
-                          setDesiredAttributes((prev) => ({ ...prev, [cat.id]: val }))
-                        }
-                        placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                        suggestions={suggs}
-                        warning={getConflictWarning(desiredConflicts, cat.id)}
-                      />
-                    </div>
-                  );
-                })}
+          {isMobile ? (
+            <MobileAttributeTrigger
+              title="Desired Attributes"
+              icon="🎯"
+              count={desiredCount}
+              countLabel={desiredCount > 0 ? `${desiredCount} required` : 'Any'}
+              style={{ margin: '16px 0' }}
+              onClick={() => setActiveSheet('desired')}
+            />
+          ) : (
+            <>
+              <div
+                className="advanced-criteria-toggle desktop-only"
+                style={{ margin: '24px 0 16px 0' }}
+              >
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span>{showAdvanced ? 'Hide' : 'Show'} Advanced Match Criteria</span>
+                  <span>{showAdvanced ? '▲' : '▼'}</span>
+                </button>
+                {!showAdvanced && (
+                  <p
+                    style={{
+                      fontSize: '0.85rem',
+                      color: '#64748b',
+                      marginTop: '8px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    By default, we smartly guess who you want to match with based on your own
+                    identity. Open this to set strict requirements for who can view this wish.
+                  </p>
+                )}
               </div>
-            </fieldset>
+
+              {showAdvanced && (
+                <fieldset
+                  className="desktop-only"
+                  style={{
+                    border: '1px solid #d7dee5',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: '#f8fafc',
+                    marginBottom: '16px',
+                  }}
+                >
+                  <legend style={{ fontWeight: 600, padding: '0 8px' }}>
+                    Advanced Match Criteria
+                  </legend>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {categories.map((cat, idx) => {
+                      const suggs = cat.suggestions || [];
+                      return (
+                        <div
+                          key={cat.id}
+                          style={{ display: 'grid', gap: '8px', marginTop: idx > 0 ? '12px' : '0' }}
+                        >
+                          <div className="label-with-info">
+                            <label htmlFor={`desired-${cat.id}`}>
+                              Strictly required {cat.label}s
+                            </label>
+                            <InfoToggle>
+                              Only users with these {cat.label}s will be able to see this wish.
+                            </InfoToggle>
+                          </div>
+                          <AttributeInput
+                            id={`desired-${cat.id}`}
+                            category={cat.id}
+                            value={desiredAttributes[cat.id] || ''}
+                            onChange={(val) =>
+                              setDesiredAttributes((prev) => ({ ...prev, [cat.id]: val }))
+                            }
+                            placeholder={
+                              suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''
+                            }
+                            suggestions={suggs}
+                            warning={getConflictWarning(desiredConflicts, cat.id)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
+            </>
           )}
           {hasConflicts && (
             <div className="message error" style={{ marginBottom: '12px' }}>
@@ -564,6 +718,40 @@ export default function EnterWishPage() {
           </React.Suspense>
         </div>
       )}
+
+      <BottomSheet
+        isOpen={activeSheet === 'creator'}
+        onClose={() => setActiveSheet(null)}
+        title={`Creator Attributes (${creatorCount})`}
+      >
+        <MobileAttributeSheetBody
+          description="Select your identity attributes. These are used to match you with compatible fulfillers."
+          categories={categories}
+          prefix="mobile-creator"
+          labelPrefix="Creator"
+          attributes={creatorAttributes}
+          onChange={setCreatorAttributes}
+          conflicts={creatorConflicts}
+          onDone={() => setActiveSheet(null)}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={activeSheet === 'desired'}
+        onClose={() => setActiveSheet(null)}
+        title={`Desired Attributes (${desiredCount})`}
+      >
+        <MobileAttributeSheetBody
+          description="Strict requirements for who can view this wish."
+          categories={categories}
+          prefix="mobile-desired"
+          labelPrefix="Strictly required"
+          attributes={desiredAttributes}
+          onChange={setDesiredAttributes}
+          conflicts={desiredConflicts}
+          onDone={() => setActiveSheet(null)}
+        />
+      </BottomSheet>
     </section>
   );
 }
