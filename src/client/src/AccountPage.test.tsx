@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { extractUrl } from '../../../tests/testUtils';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 
@@ -14,7 +14,7 @@ vi.mock('./hooks/useExcludedWishes', () => ({
   useExcludedWishes: () => useExcludedWishesMock(),
 }));
 
-import AccountPage from './AccountPage';
+import AccountPage, { useUsernameExistence } from './AccountPage';
 
 describe('AccountPage', () => {
   beforeEach(() => {
@@ -93,18 +93,7 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
-    const registerButtons = screen.getAllByText('Register');
-    const registerTabButton = registerButtons.find(
-      (button) => button.getAttribute('type') !== 'submit'
-    );
-    const registerSubmitButton = registerButtons.find(
-      (button) => button.getAttribute('type') === 'submit'
-    );
-    if (!registerTabButton || !registerSubmitButton) {
-      throw new Error('Could not find register tab or submit button');
-    }
-
-    fireEvent.click(registerTabButton);
+    const registerSubmitButton = screen.getByRole('button', { name: 'Register' });
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'newuser' } });
     fireEvent.click(registerSubmitButton);
 
@@ -123,14 +112,6 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
-    const registerTabButton = screen
-      .getAllByText('Register')
-      .find((button) => button.getAttribute('type') !== 'submit');
-    if (!registerTabButton) {
-      throw new Error('Could not find register tab button');
-    }
-
-    fireEvent.click(registerTabButton);
     expect(await screen.findByText(/Tip: Use a memorable passphrase like/)).toBeInTheDocument();
   });
 
@@ -177,6 +158,15 @@ describe('AccountPage', () => {
     const login = vi
       .fn()
       .mockResolvedValue({ success: false, error: 'Invalid username or passphrase.' });
+    const fetchMock = vi.fn((input) => {
+      const url = extractUrl(input as RequestInfo | URL);
+      if (url.includes('/api/users/exists')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     useAuthMock.mockReturnValue({
       user: null,
       token: null,
@@ -188,21 +178,14 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
-    const loginTabButton = screen.getByRole('button', { name: 'Login' });
-    fireEvent.click(loginTabButton);
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'existinguser' } });
 
-    const loginSubmitButton = screen
-      .getAllByRole('button')
-      .find((button) => button.getAttribute('type') === 'submit');
-    if (!loginSubmitButton) {
-      throw new Error('Could not find login submit button');
-    }
+    const loginSubmitButton = await screen.findByRole('button', { name: 'Login' });
 
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'newuser' } });
     fireEvent.change(screen.getByLabelText('Passphrase'), { target: { value: 'newpass' } });
     fireEvent.click(loginSubmitButton);
 
-    expect(login).toHaveBeenCalledWith('newuser', 'newpass');
+    expect(login).toHaveBeenCalledWith('existinguser', 'newpass');
     await screen.findByText('Invalid username or passphrase.');
   });
 
@@ -359,6 +342,15 @@ describe('AccountPage', () => {
   });
 
   it('shows error if login fields are missing', async () => {
+    const fetchMock = vi.fn((input) => {
+      const url = extractUrl(input as RequestInfo | URL);
+      if (url.includes('/api/users/exists')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     useAuthMock.mockReturnValue({
       user: null,
       token: null,
@@ -368,11 +360,9 @@ describe('AccountPage', () => {
       refreshUser: vi.fn(),
     });
     render(<AccountPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
-    const submit = screen
-      .getAllByRole('button')
-      .find((button) => button.getAttribute('type') === 'submit');
-    fireEvent.click(submit!);
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'existinguser' } });
+    const loginSubmitButton = await screen.findByRole('button', { name: 'Login' });
+    fireEvent.click(loginSubmitButton);
     expect(
       await screen.findByText('Username and passphrase are required to log in.')
     ).toBeInTheDocument();
@@ -948,6 +938,20 @@ describe('AccountPage', () => {
   it('handles login and registration validation errors and success messages', async () => {
     const login = vi.fn();
     const register = vi.fn();
+    const fetchMock = vi.fn((input) => {
+      const url = extractUrl(input as RequestInfo | URL);
+      if (url.includes('/api/users/exists')) {
+        const urlObj = new URL(url, 'http://localhost');
+        const usernameParam = urlObj.searchParams.get('username');
+        if (usernameParam === 'validuser') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: false }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     useAuthMock.mockReturnValue({
       user: null,
       token: null,
@@ -959,53 +963,35 @@ describe('AccountPage', () => {
 
     render(<AccountPage />);
 
-    // 1. Submit login with missing fields
-    const loginTabButton = screen.getByRole('button', { name: 'Login' });
-    fireEvent.click(loginTabButton);
-    const loginSubmitButton = screen
-      .getAllByRole('button')
-      .find((button) => button.getAttribute('type') === 'submit');
-    if (!loginSubmitButton) throw new Error('No login submit button');
-
-    fireEvent.click(loginSubmitButton);
-    expect(screen.getByText('Username and passphrase are required to log in.')).toBeInTheDocument();
-
-    // 2. Submit login with valid fields -> success
-    login.mockResolvedValueOnce({ success: true });
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'validuser' } });
-    fireEvent.change(screen.getByLabelText('Passphrase'), { target: { value: 'validpass' } });
-    fireEvent.click(loginSubmitButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Logged in successfully.')).toBeInTheDocument();
-    });
-
-    // 3. Submit register with blank username -> error
-    const registerTabButton = screen
-      .getAllByRole('button')
-      .find(
-        (button) => button.textContent === 'Register' && button.getAttribute('type') !== 'submit'
-      );
-    if (!registerTabButton) throw new Error('No register tab');
-    fireEvent.click(registerTabButton);
-
-    const registerSubmitButton = screen
-      .getAllByRole('button')
-      .find(
-        (button) => button.textContent === 'Register' && button.getAttribute('type') === 'submit'
-      );
-    if (!registerSubmitButton) throw new Error('No register submit button');
-
+    // 1. Submit register with blank username -> error
+    const registerSubmitButton = screen.getByRole('button', { name: 'Register' });
     fireEvent.click(registerSubmitButton);
     expect(screen.getByText('Username is required to register.')).toBeInTheDocument();
 
-    // 4. Submit register failing API -> error message
+    // 2. Submit register failing API -> error message
     register.mockResolvedValueOnce({ success: false, error: 'Username already taken.' });
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'takenuser' } });
     fireEvent.click(registerSubmitButton);
 
     await waitFor(() => {
       expect(screen.getByText('Username already taken.')).toBeInTheDocument();
+    });
+
+    // 3. Dynamic transition to login mode when typing existing username
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'validuser' } });
+    const loginSubmitButton = await screen.findByRole('button', { name: 'Login' });
+
+    // 4. Submit login with missing passphrase
+    fireEvent.click(loginSubmitButton);
+    expect(screen.getByText('Username and passphrase are required to log in.')).toBeInTheDocument();
+
+    // 5. Submit login with valid fields -> success
+    login.mockResolvedValueOnce({ success: true });
+    fireEvent.change(screen.getByLabelText('Passphrase'), { target: { value: 'validpass' } });
+    fireEvent.click(loginSubmitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Logged in successfully.')).toBeInTheDocument();
     });
   });
 
@@ -1442,5 +1428,382 @@ describe('AccountPage', () => {
       'false'
     );
     globalThis.location.hash = '';
+  });
+
+  describe('Milestone 1: Account Login/Registration Debounce & Auth UX', () => {
+    it('debounces fetch by 250ms and cancels prior pending timer on rapid keystrokes', async () => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ exists: true }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { result, rerender } = renderHook(
+        ({ name }: { name: string }) => useUsernameExistence(name),
+        {
+          initialProps: { name: 'a' },
+        }
+      );
+
+      // Advance 100ms (< 250ms debounce)
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      // Rapid keystroke 1: 'al'
+      rerender({ name: 'al' });
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      // Rapid keystroke 2: 'alice'
+      rerender({ name: 'alice' });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      // Advance remaining 50ms (total 250ms since 'alice')
+      await act(async () => {
+        vi.advanceTimersByTime(50);
+      });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const calledUrl = extractUrl(fetchMock.mock.calls[0][0]);
+      expect(calledUrl).toBe('/api/users/exists?username=alice');
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(result.current.existingUsername).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('does not trigger fetch and resets existingUsername to false when username is empty or whitespace', () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ exists: false }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { result, rerender } = renderHook(
+        ({ name }: { name: string }) => useUsernameExistence(name),
+        {
+          initialProps: { name: '' },
+        }
+      );
+
+      expect(result.current.existingUsername).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      rerender({ name: '   ' });
+      expect(result.current.existingUsername).toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('resets existingUsername to false when username is cleared', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ exists: true }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { result, rerender } = renderHook(
+        ({ name }: { name: string }) => useUsernameExistence(name),
+        {
+          initialProps: { name: 'alice' },
+        }
+      );
+
+      await waitFor(() => {
+        expect(result.current.existingUsername).toBe(true);
+      });
+
+      rerender({ name: '' });
+      await waitFor(() => {
+        expect(result.current.existingUsername).toBe(false);
+      });
+    });
+
+    it('handles network failure in useUsernameExistence by setting existingUsername to false', async () => {
+      const fetchMock = vi.fn().mockRejectedValue(new Error('Network offline'));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const { result } = renderHook(() => useUsernameExistence('offlineuser'));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+      expect(result.current.existingUsername).toBe(false);
+    });
+
+    it('renders unauthenticated auth view without duplicate [ Login ] [ Register ] tabs', () => {
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      const { container } = render(<AccountPage />);
+
+      expect(container.querySelector('.tab-buttons')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Login' })).toBeNull();
+      const submitButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.getAttribute('type') === 'submit');
+      expect(submitButtons).toHaveLength(1);
+      expect(submitButtons[0]).toHaveTextContent('Register');
+      expect(screen.getByText('Identity Attributes')).toBeInTheDocument();
+      expect(screen.getByText(/Tip: Use a memorable passphrase like/)).toBeInTheDocument();
+    });
+
+    it('dynamically switches to login mode and hides registration fields when existing username is entered', async () => {
+      const fetchMock = vi.fn((input) => {
+        const url = extractUrl(input as RequestInfo | URL);
+        if (url.includes('/api/users/exists')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      // Initially in register mode
+      expect(screen.getByRole('button', { name: 'Register' })).toBeInTheDocument();
+      expect(screen.getByText('Identity Attributes')).toBeInTheDocument();
+      expect(screen.getByText(/Tip: Use a memorable passphrase like/)).toBeInTheDocument();
+
+      // Type existing username
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'existinguser' } });
+
+      // Transitions to login mode
+      const loginButton = await screen.findByRole('button', { name: 'Login' });
+      expect(loginButton).toBeInTheDocument();
+      expect(screen.queryByText('Identity Attributes')).toBeNull();
+      expect(screen.queryByText(/Tip: Use a memorable passphrase like/)).toBeNull();
+      expect(screen.getByPlaceholderText('Enter your passphrase')).toBeInTheDocument();
+    });
+
+    it('switches back to register mode when username is cleared or replaced with a non-existent name', async () => {
+      const fetchMock = vi.fn((input) => {
+        const url = extractUrl(input as RequestInfo | URL);
+        if (url.includes('/api/users/exists')) {
+          const urlObj = new URL(url, 'http://localhost');
+          const name = urlObj.searchParams.get('username');
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ exists: name === 'alice' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      const usernameInput = screen.getByLabelText('Username');
+      fireEvent.change(usernameInput, { target: { value: 'alice' } });
+
+      // Becomes login
+      await screen.findByRole('button', { name: 'Login' });
+      expect(screen.queryByText('Identity Attributes')).toBeNull();
+
+      // Clear username -> immediately resets to register
+      fireEvent.change(usernameInput, { target: { value: '' } });
+      expect(screen.getByRole('button', { name: 'Register' })).toBeInTheDocument();
+      expect(screen.getByText('Identity Attributes')).toBeInTheDocument();
+
+      // Type non-existent username -> remains register
+      fireEvent.change(usernameInput, { target: { value: 'bob' } });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Register' })).toBeInTheDocument();
+      });
+      expect(screen.getByText('Identity Attributes')).toBeInTheDocument();
+    });
+
+    it('does not trigger fetch for whitespace-only username and stays in register mode', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ exists: false }),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      const usernameInput = screen.getByLabelText('Username');
+      fireEvent.change(usernameInput, { target: { value: '   ' } });
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      });
+      const existsCalls = fetchMock.mock.calls.filter(([input]) =>
+        extractUrl(input as RequestInfo | URL).includes('/api/users/exists')
+      );
+      expect(existsCalls).toHaveLength(0);
+      expect(screen.getByRole('button', { name: 'Register' })).toBeInTheDocument();
+    });
+
+    it('safely defaults to register mode when /api/users/exists encounters a network failure', async () => {
+      const fetchMock = vi.fn((input) => {
+        const url = extractUrl(input as RequestInfo | URL);
+        if (url.includes('/api/users/exists')) {
+          return Promise.reject(new Error('Connection failed'));
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      fireEvent.change(screen.getByLabelText('Username'), {
+        target: { value: 'offlineattendee' },
+      });
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      expect(screen.getByRole('button', { name: 'Register' })).toBeInTheDocument();
+      expect(screen.getByText('Identity Attributes')).toBeInTheDocument();
+    });
+
+    it('submits login with trimmed username and passphrase when in login mode', async () => {
+      const login = vi.fn().mockResolvedValue({ success: true });
+      const fetchMock = vi.fn((input) => {
+        const url = extractUrl(input as RequestInfo | URL);
+        if (url.includes('/api/users/exists')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login,
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: '  alice  ' } });
+      const loginButton = await screen.findByRole('button', { name: 'Login' });
+
+      fireEvent.change(screen.getByLabelText('Passphrase'), {
+        target: { value: '  secretpass  ' },
+      });
+      fireEvent.click(loginButton);
+
+      expect(login).toHaveBeenCalledWith('alice', 'secretpass');
+      await screen.findByText('Logged in successfully.');
+    });
+
+    it('submits registration with trimmed username, optional passphrase, and identity attributes', async () => {
+      const register = vi.fn().mockResolvedValue({ success: true, secret: 'secret-code-123' });
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register,
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: '  bob  ' } });
+      fireEvent.change(screen.getByLabelText('Passphrase'), {
+        target: { value: '  my-passphrase  ' },
+      });
+
+      const registerButton = screen.getByRole('button', { name: 'Register' });
+      fireEvent.click(registerButton);
+
+      expect(register).toHaveBeenCalledWith('bob', 'my-passphrase', {});
+      await screen.findByText(/Account created. Remember your passphrase: secret-code-123/);
+    });
+
+    it('displays error messages when missing required credentials for registration or login', async () => {
+      const fetchMock = vi.fn((input) => {
+        const url = extractUrl(input as RequestInfo | URL);
+        if (url.includes('/api/users/exists')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ exists: true }) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: null,
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      // Register with empty username
+      fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+      expect(screen.getByText('Username is required to register.')).toBeInTheDocument();
+
+      // Switch to login
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'existinguser' } });
+      const loginButton = await screen.findByRole('button', { name: 'Login' });
+
+      // Login with empty passphrase
+      fireEvent.click(loginButton);
+      expect(
+        screen.getByText('Username and passphrase are required to log in.')
+      ).toBeInTheDocument();
+    });
   });
 });

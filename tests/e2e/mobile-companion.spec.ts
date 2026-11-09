@@ -126,10 +126,7 @@ test.describe('Mobile Companion UX & Scroll Elimination', () => {
 
     await page.goto('/#account');
 
-    // Switch to Register tab
-    await page.click('button:has-text("Register")');
-
-    // Fill registration form
+    // Fill registration form (unauthenticated form starts in Register mode)
     await page.fill('label:has-text("Username") input', username);
     await page.fill('#account-passphrase', passphrase);
     await page.click('button[type="submit"]:has-text("Register")');
@@ -175,5 +172,100 @@ test.describe('Mobile Companion UX & Scroll Elimination', () => {
     if (await fetlifeInput.isVisible()) {
       await expect(fetlifeInput).toHaveValue('my_fetlife_handle');
     }
+  });
+
+  test('Mobile account registration, debounce username existence detection, and login flow', async ({
+    page,
+  }) => {
+    const timestamp = Date.now();
+    const username = `mobile_reg_${timestamp}`;
+    const passphrase = `Passphrase_${timestamp}!`;
+
+    await page.goto('/#account');
+
+    // Verify duplicate top tabs are absent
+    await expect(page.locator('.tab-buttons button')).toHaveCount(0);
+
+    // Initial state is Register mode
+    await expect(page.locator('button[type="submit"]')).toHaveText('Register');
+
+    // Type new username -> debounce check -> remains Register
+    await page.fill('label:has-text("Username") input', username);
+    await page.waitForTimeout(300);
+    await expect(page.locator('button[type="submit"]')).toHaveText('Register');
+
+    // Fill passphrase & register
+    await page.fill('#account-passphrase', passphrase);
+    await page.click('button[type="submit"]:has-text("Register")');
+
+    // Verify authenticated dashboard
+    await expect(page.locator('h1')).toContainText(username);
+
+    // Switch to Appearance & Security tab and Log out
+    await page.locator('#tab-appearance').click();
+    await expect(page.locator('#panel-appearance')).toBeVisible();
+    await page.click('button:has-text("Logout")');
+
+    // Back on unauthenticated view: initial mode is Register
+    await expect(page.locator('button[type="submit"]')).toHaveText('Register');
+
+    // Type the registered username
+    await page.fill('label:has-text("Username") input', username);
+
+    // Wait for debounced existence check (250ms) -> submit button automatically becomes "Login"
+    await expect(page.locator('button[type="submit"]')).toHaveText('Login', { timeout: 3000 });
+
+    // Passphrase tip and identity attributes are hidden in login mode
+    await expect(page.locator('text=Tip: Use a memorable passphrase')).toBeHidden();
+
+    // Enter passphrase and log in
+    await page.fill('#account-passphrase', passphrase);
+    await page.click('button[type="submit"]:has-text("Login")');
+
+    // Authenticated dashboard restored
+    await expect(page.locator('h1')).toContainText(username);
+  });
+
+  test('Guest wish creation with contacts and wishmail on mobile companion', async ({ page }) => {
+    const timestamp = Date.now();
+    const wishContent = `Mobile Companion Guest Wish ${timestamp}`;
+    const contactEmail = `guest_${timestamp}@example.com`;
+
+    await page.goto('/#enter');
+
+    // Verify wish editor container has no obscuring white box
+    const formCard = page.locator('.form-card');
+    await expect(formCard).toBeVisible();
+
+    // Fill wish text
+    await page.fill('textarea[placeholder="Type your wish here"]', wishContent);
+
+    // Toggle Wishmail checkbox via its accessible label
+    const wishmailCheckbox = page.getByRole('checkbox', { name: /Enable Wishmail/i });
+    await expect(wishmailCheckbox).toBeVisible();
+    await wishmailCheckbox.check();
+    await expect(wishmailCheckbox).toBeChecked();
+
+    // Add contact method
+    await page.click('button:has-text("+ Add Contact Method")');
+    const contactSelect = page.locator('fieldset select').first();
+    const contactInput = page
+      .locator('fieldset input[placeholder="Username, number, etc."]')
+      .first();
+    await expect(contactSelect).toBeVisible();
+    await expect(contactInput).toBeVisible();
+
+    // Fill contact details
+    await contactSelect.selectOption('Email');
+    await contactInput.fill(contactEmail);
+
+    // Submit wish
+    await page.click('button[type="submit"]:has-text("Submit Wish")');
+
+    // Verify success confirmation
+    const successMsg = page.locator('.message.success');
+    await expect(successMsg).toBeVisible();
+    await expect(successMsg).toContainText('Wish saved! ID:');
+    await expect(successMsg).toContainText('Your passphrase is:');
   });
 });

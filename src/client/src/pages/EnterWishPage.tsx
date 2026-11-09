@@ -375,12 +375,14 @@ export default function EnterWishPage() {
           <div
             className="spinner"
             style={{
-              borderTopColor: '#166534',
-              borderColor: 'rgba(22, 101, 52, 0.2)',
+              borderTopColor: 'var(--wb-success, #10b981)',
+              borderColor: 'var(--wb-success-bg, rgba(16, 185, 129, 0.2))',
               marginBottom: '12px',
             }}
           ></div>
-          <p style={{ margin: 0, color: '#166534', fontWeight: 'bold' }}>{processingStatus}</p>
+          <p style={{ margin: 0, color: 'var(--wb-success, #10b981)', fontWeight: 'bold' }}>
+            {processingStatus}
+          </p>
         </div>
       );
     }
@@ -388,7 +390,9 @@ export default function EnterWishPage() {
     if (imageBlob) {
       return (
         <div>
-          <p style={{ color: '#166534', fontWeight: 'bold' }}>✓ Handwritten wish attached</p>
+          <p style={{ color: 'var(--wb-success, #10b981)', fontWeight: 'bold' }}>
+            ✓ Handwritten wish attached
+          </p>
           <button type="button" className="secondary-button" onClick={() => setImageBlob(null)}>
             Remove Image
           </button>
@@ -398,7 +402,9 @@ export default function EnterWishPage() {
 
     return (
       <div>
-        <p style={{ margin: '0 0 12px 0' }}>Have a physical 3x5 wish card?</p>
+        <p style={{ margin: '0 0 12px 0', color: 'var(--wb-text-primary, #f8fafc)' }}>
+          Have a physical 3x5 wish card?
+        </p>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setShowScanner(true)}>
             Capture with Camera
@@ -474,9 +480,10 @@ export default function EnterWishPage() {
             style={{
               margin: '16px 0',
               padding: '16px',
-              background: '#f0fdf4',
+              background: 'var(--wb-bg-surface, rgba(30, 41, 59, 0.78))',
               borderRadius: '8px',
-              border: '1px solid #bbf7d0',
+              border: '1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.12))',
+              color: 'var(--wb-text-primary, #f8fafc)',
               textAlign: 'center',
             }}
           >
@@ -594,14 +601,21 @@ export default function EnterWishPage() {
                 <fieldset
                   className="desktop-only"
                   style={{
-                    border: '1px solid #d7dee5',
+                    border: '1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.12))',
                     borderRadius: '12px',
                     padding: '16px',
-                    background: '#f8fafc',
+                    background: 'var(--wb-bg-surface, rgba(30, 41, 59, 0.78))',
+                    color: 'var(--wb-text-primary, #f8fafc)',
                     marginBottom: '16px',
                   }}
                 >
-                  <legend style={{ fontWeight: 600, padding: '0 8px' }}>
+                  <legend
+                    style={{
+                      fontWeight: 600,
+                      padding: '0 8px',
+                      color: 'var(--wb-text-primary, #f8fafc)',
+                    }}
+                  >
                     Advanced Match Criteria
                   </legend>
                   <div style={{ display: 'grid', gap: '12px' }}>

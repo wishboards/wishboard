@@ -64,17 +64,27 @@ export default function SendWishmailModal({ wishId, onClose }: Readonly<SendWish
 
             <fieldset
               style={{
-                border: '1px solid #d7dee5',
+                border: '1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.12))',
                 borderRadius: '12px',
                 padding: '16px',
-                background: '#f8fafc',
+                background: 'var(--wb-bg-surface, rgba(30, 41, 59, 0.78))',
+                color: 'var(--wb-text-primary, #f8fafc)',
                 marginTop: '16px',
               }}
             >
-              <legend style={{ fontWeight: 600, padding: '0 8px' }}>
+              <legend
+                style={{
+                  fontWeight: 600,
+                  padding: '0 8px',
+                  color: 'var(--wb-text-primary, #f8fafc)',
+                }}
+              >
                 Return Contacts (Optional)
               </legend>
-              <p className="microtext" style={{ marginTop: 0 }}>
+              <p
+                className="microtext"
+                style={{ marginTop: 0, color: 'var(--wb-text-secondary, #94a3b8)' }}
+              >
                 Provide a way for them to reply to you.
               </p>
 
@@ -82,6 +92,7 @@ export default function SendWishmailModal({ wishId, onClose }: Readonly<SendWish
                 contacts={contacts}
                 setContacts={setContacts}
                 addButtonLabel="+ Add Return Contact"
+                removeButtonAriaLabel={() => 'X'}
               />
             </fieldset>
 

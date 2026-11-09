@@ -179,6 +179,16 @@ select {
   min-height: 48px;
 }
 
+input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--wb-accent-primary, #f59e0b);
+  cursor: pointer;
+}
+
 input:focus,
 textarea:focus,
 select:focus {

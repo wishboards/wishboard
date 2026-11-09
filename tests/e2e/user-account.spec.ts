@@ -13,8 +13,8 @@ test.describe('User Account Lifecycle E2E Tests', () => {
     await page.click('button:has-text("My Account")');
     await expect(page.locator('h1')).toHaveText('My Account');
 
-    // 2. Select Register tab
-    await page.click('button:has-text("Register")');
+    // 2. Initial state is Registration mode
+    await expect(page.locator('button[type="submit"]')).toHaveText('Register');
 
     // 3. Fill registration form
     await page.fill('label:has-text("Username") input', username);
@@ -53,11 +53,11 @@ test.describe('User Account Lifecycle E2E Tests', () => {
 
     // 7. Logout
     await page.click('button:has-text("Log out")');
-    await expect(page.locator('button:has-text("Login")')).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toHaveText('Register');
 
-    // 8. Re-login
-    await page.click('button:has-text("Login")');
+    // 8. Re-login (enter registered username, wait for debounced existence check to switch mode to Login)
     await page.fill('label:has-text("Username") input', username);
+    await expect(page.locator('button[type="submit"]')).toHaveText('Login');
     await page.fill('#account-passphrase', passphrase);
     await page.click('button[type="submit"]:has-text("Login")');
 

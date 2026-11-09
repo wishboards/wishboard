@@ -156,8 +156,7 @@ test.describe('Adversarial Stress Suite — Mobile Companion & Segmented Tabs', 
 
     await page.goto('/#account');
 
-    // Register test user
-    await page.click('button:has-text("Register")');
+    // Register test user (starts in Register mode)
     await page.fill('label:has-text("Username") input', username);
     await page.fill('#account-passphrase', passphrase);
     await page.click('button[type="submit"]:has-text("Register")');
