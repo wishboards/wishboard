@@ -218,4 +218,12 @@ export const emitSystemLog = (logEntry) => {
   }
 };
 
+export const emitBrandingUpdated = (branding) => {
+  if (getProvider() === 'apigateway') {
+    track(broadcastToApiGateway('sys:branding', branding));
+  } else if (io) {
+    io.emit('sys:branding', branding);
+  }
+};
+
 globalThis.__wishboardSocketLoaded = true;

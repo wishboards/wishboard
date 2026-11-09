@@ -5,7 +5,9 @@ import {
   STORAGE_PREFERENCES_KEY,
   getStoredPreferences,
   setStoredPreferences,
+  resolveBoardTextureCss,
 } from './useTheme';
+import { getSocket } from './useWebSocket';
 
 const useAuthMock = vi.fn();
 const useEventProfileMock = vi.fn();
@@ -176,5 +178,111 @@ describe('useTheme hook', () => {
 
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it('dynamically updates :root CSS variables and dataset attributes when sys:branding WebSocket event is received', () => {
+    const { result } = renderHook(() => useTheme());
+    const socket = getSocket();
+
+    const brandingListener = vi
+      .mocked(socket.on)
+      .mock.calls.find(([event]) => event === 'sys:branding')?.[1];
+
+    expect(brandingListener).toBeDefined();
+
+    act(() => {
+      brandingListener({
+        themePreset: 'daylight',
+        accentColor: '#10b981',
+        primaryColor: '#059669',
+        surfaceColor: 'rgba(255, 255, 255, 0.95)',
+        boardTitle: 'Solar Fest',
+        tagline: 'Bright ideas',
+        boardTexture: 'linen',
+        logoUrl: '/images/live-logo.png',
+        boardBgUrl: null,
+      });
+    });
+
+    expect(result.current.branding.boardTitle).toBe('Solar Fest');
+    expect(result.current.effectiveTheme).toBe('daylight');
+    expect(document.documentElement.dataset.theme).toBe('daylight');
+    expect(document.documentElement.dataset.boardTexture).toBe('linen');
+    expect(document.documentElement.style.getPropertyValue('--wb-accent-primary')).toBe('#10b981');
+    expect(document.documentElement.style.getPropertyValue('--wb-accent-hover')).toBe('#059669');
+    expect(document.documentElement.style.getPropertyValue('--wb-bg-surface')).toBe(
+      'rgba(255, 255, 255, 0.95)'
+    );
+    expect(document.documentElement.style.getPropertyValue('--wb-brand-logo-url')).toBe(
+      "url('/images/live-logo.png')"
+    );
+    expect(document.documentElement.style.getPropertyValue('--wb-board-texture')).toBe(
+      "url('/textures/linen.webp')"
+    );
+  });
+
+  it('preserves attendee personal theme preference while updating host brand assets on sys:branding', async () => {
+    const { result } = renderHook(() => useTheme());
+    const socket = getSocket();
+
+    await act(async () => {
+      await result.current.setThemeMode('corkhouse');
+    });
+
+    expect(result.current.effectiveTheme).toBe('corkhouse');
+    expect(document.documentElement.dataset.theme).toBe('corkhouse');
+
+    const brandingListener = vi
+      .mocked(socket.on)
+      .mock.calls.find(([event]) => event === 'sys:branding')?.[1];
+
+    act(() => {
+      brandingListener({
+        themePreset: 'daylight',
+        boardTitle: 'Host Convention',
+        logoUrl: '/images/con-logo.webp',
+        boardTexture: 'slate',
+      });
+    });
+
+    // Attendee personal theme remains corkhouse
+    expect(result.current.effectiveTheme).toBe('corkhouse');
+    expect(document.documentElement.dataset.theme).toBe('corkhouse');
+
+    // Host brand assets update
+    expect(result.current.branding.boardTitle).toBe('Host Convention');
+    expect(document.documentElement.style.getPropertyValue('--wb-brand-logo-url')).toBe(
+      "url('/images/con-logo.webp')"
+    );
+    expect(document.documentElement.style.getPropertyValue('--wb-board-texture')).toBe(
+      "url('/textures/slate.webp')"
+    );
+    expect(document.documentElement.dataset.boardTexture).toBe('slate');
+  });
+
+  it('correctly cleans up sys:branding listener upon unmount', () => {
+    const socket = getSocket();
+    const { unmount } = renderHook(() => useTheme());
+
+    const offSpy = vi.spyOn(socket, 'off');
+    unmount();
+
+    expect(offSpy).toHaveBeenCalledWith('sys:branding', expect.any(Function));
+  });
+
+  it('resolveBoardTextureCss resolves all supported texture types and custom URLs', () => {
+    expect(resolveBoardTextureCss('cork')).toBe("url('/textures/cork.webp')");
+    expect(resolveBoardTextureCss('slate')).toBe("url('/textures/slate.webp')");
+    expect(resolveBoardTextureCss('linen')).toBe("url('/textures/linen.webp')");
+    expect(resolveBoardTextureCss('custom', '/images/custom-bg.png')).toBe(
+      "url('/images/custom-bg.png')"
+    );
+    expect(resolveBoardTextureCss('custom', null)).toBe('none');
+    expect(resolveBoardTextureCss('none')).toBe('none');
+    expect(resolveBoardTextureCss(undefined)).toBe("url('/textures/cork.webp')");
+    // If bgUrl is provided regardless of texture, it takes precedence
+    expect(resolveBoardTextureCss('cork', '/images/override.png')).toBe(
+      "url('/images/override.png')"
+    );
   });
 });

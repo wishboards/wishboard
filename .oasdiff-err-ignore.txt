@@ -1,0 +1,2 @@
+GET /api/config .*themePreset.*
+GET /api/config added the new `custom` enum value to the `branding/themePreset` response property for the response status `200`

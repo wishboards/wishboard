@@ -83,6 +83,26 @@ describe('AdminPage', () => {
       }),
     },
     {
+      test: (url: string) => url.endsWith('/api/admin/branding'),
+      handler: () =>
+        mockToken
+          ? {
+              ok: true,
+              json: async () => ({
+                themePreset: 'midnight',
+                primaryColor: '#f59e0b',
+                accentColor: '#fbbf24',
+                surfaceColor: 'rgba(30, 41, 59, 0.78)',
+                boardTitle: 'Wishboard',
+                tagline: 'Pin your convention wishes',
+                boardTexture: 'cork',
+                logoUrl: null,
+                boardBgUrl: null,
+              }),
+            }
+          : { ok: false, status: 401 },
+    },
+    {
       test: (url: string) => url.includes('/api/rules'),
       handler: (options?: any) => {
         if (
@@ -565,5 +585,24 @@ describe('AdminPage', () => {
 
     await waitFor(() => expect(logoutMock).toHaveBeenCalled());
     expect(screen.getByText(/session expired or is no longer valid/i)).toBeInTheDocument();
+  });
+
+  it('renders branding tab in sidebar and switches to BrandingStudioSection', async () => {
+    mockUser = { id: 'admin-id', username: 'admin', role: 'admin' };
+    mockToken = 'admin-token';
+
+    render(<AdminPage />);
+
+    const brandingTab = screen.getByRole('button', { name: /Branding/i });
+    expect(brandingTab).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(brandingTab);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Event-Host Branding Studio')).toBeInTheDocument();
+      expect(screen.getByLabelText(/theme preset/i)).toBeInTheDocument();
+    });
   });
 });

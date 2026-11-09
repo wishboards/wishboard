@@ -9,11 +9,23 @@ export const DEFAULT_EVENT_PROFILE = 'lifestyle';
 export const DEFAULT_BRANDING = {
   themePreset: 'midnight',
   accentColor: '#f59e0b',
+  primaryColor: '#f59e0b',
+  surfaceColor: 'rgba(30, 41, 59, 0.78)',
   boardTitle: 'Wishboard',
   tagline: 'Pin your convention wishes',
+  boardTexture: 'cork',
+  logoUrl: null,
+  boardBgUrl: null,
 };
 
-const VALID_THEME_PRESETS = new Set(['midnight', 'daylight', 'corkhouse', 'high-contrast']);
+const VALID_THEME_PRESETS = new Set([
+  'midnight',
+  'daylight',
+  'corkhouse',
+  'high-contrast',
+  'custom',
+]);
+const VALID_BOARD_TEXTURES = new Set(['cork', 'slate', 'linen', 'custom', 'none']);
 
 export const validateBranding = (rawBranding) => {
   if (!rawBranding || typeof rawBranding !== 'object') {
@@ -26,6 +38,14 @@ export const validateBranding = (rawBranding) => {
     typeof rawBranding.accentColor === 'string' && rawBranding.accentColor.trim()
       ? rawBranding.accentColor.trim()
       : DEFAULT_BRANDING.accentColor;
+  const primaryColor =
+    typeof rawBranding.primaryColor === 'string' && rawBranding.primaryColor.trim()
+      ? rawBranding.primaryColor.trim()
+      : accentColor || DEFAULT_BRANDING.primaryColor;
+  const surfaceColor =
+    typeof rawBranding.surfaceColor === 'string' && rawBranding.surfaceColor.trim()
+      ? rawBranding.surfaceColor.trim()
+      : DEFAULT_BRANDING.surfaceColor;
   const boardTitle =
     typeof rawBranding.boardTitle === 'string' && rawBranding.boardTitle.trim()
       ? rawBranding.boardTitle.trim()
@@ -34,12 +54,28 @@ export const validateBranding = (rawBranding) => {
     typeof rawBranding.tagline === 'string' && rawBranding.tagline.trim()
       ? rawBranding.tagline.trim()
       : DEFAULT_BRANDING.tagline;
+  const boardTexture = VALID_BOARD_TEXTURES.has(rawBranding.boardTexture)
+    ? rawBranding.boardTexture
+    : DEFAULT_BRANDING.boardTexture;
+  const logoUrl =
+    typeof rawBranding.logoUrl === 'string' && rawBranding.logoUrl.trim()
+      ? rawBranding.logoUrl.trim()
+      : null;
+  const boardBgUrl =
+    typeof rawBranding.boardBgUrl === 'string' && rawBranding.boardBgUrl.trim()
+      ? rawBranding.boardBgUrl.trim()
+      : null;
 
   return {
     themePreset,
     accentColor,
+    primaryColor,
+    surfaceColor,
     boardTitle,
     tagline,
+    boardTexture,
+    logoUrl,
+    boardBgUrl,
   };
 };
 
