@@ -227,8 +227,13 @@ describe('configManager', () => {
     ).toEqual({
       themePreset: 'corkhouse',
       accentColor: '#10b981',
+      primaryColor: '#10b981',
+      surfaceColor: 'rgba(30, 41, 59, 0.78)',
       boardTitle: 'Custom Board',
       tagline: 'Custom Tagline',
+      boardTexture: 'cork',
+      logoUrl: null,
+      boardBgUrl: null,
     });
   });
 });
