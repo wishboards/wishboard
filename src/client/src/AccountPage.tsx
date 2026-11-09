@@ -542,10 +542,53 @@ function getInitialProfileAttributes(user: AuthUser | null): Record<string, stri
   return initialAttributes;
 }
 
+type AccountTab = 'wishes' | 'identity' | 'appearance';
+
+const ACCOUNT_TABS: readonly { id: AccountTab; label: string; icon: string }[] = [
+  { id: 'wishes', label: 'My Wishes', icon: '📝' },
+  { id: 'identity', label: 'Identity & Match', icon: '👤' },
+  { id: 'appearance', label: 'Appearance & Security', icon: '⚙️' },
+];
+
+const getInitialAccountTab = (): AccountTab => {
+  if (typeof globalThis !== 'undefined' && globalThis.location?.hash) {
+    const hashIndex = globalThis.location.hash.indexOf('?');
+    if (hashIndex !== -1) {
+      const tabParam = new URLSearchParams(globalThis.location.hash.substring(hashIndex)).get(
+        'tab'
+      );
+      if (tabParam === 'identity' || tabParam === 'appearance' || tabParam === 'wishes') {
+        return tabParam;
+      }
+    }
+  }
+  return 'wishes';
+};
+
 function AuthenticatedAccountPage() {
   const { user, token, logout, refreshUser } = useAuth();
   const { categories } = useEventProfile();
   const { themeMode, setThemeMode } = useTheme();
+
+  const [activeTab, setActiveTab] = useState<AccountTab>(getInitialAccountTab);
+
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tabs: readonly AccountTab[] = ['wishes', 'identity', 'appearance'];
+    const currentIndex = tabs.indexOf(activeTab);
+    let nextIndex: number | null = null;
+
+    if (e.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = tabs.length - 1;
+
+    if (nextIndex !== null) {
+      e.preventDefault();
+      const nextTab = tabs[nextIndex];
+      setActiveTab(nextTab);
+      globalThis.document?.getElementById(`tab-${nextTab}`)?.focus();
+    }
+  };
 
   const [editIdentityAttributes, setEditIdentityAttributes] = useState<Record<string, string>>(() =>
     getInitialProfileAttributes(user)
@@ -760,259 +803,284 @@ function AuthenticatedAccountPage() {
         </button>
       </div>
 
-      <div className="profile-details">
-        <h2>Your profile attributes</h2>
-        {categories.map((cat) => (
-          <div className="info-row" key={cat.id}>
-            <span className="info-label">{cat.label}s:</span>
-            <span className="info-value">
-              {user.attributes?.[cat.id]?.length > 0
-                ? user.attributes[cat.id].join(', ')
-                : '(None)'}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="profile-edit">
-        <div className="label-with-info" style={{ marginBottom: '16px' }}>
-          <h2 style={{ margin: 0 }}>Edit profile attributes</h2>
-          <InfoToggle>
-            Updating these attributes will change how you are matched with other users across all
-            your wishes.
-          </InfoToggle>
-        </div>
-        {categories.map((cat) => {
-          const suggs = cat.suggestions || [];
+      {/* Segmented Tab Navigation */}
+      <div
+        className="account-tabs-nav"
+        role="tablist"
+        aria-label="Account sections"
+        onKeyDown={handleTabKeyDown}
+      >
+        {ACCOUNT_TABS.map((tab) => {
+          const isSelected = activeTab === tab.id;
           return (
-            <label key={cat.id}>
-              {cat.label}s
-              <AttributeInput
-                category={cat.id}
-                value={editIdentityAttributes[cat.id] || ''}
-                onChange={(val) =>
-                  setEditIdentityAttributes((prev) => ({ ...prev, [cat.id]: val }))
-                }
-                placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
-                suggestions={suggs}
-                warning={getConflictWarning(editConflicts, cat.id)}
-              />
-            </label>
+            <button
+              key={tab.id}
+              id={`tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={isSelected ? 0 : -1}
+              className={`account-tab-btn ${isSelected ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span className="account-tab-icon" aria-hidden="true">
+                {tab.icon}
+              </span>
+              <span className="account-tab-label">{tab.label}</span>
+              {tab.id === 'wishes' && wishes.length > 0 && (
+                <span className="account-tab-badge" aria-label={`${wishes.length} wishes`}>
+                  {wishes.length}
+                </span>
+              )}
+            </button>
           );
         })}
-
-        <div style={{ marginTop: '24px', marginBottom: '16px' }}>
-          <h2 style={{ margin: 0 }}>Default Contact Methods</h2>
-          <p style={{ marginTop: '8px', fontSize: '0.9rem', color: '#556275' }}>
-            These will be automatically added to any new wishes you create.
-          </p>
-        </div>
-
-        <label
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontWeight: 'normal',
-            marginBottom: '16px',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={wishmailEnabled}
-            onChange={(e) => setWishmailEnabled(e.target.checked)}
-            style={{ width: 'auto', minHeight: 'auto' }}
-          />{' '}
-          Enable Wishmail by default
-        </label>
-
-        <div style={{ marginBottom: '24px' }}>
-          {contacts.map((contact, index) => (
-            <div
-              key={`${contact.type}-${contact.value || index}`}
-              style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}
-            >
-              <select
-                value={contact.type}
-                onChange={(e) => {
-                  const newContacts = [...contacts];
-                  newContacts[index] = { ...newContacts[index], type: e.target.value };
-                  setContacts(newContacts);
-                }}
-                style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  border: '1px solid #d7dee5',
-                  background: 'white',
-                }}
-              >
-                <option value="FetLife">FetLife</option>
-                <option value="Phone">Phone</option>
-                <option value="Email">Email</option>
-              </select>
-              <input
-                type="text"
-                value={contact.value}
-                onChange={(e) => {
-                  const newContacts = [...contacts];
-                  newContacts[index] = { ...newContacts[index], value: e.target.value };
-                  setContacts(newContacts);
-                }}
-                placeholder="Username, number, etc."
-                style={{ minHeight: '36px', padding: '8px' }}
-              />
-              <button
-                type="button"
-                onClick={() => setContacts(contacts.filter((_, i) => i !== index))}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 12px',
-                  background: '#e53e3e',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                X
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => setContacts([...contacts, { type: 'FetLife', value: '' }])}
-            className="secondary-button"
-            style={{ minHeight: '36px', padding: '6px 12px', fontSize: '0.9rem' }}
-          >
-            + Add Contact Method
-          </button>
-        </div>
-
-        {editConflicts.length > 0 && (
-          <div className="message error" style={{ marginTop: '12px' }}>
-            Please resolve the attribute conflicts before saving.
-          </div>
-        )}
-        <button
-          className="secondary-button"
-          onClick={saveProfile}
-          type="button"
-          disabled={editConflicts.length > 0}
-        >
-          Save attributes
-        </button>
-      </div>
-
-      <ThemeSelectorCard
-        themeMode={themeMode}
-        setThemeMode={setThemeMode}
-        style={{ marginBottom: '24px' }}
-      />
-
-      <div className="profile-edit" style={{ border: '1px solid #e53e3e', marginBottom: '32px' }}>
-        <h2 style={{ color: '#e53e3e', margin: '0 0 16px 0' }}>Danger Zone</h2>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <button
-            className="secondary-button"
-            style={{
-              color: user.is_active ? '#e53e3e' : '#2b6cb0',
-              borderColor: user.is_active ? '#e53e3e' : '#2b6cb0',
-            }}
-            onClick={toggleProfileStatus}
-            type="button"
-          >
-            {user.is_active ? 'Deactivate Profile' : 'Reactivate Profile'}
-          </button>
-          <button
-            className="secondary-button"
-            style={{ background: '#e53e3e', color: 'white', borderColor: '#e53e3e' }}
-            onClick={handleDeletePreview}
-            type="button"
-          >
-            Delete Account
-          </button>
-        </div>
-        <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#556275' }}>
-          {user.is_active
-            ? 'Deactivating your profile will temporarily hide all your wishes. Deleting your account is permanent.'
-            : 'Your profile is currently deactivated. Your wishes are hidden from the public.'}
-        </p>
       </div>
 
       {message && <div className="message success">{message}</div>}
       {error && <div className="message error">{error}</div>}
 
-      {wishes.length === 0 ? (
-        <p>No wishes yet. Submit a new wish from the Enter a Wish page.</p>
-      ) : (
-        <div className="wish-grid">
-          {wishes.map((wish) => (
-            <div key={wish.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ opacity: wish.is_active ? 1 : 0.6 }}>
+      {/* Panel 1: My Wishes */}
+      <div
+        role="tabpanel"
+        id="panel-wishes"
+        aria-labelledby="tab-wishes"
+        hidden={activeTab !== 'wishes'}
+        className="account-tabpanel"
+      >
+        {wishes.length === 0 ? (
+          <p>No wishes yet. Submit a new wish from the Enter a Wish page.</p>
+        ) : (
+          <div className="wish-grid">
+            {wishes.map((wish) => (
+              <div key={wish.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ opacity: wish.is_active ? 1 : 0.6 }}>
+                  <WishCard
+                    wish={wish}
+                    showFlag={false}
+                    onEdit={(id) => {
+                      globalThis.location.hash = `#manage-wish?id=${id}`;
+                    }}
+                    onDelete={deleteWish}
+                    onViewWishmail={(id) => {
+                      globalThis.location.hash = `#wishmail-dashboard?id=${id}`;
+                    }}
+                    unreadWishmailCount={wish.unread_wishmail_count}
+                  />
+                  {!wish.is_active && (
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        color: '#e53e3e',
+                        fontWeight: 'bold',
+                        marginTop: '4px',
+                      }}
+                    >
+                      Inactive
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hiddenWishes.length > 0 && (
+          <div style={{ marginTop: '40px', marginBottom: '32px' }}>
+            <h2>Hidden Wishes (Not Interested)</h2>
+            <p style={{ marginBottom: '16px', fontSize: '0.9rem', color: '#556275' }}>
+              These wishes are hidden from your search results. You can make them visible again at
+              any time.
+            </p>
+            <div className="wish-grid">
+              {hiddenWishes.map((wish) => (
                 <WishCard
+                  key={wish.id}
                   wish={wish}
                   showFlag={false}
-                  onEdit={(id) => {
-                    globalThis.location.hash = `#manage-wish?id=${id}`;
-                  }}
-                  onDelete={deleteWish}
-                  onViewWishmail={(id) => {
-                    globalThis.location.hash = `#wishmail-dashboard?id=${id}`;
-                  }}
-                  unreadWishmailCount={wish.unread_wishmail_count}
+                  isExcluded={true}
+                  onExclude={() => {}}
+                  onUnexclude={() => unhideWish(wish.id)}
                 />
-                {!wish.is_active && (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      color: '#e53e3e',
-                      fontWeight: 'bold',
-                      marginTop: '4px',
-                    }}
-                  >
-                    Inactive
-                  </div>
-                )}
-              </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: '32px' }}>
+          <ClaimWishForm token={token} loadWishes={loadWishes} />
+        </div>
+      </div>
+
+      {/* Panel 2: Identity & Match */}
+      <div
+        role="tabpanel"
+        id="panel-identity"
+        aria-labelledby="tab-identity"
+        hidden={activeTab !== 'identity'}
+        className="account-tabpanel"
+      >
+        <div className="profile-details">
+          <h2>Your profile attributes</h2>
+          {categories.map((cat) => (
+            <div className="info-row" key={cat.id}>
+              <span className="info-label">{cat.label}s:</span>
+              <span className="info-value">
+                {user.attributes?.[cat.id]?.length > 0
+                  ? user.attributes[cat.id].join(', ')
+                  : '(None)'}
+              </span>
             </div>
           ))}
         </div>
-      )}
 
-      {hiddenWishes.length > 0 && (
-        <div style={{ marginTop: '40px', marginBottom: '32px' }}>
-          <h2>Hidden Wishes (Not Interested)</h2>
-          <p style={{ marginBottom: '16px', fontSize: '0.9rem', color: '#556275' }}>
-            These wishes are hidden from your search results. You can make them visible again at any
-            time.
-          </p>
-          <div className="wish-grid">
-            {hiddenWishes.map((wish) => (
-              <WishCard
-                key={wish.id}
-                wish={wish}
-                showFlag={false}
-                isExcluded={true}
-                onExclude={() => {}}
-                onUnexclude={() => unhideWish(wish.id)}
-              />
-            ))}
+        <div className="profile-edit">
+          <div className="label-with-info" style={{ marginBottom: '16px' }}>
+            <h2 style={{ margin: 0 }}>Edit profile attributes</h2>
+            <InfoToggle>
+              Updating these attributes will change how you are matched with other users across all
+              your wishes.
+            </InfoToggle>
           </div>
-        </div>
-      )}
+          {categories.map((cat) => {
+            const suggs = cat.suggestions || [];
+            return (
+              <label key={cat.id}>
+                {cat.label}s
+                <AttributeInput
+                  category={cat.id}
+                  value={editIdentityAttributes[cat.id] || ''}
+                  onChange={(val) =>
+                    setEditIdentityAttributes((prev) => ({ ...prev, [cat.id]: val }))
+                  }
+                  placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+                  suggestions={suggs}
+                  warning={getConflictWarning(editConflicts, cat.id)}
+                />
+              </label>
+            );
+          })}
 
+          <div style={{ marginTop: '24px', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0 }}>Default Contact Methods</h2>
+            <p style={{ marginTop: '8px', fontSize: '0.9rem', color: '#556275' }}>
+              These will be automatically added to any new wishes you create.
+            </p>
+          </div>
+
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 'normal',
+              marginBottom: '16px',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={wishmailEnabled}
+              onChange={(e) => setWishmailEnabled(e.target.checked)}
+              style={{ width: 'auto', minHeight: 'auto' }}
+            />{' '}
+            Enable Wishmail by default
+          </label>
+
+          <div style={{ marginBottom: '24px' }}>
+            {contacts.map((contact, index) => (
+              <div
+                key={`${contact.type}-${contact.value || index}`}
+                style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}
+              >
+                <select
+                  value={contact.type}
+                  onChange={(e) => {
+                    const newContacts = [...contacts];
+                    newContacts[index] = { ...newContacts[index], type: e.target.value };
+                    setContacts(newContacts);
+                  }}
+                  style={{
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: '1px solid #d7dee5',
+                    background: 'white',
+                  }}
+                >
+                  <option value="FetLife">FetLife</option>
+                  <option value="Phone">Phone</option>
+                  <option value="Email">Email</option>
+                </select>
+                <input
+                  type="text"
+                  value={contact.value}
+                  onChange={(e) => {
+                    const newContacts = [...contacts];
+                    newContacts[index] = { ...newContacts[index], value: e.target.value };
+                    setContacts(newContacts);
+                  }}
+                  placeholder="Username, number, etc."
+                  style={{ minHeight: '36px', padding: '8px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setContacts(contacts.filter((_, i) => i !== index))}
+                  style={{
+                    minHeight: '36px',
+                    padding: '0 12px',
+                    background: '#e53e3e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  X
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setContacts([...contacts, { type: 'FetLife', value: '' }])}
+              className="secondary-button"
+              style={{ minHeight: '36px', padding: '6px 12px', fontSize: '0.9rem' }}
+            >
+              + Add Contact Method
+            </button>
+          </div>
+
+          {editConflicts.length > 0 && (
+            <div className="message error" style={{ marginTop: '12px' }}>
+              Please resolve the attribute conflicts before saving.
+            </div>
+          )}
+          <button
+            className="secondary-button"
+            onClick={saveProfile}
+            type="button"
+            disabled={editConflicts.length > 0}
+          >
+            Save attributes
+          </button>
+        </div>
+      </div>
+
+      {/* Panel 3: Appearance & Security */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '24px',
-          marginTop: '32px',
-        }}
+        role="tabpanel"
+        id="panel-appearance"
+        aria-labelledby="tab-appearance"
+        hidden={activeTab !== 'appearance'}
+        className="account-tabpanel"
       >
-        <ClaimWishForm token={token} loadWishes={loadWishes} />
+        <ThemeSelectorCard
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
+          style={{ marginBottom: '24px' }}
+        />
 
         {token && (
-          <div className="profile-edit" style={{ textAlign: 'center' }}>
+          <div className="profile-edit" style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div
               className="label-with-info"
               style={{ marginBottom: '16px', justifyContent: 'center' }}
@@ -1041,6 +1109,36 @@ function AuthenticatedAccountPage() {
             </p>
           </div>
         )}
+
+        <div className="profile-edit" style={{ border: '1px solid #e53e3e', marginBottom: '32px' }}>
+          <h2 style={{ color: '#e53e3e', margin: '0 0 16px 0' }}>Danger Zone</h2>
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <button
+              className="secondary-button"
+              style={{
+                color: user.is_active ? '#e53e3e' : '#2b6cb0',
+                borderColor: user.is_active ? '#e53e3e' : '#2b6cb0',
+              }}
+              onClick={toggleProfileStatus}
+              type="button"
+            >
+              {user.is_active ? 'Deactivate Profile' : 'Reactivate Profile'}
+            </button>
+            <button
+              className="secondary-button"
+              style={{ background: '#e53e3e', color: 'white', borderColor: '#e53e3e' }}
+              onClick={handleDeletePreview}
+              type="button"
+            >
+              Delete Account
+            </button>
+          </div>
+          <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#556275' }}>
+            {user.is_active
+              ? 'Deactivating your profile will temporarily hide all your wishes. Deleting your account is permanent.'
+              : 'Your profile is currently deactivated. Your wishes are hidden from the public.'}
+          </p>
+        </div>
       </div>
 
       {showDeleteModal && deletePreview && (

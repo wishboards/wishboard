@@ -12,6 +12,7 @@ import ManageWishPage from './pages/ManageWishPage';
 import WishmailDashboard from './pages/WishmailDashboard';
 import AboutPage from './pages/AboutPage';
 import PosterPage from './pages/PosterPage';
+import MobileBottomBar from './components/MobileBottomBar';
 
 const pages = [
   { id: 'home', label: 'Home', icon: '🏠' },
@@ -226,122 +227,6 @@ const AppMain = React.memo(function AppMain({
   );
 });
 
-const MobileBottomBar = React.memo(function MobileBottomBar({
-  page,
-  navigate,
-  isMobileMenuOpen,
-  setIsMobileMenuOpen,
-}: {
-  page: PageId;
-  navigate: (pageId: PageId) => void;
-  isMobileMenuOpen: boolean;
-  setIsMobileMenuOpen: (open: boolean) => void;
-}) {
-  return (
-    <nav className="mobile-bottom-bar">
-      {pages
-        .filter((p) => !['admin', 'poster', 'about'].includes(p.id))
-        .map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            className={`mobile-tab-button ${page === item.id ? 'active' : ''}`}
-            onClick={() => navigate(item.id as PageId)}
-          >
-            <div className="mobile-tab-icon">
-              <span className="emoji-icon" aria-hidden="true">
-                {item.icon}
-              </span>
-            </div>
-            <span className="mobile-tab-label">{item.label}</span>
-          </button>
-        ))}
-      {/* Hamburger Menu for the rest */}
-      <button
-        type="button"
-        className="mobile-tab-button"
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      >
-        <div className="mobile-tab-icon">
-          <span className="emoji-icon" aria-hidden="true">
-            ☰
-          </span>
-        </div>
-        <span className="mobile-tab-label">More</span>
-      </button>
-    </nav>
-  );
-});
-
-const MobileHamburgerMenu = React.memo(function MobileHamburgerMenu({
-  setIsMobileMenuOpen,
-  navigate,
-  user,
-  logout,
-}: {
-  setIsMobileMenuOpen: (open: boolean) => void;
-  navigate: (pageId: PageId) => void;
-  user: AuthUser | null;
-  logout: () => void;
-}) {
-  return (
-    <div id="mobile-hamburger-menu" className="mobile-hamburger-menu" style={{ display: 'flex' }}>
-      <button
-        type="button"
-        aria-label="Close menu"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'default',
-          padding: 0,
-          margin: 0,
-        }}
-        onClick={() => setIsMobileMenuOpen(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') setIsMobileMenuOpen(false);
-        }}
-      />
-      <div className="hamburger-content">
-        <button
-          type="button"
-          className="hamburger-close"
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
-          ✕
-        </button>
-        <div className="hamburger-items">
-          <button
-            type="button"
-            className="hamburger-item"
-            onClick={() => {
-              navigate('about');
-              setIsMobileMenuOpen(false);
-            }}
-          >
-            About
-          </button>
-          {user && (
-            <button
-              type="button"
-              className="hamburger-item"
-              onClick={() => {
-                logout();
-                setIsMobileMenuOpen(false);
-              }}
-            >
-              Log out
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
 const ExitKioskModal = React.memo(function ExitKioskModal({
   handleExitKiosk,
   kioskError,
@@ -416,13 +301,41 @@ function AppContent() {
   const [page, setPage] = useState<PageId>(getHashPage);
   const [isKiosk, setIsKiosk] = useState<boolean>(checkIsKioskParam);
   const [showExitPrompt, setShowExitPrompt] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   const [kioskUsername, setKioskUsername] = useState('');
   const [kioskPassphrase, setKioskPassphrase] = useState('');
   const [kioskError, setKioskError] = useState<string | null>(null);
 
-  const { user, login, logout, setTokenExternally } = useAuth();
+  const { user, token, login, logout, setTokenExternally } = useAuth();
+
+  useEffect(() => {
+    if (!token) return;
+
+    const controller = new AbortController();
+    fetch('/api/users/me/wishes', {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((wishes: Array<{ unread_wishmail_count?: number }>) => {
+        if (Array.isArray(wishes)) {
+          const total = wishes.reduce((sum, w) => sum + (Number(w.unread_wishmail_count) || 0), 0);
+          setUnreadCount(total);
+        }
+      })
+      .catch((err: Error) => {
+        if (err.name !== 'AbortError') {
+          // ignore network errors
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [token, page]);
+
+  const activeUnreadCount = token ? unreadCount : 0;
 
   useEffect(() => {
     // Check for auto-login token in the URL hash
@@ -500,22 +413,7 @@ function AppContent() {
 
       {/* Mobile Bottom Tab Bar */}
       {!isKiosk && (
-        <MobileBottomBar
-          page={page}
-          navigate={navigate}
-          isMobileMenuOpen={isMobileMenuOpen}
-          setIsMobileMenuOpen={setIsMobileMenuOpen}
-        />
-      )}
-
-      {/* Mobile Hamburger Overlay */}
-      {!isKiosk && isMobileMenuOpen && (
-        <MobileHamburgerMenu
-          setIsMobileMenuOpen={setIsMobileMenuOpen}
-          navigate={navigate}
-          user={user}
-          logout={logout}
-        />
+        <MobileBottomBar page={page} navigate={navigate} unreadCount={activeUnreadCount} />
       )}
 
       {showExitPrompt && (

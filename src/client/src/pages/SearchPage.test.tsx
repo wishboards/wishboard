@@ -299,4 +299,40 @@ describe('SearchPage', () => {
     expect(checkbox).toBeInTheDocument();
     expect(checkbox.checked).toBe(true);
   });
+
+  it('opens mobile filter attributes bottom sheet on mobile viewports for guests', async () => {
+    Object.defineProperty(globalThis, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 767px)',
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+
+    render(<SearchPage />);
+
+    // Filter pill trigger
+    const filterPill = screen.getByRole('button', { name: /Filter Attributes, 0 selected/i });
+    expect(filterPill).toBeInTheDocument();
+
+    // Open bottom sheet
+    fireEvent.click(filterPill);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Filter Attributes (0)')).toBeInTheDocument();
+
+    // Select attribute
+    const genderInput = screen.getByLabelText(/Your Gender\(s\)/i);
+    fireEvent.change(genderInput, { target: { value: 'enby' } });
+
+    // Click Apply Filters
+    const applyBtn = screen.getByRole('button', { name: 'Apply Filters' });
+    fireEvent.click(applyBtn);
+
+    // Pill updates to 1 selected
+    expect(
+      screen.getByRole('button', { name: /Filter Attributes, 1 selected/i })
+    ).toBeInTheDocument();
+  });
 });
