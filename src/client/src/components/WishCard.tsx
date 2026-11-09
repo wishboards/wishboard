@@ -3,6 +3,34 @@ import IdentityStickers from './IdentityStickers';
 import FlagButton from './FlagButton';
 import { useTextFit } from '../hooks/useTextFit';
 
+// eslint-disable-next-line react-refresh/only-export-components
+export const PAPER_COLORS = Object.freeze(['ivory', 'canary', 'rose', 'sky', 'sage'] as const);
+export type CardPaperColor = (typeof PAPER_COLORS)[number];
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const PIN_COLORS = Object.freeze([
+  'ruby',
+  'amber',
+  'emerald',
+  'sapphire',
+  'violet',
+] as const);
+export type CardPinColor = (typeof PIN_COLORS)[number];
+
+export interface CardStyle {
+  paperColor: CardPaperColor;
+  pinColor: CardPinColor;
+}
+
+const isValidPaperColor = (c: unknown): c is CardPaperColor =>
+  typeof c === 'string' && (PAPER_COLORS as readonly string[]).includes(c);
+
+const isValidPinColor = (c: unknown): c is CardPinColor =>
+  typeof c === 'string' && (PIN_COLORS as readonly string[]).includes(c);
+
+export const DEFAULT_PAPER_COLOR: CardPaperColor = 'ivory';
+export const DEFAULT_PIN_COLOR: CardPinColor = 'ruby';
+
 interface Contact {
   type: string;
   value: string;
@@ -16,6 +44,7 @@ export interface Wish {
   wishmail_enabled?: boolean;
   image_url?: string;
   image_id?: string;
+  card_style?: CardStyle | string | null;
 }
 
 function getSafeImageUrl(url?: string): string | undefined {
@@ -77,6 +106,8 @@ interface WishCardProps {
   onDelete?: (id: string) => void;
   onViewWishmail?: (id: string) => void;
   unreadWishmailCount?: number;
+  onPinClick?: () => void;
+  onPaperColorChange?: (color: CardPaperColor) => void;
 }
 
 function ExcludeToggleButton({
@@ -309,7 +340,31 @@ export default function WishCard({
   onDelete,
   onViewWishmail,
   unreadWishmailCount,
+  onPinClick,
+  onPaperColorChange,
 }: Readonly<WishCardProps>) {
+  const parsedStyle: Partial<CardStyle> = React.useMemo(() => {
+    if (!wish.card_style) return {};
+    if (typeof wish.card_style === 'string') {
+      try {
+        return JSON.parse(wish.card_style);
+      } catch {
+        return {};
+      }
+    }
+    if (typeof wish.card_style === 'object') {
+      return wish.card_style;
+    }
+    return {};
+  }, [wish.card_style]);
+
+  const paperColor: CardPaperColor = isValidPaperColor(parsedStyle.paperColor)
+    ? parsedStyle.paperColor
+    : DEFAULT_PAPER_COLOR;
+  const pinColor: CardPinColor = isValidPinColor(parsedStyle.pinColor)
+    ? parsedStyle.pinColor
+    : DEFAULT_PIN_COLOR;
+
   const hasBottomActions = Boolean(
     (wish.contacts && wish.contacts.length > 0) || wish.wishmail_enabled || onViewWishmail
   );
@@ -345,10 +400,24 @@ export default function WishCard({
 
   return (
     <article
-      className={`${cardClass} ${hasImage ? 'card-has-image' : ''} ${isExcluded ? 'is-excluded' : ''} ${isOverflowing && isEditorPreview ? 'text-overflow-hint' : ''}`}
+      className={`${cardClass} ${hasImage ? 'card-has-image' : ''} ${isExcluded ? 'is-excluded' : ''} ${isOverflowing && isEditorPreview ? 'text-overflow-hint' : ''} ${onPinClick ? 'has-interactive-pin' : ''}`}
       key={wish.id}
+      data-card-paper={paperColor}
+      data-card-pin={pinColor}
       style={isExcluded ? { opacity: 0.6 } : {}}
     >
+      {onPinClick && (
+        <button
+          type="button"
+          className="card-pushpin-btn"
+          onClick={onPinClick}
+          aria-label={`Pushpin: ${pinColor}. Click to cycle.`}
+          title={`Pushpin: ${pinColor} (tap to cycle)`}
+        >
+          <span className="pin-head" aria-hidden="true" />
+          <span className="pin-needle" aria-hidden="true" />
+        </button>
+      )}
       <div
         className={`wish-card-inner-scale ${hasImage ? 'has-image' : ''}`}
         ref={containerRef}
@@ -419,6 +488,24 @@ export default function WishCard({
             onSendMail={onSendMail}
             unreadWishmailCount={unreadWishmailCount}
           />
+        </div>
+      )}
+
+      {onPaperColorChange && (
+        <div className="card-paper-swatches" role="radiogroup" aria-label="Card paper color">
+          {PAPER_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`card-paper-swatch ${paperColor === c ? 'is-selected' : ''}`}
+              data-paper-color={c}
+              onClick={() => onPaperColorChange(c)}
+              aria-label={`Select ${c} paper`}
+              aria-checked={paperColor === c}
+              role="radio"
+              title={`${c.charAt(0).toUpperCase() + c.slice(1)} paper`}
+            />
+          ))}
         </div>
       )}
     </article>

@@ -21,6 +21,7 @@ import {
   RegisterUserInputSchema,
   LoginInputSchema,
 } from '../docs/openapi.js';
+import { parseCardStyle } from './wishes.js';
 
 const router = express.Router();
 const idGenerator = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
@@ -270,7 +271,7 @@ async function setUserActiveState(req, res, isActive) {
   if (isActive) {
     const wishes = await db
       .prepare(
-        'SELECT id, content, creator_attributes, contacts, wishmail_enabled, image_id FROM wishes WHERE user_id = ? AND is_active = 1'
+        'SELECT id, content, creator_attributes, contacts, wishmail_enabled, image_id, card_style FROM wishes WHERE user_id = ? AND is_active = 1'
       )
       .all(user.id);
     const { emitWishReactivated } = await import('../socket.js');
@@ -281,6 +282,7 @@ async function setUserActiveState(req, res, isActive) {
         contacts: parseJsonArray(w.contacts),
         wishmail_enabled: Boolean(w.wishmail_enabled),
         image_id: w.image_id,
+        card_style: parseCardStyle(w.card_style),
       });
     });
     logger.info('User reactivated', { user_id: user.id });
@@ -307,7 +309,7 @@ router.get('/me/wishes', async (req, res) => {
 
   const rows = await db
     .prepare(
-      'SELECT id, content, contacts, wishmail_enabled, creator_attributes, desired_attributes, flagged, created_at, updated_at, is_active, image_id, (SELECT COUNT(*) FROM wishmails wm WHERE wm.wish_id = wishes.id AND wm.read = 0) AS unread_wishmail_count FROM wishes WHERE user_id = ? ORDER BY created_at DESC'
+      'SELECT id, content, contacts, wishmail_enabled, creator_attributes, desired_attributes, flagged, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wishmails wm WHERE wm.wish_id = wishes.id AND wm.read = 0) AS unread_wishmail_count FROM wishes WHERE user_id = ? ORDER BY created_at DESC'
     )
     .all(user.id);
 
@@ -319,6 +321,7 @@ router.get('/me/wishes', async (req, res) => {
     wishmail_enabled: Boolean(row.wishmail_enabled),
     is_active: Boolean(row.is_active),
     image_id: row.image_id,
+    card_style: parseCardStyle(row.card_style),
     unread_wishmail_count: Number(row.unread_wishmail_count || 0),
   }));
 

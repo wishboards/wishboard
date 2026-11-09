@@ -348,4 +348,124 @@ describe('EnterWishPage', () => {
     rerender(<EnterWishPage />);
     expect(screen.getByDisplayValue('bob@example.com')).toBeInTheDocument();
   });
+
+  it('pre-selects card style from logged-in user ui_preferences', () => {
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      token: 'valid-token',
+      user: {
+        id: 'u-pref',
+        username: 'styled_user',
+        role: 'user',
+        attributes: {},
+        contacts: [],
+        wishmail_enabled: false,
+        is_active: true,
+        ui_preferences: {
+          defaultCardColor: 'canary',
+          defaultPinColor: 'emerald',
+        },
+      },
+    } as any);
+
+    render(<EnterWishPage />);
+
+    const article = screen.getByRole('article');
+    expect(article).toHaveAttribute('data-card-paper', 'canary');
+    expect(article).toHaveAttribute('data-card-pin', 'emerald');
+  });
+
+  it('pre-selects card style from localStorage preferences for guests', () => {
+    globalThis.localStorage.setItem(
+      'wishboard_ui_preferences',
+      JSON.stringify({
+        defaultCardColor: 'rose',
+        defaultPinColor: 'sapphire',
+      })
+    );
+
+    render(<EnterWishPage />);
+
+    const article = screen.getByRole('article');
+    expect(article).toHaveAttribute('data-card-paper', 'rose');
+    expect(article).toHaveAttribute('data-card-pin', 'sapphire');
+
+    globalThis.localStorage.removeItem('wishboard_ui_preferences');
+  });
+
+  it('submits card_style object in JSON payload when submitting a typed wish', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'wish-style-json', secret: 'test-secret' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EnterWishPage />);
+
+    // Select 'sky' paper swatch
+    const skySwatch = screen.getByRole('radio', { name: 'Select sky paper' });
+    fireEvent.click(skySwatch);
+
+    // Click pushpin to cycle from ruby to amber
+    const pinBtn = screen.getByRole('button', { name: /Pushpin: ruby/i });
+    fireEvent.click(pinBtn);
+
+    // Enter wish text
+    const textarea = screen.getByPlaceholderText(/Type your wish here/i);
+    fireEvent.change(textarea, { target: { value: 'My styled text wish' } });
+
+    // Submit form
+    const submitBtn = screen.getByRole('button', { name: /Submit Wish/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const callArgs = fetchMock.mock.calls[0];
+    expect(callArgs[0]).toBe('/api/wishes');
+    const sentBody = JSON.parse(callArgs[1].body);
+    expect(sentBody.content).toBe('My styled text wish');
+    expect(sentBody.card_style).toEqual({ paperColor: 'sky', pinColor: 'amber' });
+  });
+
+  it('submits stringified card_style in FormData payload when an image is attached', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'wish-style-formdata', secret: 'test-secret' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
+    render(<EnterWishPage />);
+
+    // Select 'sage' paper swatch
+    const sageSwatch = screen.getByRole('radio', { name: 'Select sage paper' });
+    fireEvent.click(sageSwatch);
+
+    // Attach mock image file
+    const fileInput = screen.getByLabelText(/Upload Image/i);
+    const mockFile = new File(['mock content'], 'wish.jpg', { type: 'image/jpeg' });
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: [mockFile] } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Handwritten wish attached/i)).toBeInTheDocument();
+    });
+
+    // Submit form
+    const submitBtn = screen.getByRole('button', { name: /Submit Wish/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const callArgs = fetchMock.mock.calls[0];
+    expect(callArgs[0]).toBe('/api/wishes');
+    const formData = callArgs[1].body as FormData;
+    expect(formData.get('card_style')).toBe(
+      JSON.stringify({ paperColor: 'sage', pinColor: 'ruby' })
+    );
+  });
 });

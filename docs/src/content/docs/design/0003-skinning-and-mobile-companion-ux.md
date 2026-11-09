@@ -4,7 +4,7 @@ title: 0003 Skinning and Mobile Companion UX
 
 # Design Document 0003: Skinning Architecture, Tactile Card Personalization, & Mobile Companion UX
 
-- **Status:** Accepted (Phase 1 implemented; Phase 2 in progress)
+- **Status:** Accepted (Phases 1 and 2 implemented; Phase 3 in progress)
 - **Context Date:** October 2026
 - **Companion ADR:** [ADR 0011](../../adr/0011-theming-skinning-and-mobile-companion-ux/)
 

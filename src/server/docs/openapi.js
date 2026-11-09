@@ -47,6 +47,31 @@ export const SuccessResponseSchema = registry.register(
 
 // ── Wish Schemas ──────────────────────────────────────────────────────────────
 
+export const CARD_PAPER_COLORS = ['ivory', 'canary', 'rose', 'sky', 'sage'];
+export const CARD_PIN_COLORS = ['ruby', 'amber', 'emerald', 'sapphire', 'violet'];
+
+export const CardPaperColorEnum = registry.register(
+  'CardPaperColor',
+  z.enum(CARD_PAPER_COLORS, {
+    message: 'Invalid card_style paperColor. Must be one of: ivory, canary, rose, sky, sage.',
+  })
+);
+
+export const CardPinColorEnum = registry.register(
+  'CardPinColor',
+  z.enum(CARD_PIN_COLORS, {
+    message: 'Invalid card_style pinColor. Must be one of: ruby, amber, emerald, sapphire, violet.',
+  })
+);
+
+export const CardStyleSchema = registry.register(
+  'CardStyle',
+  z.object({
+    paperColor: CardPaperColorEnum.default('ivory').openapi({ example: 'ivory' }),
+    pinColor: CardPinColorEnum.default('ruby').openapi({ example: 'ruby' }),
+  })
+);
+
 export const WishSchema = registry.register(
   'Wish',
   z.object({
@@ -76,6 +101,7 @@ export const WishSchema = registry.register(
     contact: z.string().optional().openapi({ example: 'alex@example.com' }),
     allow_wishmail: z.boolean().default(true).openapi({ example: true }),
     image_url: z.string().nullable().optional().openapi({ example: '/images/card_123.jpg' }),
+    card_style: CardStyleSchema.optional(),
   })
 );
 
@@ -102,6 +128,31 @@ export const CreateWishInputSchema = registry.register(
     allow_wishmail: z.union([z.boolean(), z.string(), z.number()]).optional().default(true),
     wishmail_enabled: z.union([z.boolean(), z.string(), z.number()]).optional(),
     passphrase: z.string().optional().openapi({ example: 'apple-river-forest' }),
+    card_style: z.preprocess(
+      (val, ctx) => {
+        if (val === null || val === undefined || val === '') return undefined;
+        if (typeof val === 'string') {
+          try {
+            return JSON.parse(val);
+          } catch {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'Invalid card_style payload: must be valid JSON.',
+            });
+            return z.NEVER;
+          }
+        }
+        if (typeof val !== 'object') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Invalid card_style payload.',
+          });
+          return z.NEVER;
+        }
+        return val;
+      },
+      CardStyleSchema.optional().default({ paperColor: 'ivory', pinColor: 'ruby' })
+    ),
   })
 );
 

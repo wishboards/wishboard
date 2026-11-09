@@ -34,6 +34,7 @@
   --wb-card-paper-bg: #fffdf3;
   --wb-card-ink: #1e293b;
   --wb-pin-color: #ef4444;
+  --wb-pin-shadow: #b91c1c;
 
   /* Shadows */
   --wb-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.4);
@@ -211,4 +212,26 @@
 [data-card-paper='sage'] {
   --wb-card-paper-bg: #dcfce7;
   --wb-card-ink: #1e293b;
+}
+
+/* Tactile 3x5 Card Pushpin Swatches (ADR 0011 / Design 0003 Section 3.1) */
+[data-card-pin='ruby'] {
+  --wb-pin-color: #ef4444;
+  --wb-pin-shadow: #b91c1c;
+}
+[data-card-pin='amber'] {
+  --wb-pin-color: #f59e0b;
+  --wb-pin-shadow: #b45309;
+}
+[data-card-pin='emerald'] {
+  --wb-pin-color: #10b981;
+  --wb-pin-shadow: #047857;
+}
+[data-card-pin='sapphire'] {
+  --wb-pin-color: #3b82f6;
+  --wb-pin-shadow: #1d4ed8;
+}
+[data-card-pin='violet'] {
+  --wb-pin-color: #8b5cf6;
+  --wb-pin-shadow: #6d28d9;
 }

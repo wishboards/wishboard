@@ -93,6 +93,7 @@ await db.executeMultiple(`
     secret_hash TEXT,
     creator_attributes TEXT,
     desired_attributes TEXT,
+    card_style TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     flagged INTEGER DEFAULT 0,
@@ -174,6 +175,7 @@ await ensureColumn('wishes', 'contacts', 'TEXT');
 await ensureColumn('wishes', 'wishmail_enabled', 'INTEGER DEFAULT 0');
 await ensureColumn('wishes', 'is_active', 'INTEGER DEFAULT 1');
 await ensureColumn('wishes', 'image_id', 'TEXT');
+await ensureColumn('wishes', 'card_style', 'TEXT');
 
 // WebSocket subscription state (serverless API Gateway target). Board events
 // (wish:*) broadcast to connections that explicitly subscribed, sys:log is an admin-only, opt-in channel:

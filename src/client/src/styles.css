@@ -378,7 +378,11 @@ button:hover {
   transform: translateX(-50%);
   width: 14px;
   height: 14px;
-  background: radial-gradient(circle at 4px 4px, var(--wb-pin-color, #ff5252) 20%, #c62828 80%);
+  background: radial-gradient(
+    circle at 4px 4px,
+    var(--wb-pin-color, #ef4444) 20%,
+    var(--wb-pin-shadow, #b91c1c) 80%
+  );
   border-radius: 50%;
   box-shadow:
     0 10px 8px rgba(0, 0, 0, 0.3),
@@ -397,6 +401,129 @@ button:hover {
   background: rgba(0, 0, 0, 0.3);
   transform: rotate(15deg);
   z-index: 4;
+}
+
+/* Hide CSS pseudo-element pushpin when interactive button is rendered */
+.wish-card.has-interactive-pin::before,
+.wish-card.has-interactive-pin::after {
+  display: none;
+}
+
+/* Interactive Pushpin Button */
+.card-pushpin-btn {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 20;
+}
+
+.card-pushpin-btn .pin-head {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 4px 4px,
+    var(--wb-pin-color, #ef4444) 20%,
+    var(--wb-pin-shadow, #b91c1c) 80%
+  );
+  box-shadow:
+    0 10px 8px rgba(0, 0, 0, 0.3),
+    inset -2px -2px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.card-pushpin-btn .pin-needle {
+  position: absolute;
+  top: 18px;
+  left: calc(50% + 2px);
+  width: 2px;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
+.card-pushpin-btn:hover .pin-head,
+.card-pushpin-btn:active .pin-head {
+  transform: scale(1.15);
+}
+
+.card-pushpin-btn:focus-visible {
+  outline: 2px solid var(--wb-accent-primary, #f59e0b);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+
+/* Interactive Paper Swatches */
+.card-paper-swatches {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  z-index: 15;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(4px);
+  padding: 3px 6px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.card-paper-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-paper-swatch[data-paper-color='ivory'] {
+  background-color: #fdfbf7;
+}
+.card-paper-swatch[data-paper-color='canary'] {
+  background-color: #fef9c3;
+}
+.card-paper-swatch[data-paper-color='rose'] {
+  background-color: #ffe4e6;
+}
+.card-paper-swatch[data-paper-color='sky'] {
+  background-color: #e0f2fe;
+}
+.card-paper-swatch[data-paper-color='sage'] {
+  background-color: #dcfce7;
+}
+
+.card-paper-swatch:hover {
+  transform: scale(1.15);
+}
+
+.card-paper-swatch.is-selected {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--wb-accent-primary, #f59e0b);
+  border-color: transparent;
+}
+
+.card-paper-swatch:focus-visible {
+  outline: 2px solid var(--wb-accent-primary, #f59e0b);
+  outline-offset: 1px;
 }
 
 /* Organic rotations to make board look natural */

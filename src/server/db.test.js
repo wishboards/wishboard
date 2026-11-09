@@ -85,6 +85,7 @@ describe('db initialization', () => {
     expect(columnNames).toContain('contacts');
     expect(columnNames).toContain('wishmail_enabled');
     expect(columnNames).toContain('is_active');
+    expect(columnNames).toContain('card_style');
   });
 
   it('ensures default admin account exists', async () => {
