@@ -1,1 +1,1 @@
-GET /api/config.*branding/themePreset
+.*themePreset.*
