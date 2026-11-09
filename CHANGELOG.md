@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.34.3](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.2...wishboard-v1.34.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* **docs:** reconcile ADR 0003 links, Design 0003 navigation spec, and deploy instructions ([#590](https://github.com/wishboards/wishboard/issues/590)) ([44c307e](https://github.com/wishboards/wishboard/commit/44c307e8b3882e32efc5b499cac145c200d1b002))
+* upgrade Vitest to v5 and reconcile docs, ADRs, and backlog ([#584](https://github.com/wishboards/wishboard/issues/584)) ([98ec4a1](https://github.com/wishboards/wishboard/commit/98ec4a1918104b8e742e5f2ea901bddc52c16ce7))
+
 ## [1.34.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.34.1...wishboard-v1.34.2) (2026-11-07)
 
 
