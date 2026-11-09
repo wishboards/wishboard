@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import db from './db.js';
 import { getMergedBranding, updateBranding, resetBranding } from './brandingManager.js';
-import { getEventProfile, DEFAULT_BRANDING } from './configManager.js';
+import { getEventProfile } from './configManager.js';
 
 describe('brandingManager', () => {
   beforeEach(async () => {

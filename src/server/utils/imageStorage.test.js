@@ -1,11 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import path from 'node:path';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   fileFilter,
   ALLOWED_RASTER_EXTENSIONS,
   createUploadMiddleware,
   processUploadedImage,
-  uploadImageToS3,
 } from './imageStorage.js';
 
 describe('imageStorage utility', () => {

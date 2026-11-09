@@ -7,13 +7,19 @@ export interface Category {
   suggestions?: string[];
 }
 
-export type ThemePreset = 'midnight' | 'daylight' | 'corkhouse' | 'high-contrast';
+export type ThemePreset = 'midnight' | 'daylight' | 'corkhouse' | 'high-contrast' | 'custom';
+export type BoardTexture = 'cork' | 'slate' | 'linen' | 'custom' | 'none';
 
 export interface BrandingConfig {
   themePreset?: ThemePreset;
   accentColor?: string;
+  primaryColor?: string;
+  surfaceColor?: string;
   boardTitle?: string;
   tagline?: string;
+  boardTexture?: BoardTexture;
+  logoUrl?: string | null;
+  boardBgUrl?: string | null;
 }
 
 export interface EventProfile {
@@ -48,8 +54,13 @@ const emptyProfile: EventProfile = {
   branding: {
     themePreset: 'midnight',
     accentColor: '#f59e0b',
+    primaryColor: '#f59e0b',
+    surfaceColor: 'rgba(30, 41, 59, 0.78)',
     boardTitle: 'Wishboard',
     tagline: 'Pin your convention wishes',
+    boardTexture: 'cork',
+    logoUrl: null,
+    boardBgUrl: null,
   },
   realtimeProvider: 'socketio',
   apIp: '',
