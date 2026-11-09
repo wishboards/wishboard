@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/wishboards/wishboard/compare/api-v1.1.0...api-v1.2.0) (2026-11-09)
+
+
+### Features
+
+* **ui:** implement event-host branding studio and dynamic client re-theming (ADR 0011 Phase 4) ([#599](https://github.com/wishboards/wishboard/issues/599)) ([7cf4f8b](https://github.com/wishboards/wishboard/commit/7cf4f8b06212b589d40d67baa66099f98c2cdfe3))
+
 ## [1.1.0](https://github.com/wishboards/wishboard/compare/api-v1.0.0...api-v1.1.0) (2026-11-09)
 
 
