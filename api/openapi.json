@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Wishboard REST API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Interactive OpenAPI reference for the Wishboard event matchmaking platform. Provides endpoints for wish submissions, identity matching, Wishmail messaging, admin moderation, and runtime configuration.",
     "contact": {
       "name": "Wishboard Project",
@@ -44,7 +44,9 @@
             }
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       },
       "SuccessResponse": {
         "type": "object",
@@ -67,15 +69,29 @@
             "example": "apple-river-forest"
           }
         },
-        "required": ["success"]
+        "required": [
+          "success"
+        ]
       },
       "CardPaperColor": {
         "type": "string",
-        "enum": ["ivory", "canary", "rose", "sky", "sage"]
+        "enum": [
+          "ivory",
+          "canary",
+          "rose",
+          "sky",
+          "sage"
+        ]
       },
       "CardPinColor": {
         "type": "string",
-        "enum": ["ruby", "amber", "emerald", "sapphire", "violet"]
+        "enum": [
+          "ruby",
+          "amber",
+          "emerald",
+          "sapphire",
+          "violet"
+        ]
       },
       "CardStyle": {
         "type": "object",
@@ -123,7 +139,12 @@
           },
           "status": {
             "type": "string",
-            "enum": ["active", "flagged", "hidden", "fulfilled"],
+            "enum": [
+              "active",
+              "flagged",
+              "hidden",
+              "fulfilled"
+            ],
             "example": "active"
           },
           "creator_genders": {
@@ -131,28 +152,36 @@
             "items": {
               "type": "string"
             },
-            "example": ["non-binary"]
+            "example": [
+              "non-binary"
+            ]
           },
           "creator_orientations": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "example": ["queer"]
+            "example": [
+              "queer"
+            ]
           },
           "creator_roles": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "example": ["switch"]
+            "example": [
+              "switch"
+            ]
           },
           "desired_genders": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "example": ["any"]
+            "example": [
+              "any"
+            ]
           },
           "desired_orientations": {
             "type": "array",
@@ -184,7 +213,12 @@
             "$ref": "#/components/schemas/CardStyle"
           }
         },
-        "required": ["id", "content", "created_at", "status"]
+        "required": [
+          "id",
+          "content",
+          "created_at",
+          "status"
+        ]
       },
       "CreateWishInput": {
         "type": "object",
@@ -334,7 +368,9 @@
             ]
           }
         },
-        "required": ["content"]
+        "required": [
+          "content"
+        ]
       },
       "ManageWishInput": {
         "type": "object",
@@ -345,7 +381,10 @@
           },
           "action": {
             "type": "string",
-            "enum": ["update", "delete"],
+            "enum": [
+              "update",
+              "delete"
+            ],
             "example": "update"
           },
           "content": {
@@ -374,7 +413,9 @@
             "example": "apple-river-forest"
           }
         },
-        "required": ["passphrase"]
+        "required": [
+          "passphrase"
+        ]
       },
       "ExclusionImportInput": {
         "type": "object",
@@ -384,10 +425,15 @@
             "items": {
               "type": "string"
             },
-            "example": ["wish_k9x2m", "wish_abc12"]
+            "example": [
+              "wish_k9x2m",
+              "wish_abc12"
+            ]
           }
         },
-        "required": ["exclusions"]
+        "required": [
+          "exclusions"
+        ]
       },
       "WishmailMessage": {
         "type": "object",
@@ -417,7 +463,12 @@
             "default": false
           }
         },
-        "required": ["id", "wish_id", "message", "created_at"]
+        "required": [
+          "id",
+          "wish_id",
+          "message",
+          "created_at"
+        ]
       },
       "SendWishmailInput": {
         "type": "object",
@@ -450,7 +501,9 @@
             "minLength": 1
           }
         },
-        "required": ["username"]
+        "required": [
+          "username"
+        ]
       },
       "RegisterUserInput": {
         "type": "object",
@@ -476,7 +529,9 @@
             "nullable": true
           }
         },
-        "required": ["username"]
+        "required": [
+          "username"
+        ]
       },
       "LoginInput": {
         "type": "object",
@@ -492,14 +547,23 @@
             "example": "apple-river-forest"
           }
         },
-        "required": ["username", "passphrase"]
+        "required": [
+          "username",
+          "passphrase"
+        ]
       },
       "UIPreferences": {
         "type": "object",
         "properties": {
           "themeMode": {
             "type": "string",
-            "enum": ["host-default", "midnight", "daylight", "corkhouse", "high-contrast"],
+            "enum": [
+              "host-default",
+              "midnight",
+              "daylight",
+              "corkhouse",
+              "high-contrast"
+            ],
             "default": "host-default",
             "example": "host-default"
           },
@@ -526,7 +590,10 @@
           },
           "role": {
             "type": "string",
-            "enum": ["user", "admin"],
+            "enum": [
+              "user",
+              "admin"
+            ],
             "example": "admin"
           },
           "is_active": {
@@ -559,7 +626,12 @@
             "$ref": "#/components/schemas/UIPreferences"
           }
         },
-        "required": ["id", "username", "role", "is_active"]
+        "required": [
+          "id",
+          "username",
+          "role",
+          "is_active"
+        ]
       },
       "UpdateUserInput": {
         "type": "object",
@@ -600,7 +672,10 @@
             "example": 5
           }
         },
-        "required": ["wishes_count", "wishmails_count"]
+        "required": [
+          "wishes_count",
+          "wishmails_count"
+        ]
       },
       "MatchmakingRule": {
         "type": "object",
@@ -611,7 +686,12 @@
           },
           "rule_type": {
             "type": "string",
-            "enum": ["enrichment", "acceptance", "expansion", "cross_match"],
+            "enum": [
+              "enrichment",
+              "acceptance",
+              "expansion",
+              "cross_match"
+            ],
             "example": "expansion"
           },
           "trigger_attribute": {
@@ -657,19 +737,30 @@
               "nullable": true
             },
             "example": {
-              "gender": ["woman"],
-              "orientation": ["lesbian"]
+              "gender": [
+                "woman"
+              ],
+              "orientation": [
+                "lesbian"
+              ]
             }
           }
         },
-        "required": ["attributes"]
+        "required": [
+          "attributes"
+        ]
       },
       "CreateRuleInput": {
         "type": "object",
         "properties": {
           "rule_type": {
             "type": "string",
-            "enum": ["enrichment", "acceptance", "expansion", "cross_match"],
+            "enum": [
+              "enrichment",
+              "acceptance",
+              "expansion",
+              "cross_match"
+            ],
             "example": "expansion"
           },
           "trigger_attribute": {
@@ -708,11 +799,16 @@
         "properties": {
           "role": {
             "type": "string",
-            "enum": ["user", "admin"],
+            "enum": [
+              "user",
+              "admin"
+            ],
             "example": "admin"
           }
         },
-        "required": ["role"]
+        "required": [
+          "role"
+        ]
       },
       "ResetPasswordInput": {
         "type": "object",
@@ -728,7 +824,12 @@
         "properties": {
           "themePreset": {
             "type": "string",
-            "enum": ["midnight", "daylight", "corkhouse", "high-contrast"],
+            "enum": [
+              "midnight",
+              "daylight",
+              "corkhouse",
+              "high-contrast"
+            ],
             "default": "midnight",
             "example": "midnight"
           },
@@ -805,7 +906,11 @@
             "example": "https://wishboards.local/"
           }
         },
-        "required": ["captive", "user-portal-url", "venue-info-url"]
+        "required": [
+          "captive",
+          "user-portal-url",
+          "venue-info-url"
+        ]
       }
     },
     "parameters": {}
@@ -813,7 +918,9 @@
   "paths": {
     "/api/config": {
       "get": {
-        "tags": ["Configuration"],
+        "tags": [
+          "Configuration"
+        ],
         "summary": "Retrieve runtime configuration",
         "description": "Returns network, domain, and realtime WebSocket provider settings for kiosks and clients.",
         "responses": {
@@ -832,7 +939,9 @@
     },
     "/api/wishes": {
       "get": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "List and search active wishes",
         "description": "List and search active wishes",
         "parameters": [
@@ -902,7 +1011,9 @@
         }
       },
       "post": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Submit a new wish",
         "description": "Submits a new wish to the board with optional image upload.",
         "requestBody": {
@@ -937,7 +1048,11 @@
                       "type": "string"
                     }
                   },
-                  "required": ["message", "wish", "passphrase"]
+                  "required": [
+                    "message",
+                    "wish",
+                    "passphrase"
+                  ]
                 }
               }
             }
@@ -957,7 +1072,9 @@
     },
     "/api/wishes/random": {
       "get": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Retrieve random active wish",
         "description": "Fetches a single active wish at random, ideal for kiosk screensavers or hero carousels.",
         "parameters": [],
@@ -977,7 +1094,9 @@
     },
     "/api/wishes/{id}": {
       "get": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Retrieve single wish details",
         "description": "Retrieve single wish details",
         "parameters": [
@@ -1006,7 +1125,9 @@
     },
     "/api/wishes/{id}/manage": {
       "post": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Manage wish (update or delete)",
         "description": "Updates or deletes an existing wish using its creator secret passphrase or authenticated session.",
         "parameters": [
@@ -1044,7 +1165,9 @@
     },
     "/api/wishes/{id}/deactivate": {
       "post": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Deactivate a wish",
         "description": "Hides a wish from the public board without deleting its data.",
         "parameters": [
@@ -1087,7 +1210,9 @@
     },
     "/api/wishes/{id}/reactivate": {
       "post": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Reactivate a wish",
         "description": "Restores a deactivated wish to the active public board.",
         "parameters": [
@@ -1130,7 +1255,9 @@
     },
     "/api/wishes/{id}/claim": {
       "post": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Claim wish into user account",
         "description": "Links an anonymously submitted wish to the authenticated user account via secret passphrase.",
         "parameters": [
@@ -1168,7 +1295,9 @@
     },
     "/api/wishes/{id}/flag": {
       "post": {
-        "tags": ["Wishes"],
+        "tags": [
+          "Wishes"
+        ],
         "summary": "Report / flag an inappropriate wish",
         "description": "Report / flag an inappropriate wish",
         "parameters": [
@@ -1211,7 +1340,9 @@
     },
     "/api/wishes/exclusions": {
       "get": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "List user wish exclusions",
         "description": "Returns full wish objects excluded/hidden by the current user.",
         "parameters": [],
@@ -1259,7 +1390,9 @@
     },
     "/api/wishes/exclusions/list": {
       "get": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "List user exclusion IDs",
         "description": "Returns an array of string IDs corresponding to wishes excluded by the current user.",
         "parameters": [],
@@ -1307,7 +1440,9 @@
     },
     "/api/wishes/exclusions/import": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Bulk import wish exclusions",
         "description": "Synchronizes client-side localStorage exclusion lists into the persistent user account.",
         "parameters": [],
@@ -1361,7 +1496,9 @@
     },
     "/api/wishes/{id}/exclude": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Exclude / hide a wish",
         "description": "Mutes a specific wish from appearing in the authenticated user feed.",
         "parameters": [
@@ -1413,7 +1550,9 @@
         }
       },
       "delete": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Remove wish exclusion",
         "description": "Un-mutes a previously excluded wish, restoring it to the user feed.",
         "parameters": [
@@ -1467,7 +1606,9 @@
     },
     "/api/wishes/{id}/mail": {
       "post": {
-        "tags": ["Wishmail"],
+        "tags": [
+          "Wishmail"
+        ],
         "summary": "Send Wishmail to a wish author",
         "description": "Send Wishmail to a wish author",
         "parameters": [
@@ -1504,7 +1645,10 @@
                       "$ref": "#/components/schemas/WishmailMessage"
                     }
                   },
-                  "required": ["message", "mail"]
+                  "required": [
+                    "message",
+                    "mail"
+                  ]
                 }
               }
             }
@@ -1512,7 +1656,9 @@
         }
       },
       "get": {
-        "tags": ["Wishmail"],
+        "tags": [
+          "Wishmail"
+        ],
         "summary": "Retrieve Wishmail for a wish",
         "security": [
           {
@@ -1569,7 +1715,9 @@
     },
     "/api/wishes/{id}/mail/{mailId}/read": {
       "post": {
-        "tags": ["Wishmail"],
+        "tags": [
+          "Wishmail"
+        ],
         "summary": "Mark wishmail message as read",
         "security": [
           {
@@ -1613,7 +1761,9 @@
     },
     "/api/wishes/{id}/mail/{mailId}": {
       "delete": {
-        "tags": ["Wishmail"],
+        "tags": [
+          "Wishmail"
+        ],
         "summary": "Delete wishmail message",
         "security": [
           {
@@ -1657,7 +1807,9 @@
     },
     "/api/users/exists": {
       "get": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Check if a username exists",
         "description": "Check if a username exists",
         "parameters": [
@@ -1682,7 +1834,9 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["exists"]
+                  "required": [
+                    "exists"
+                  ]
                 }
               }
             }
@@ -1692,7 +1846,9 @@
     },
     "/api/users/register": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Register a new user account",
         "description": "Register a new user account",
         "parameters": [],
@@ -1721,7 +1877,9 @@
     },
     "/api/users/login": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "User & Admin login",
         "description": "Authenticates credentials and returns an active session token for Bearer authentication.",
         "parameters": [],
@@ -1750,7 +1908,9 @@
     },
     "/api/users/logout": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Logout current session",
         "description": "Destroys the current active session token in the database.",
         "parameters": [],
@@ -1795,7 +1955,9 @@
     },
     "/api/users/me": {
       "get": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Get current user profile",
         "description": "Get current user profile",
         "parameters": [],
@@ -1838,7 +2000,9 @@
         }
       },
       "put": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Update current user profile",
         "description": "Update current user profile",
         "parameters": [],
@@ -1892,7 +2056,9 @@
     },
     "/api/users/me/wishes": {
       "get": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Get all wishes for current user",
         "description": "Get all wishes for current user",
         "parameters": [],
@@ -1940,7 +2106,9 @@
     },
     "/api/users/me/delete-preview": {
       "get": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Preview user deletion impact",
         "description": "Preview user deletion impact",
         "parameters": [],
@@ -1985,7 +2153,9 @@
     },
     "/api/users/me/delete": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Permanently delete user account",
         "description": "Permanently delete user account",
         "parameters": [],
@@ -2030,7 +2200,9 @@
     },
     "/api/users/me/deactivate": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Deactivate user account",
         "description": "Deactivate user account",
         "parameters": [],
@@ -2075,7 +2247,9 @@
     },
     "/api/users/me/reactivate": {
       "post": {
-        "tags": ["Users & Auth"],
+        "tags": [
+          "Users & Auth"
+        ],
         "summary": "Reactivate user account",
         "description": "Reactivate user account",
         "parameters": [],
@@ -2120,7 +2294,9 @@
     },
     "/api/rules": {
       "get": {
-        "tags": ["Rules Engine"],
+        "tags": [
+          "Rules Engine"
+        ],
         "summary": "List active matchmaking rules",
         "description": "List active matchmaking rules",
         "parameters": [],
@@ -2141,7 +2317,9 @@
         }
       },
       "post": {
-        "tags": ["Rules Engine"],
+        "tags": [
+          "Rules Engine"
+        ],
         "summary": "Create matchmaking rule",
         "description": "Create matchmaking rule",
         "parameters": [],
@@ -2195,7 +2373,9 @@
     },
     "/api/rules/check-conflicts": {
       "post": {
-        "tags": ["Rules Engine"],
+        "tags": [
+          "Rules Engine"
+        ],
         "summary": "Check matchmaking rule conflicts",
         "description": "Check matchmaking rule conflicts",
         "parameters": [],
@@ -2223,7 +2403,9 @@
                       }
                     }
                   },
-                  "required": ["conflicts"]
+                  "required": [
+                    "conflicts"
+                  ]
                 }
               }
             }
@@ -2233,7 +2415,9 @@
     },
     "/api/rules/{id}": {
       "put": {
-        "tags": ["Rules Engine"],
+        "tags": [
+          "Rules Engine"
+        ],
         "summary": "Update matchmaking rule",
         "description": "Update matchmaking rule",
         "parameters": [
@@ -2294,7 +2478,9 @@
         }
       },
       "delete": {
-        "tags": ["Rules Engine"],
+        "tags": [
+          "Rules Engine"
+        ],
         "summary": "Delete matchmaking rule",
         "description": "Delete matchmaking rule",
         "parameters": [
@@ -2348,7 +2534,9 @@
     },
     "/api/admin/flags": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "List flagged wishes",
         "description": "List flagged wishes",
         "parameters": [],
@@ -2396,7 +2584,9 @@
     },
     "/api/admin/wishes/{id}/remove": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin remove wish",
         "description": "Admin remove wish",
         "parameters": [
@@ -2450,7 +2640,9 @@
     },
     "/api/admin/wishes/{id}/clear-flag": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin clear wish flag",
         "description": "Admin clear wish flag",
         "parameters": [
@@ -2504,7 +2696,9 @@
     },
     "/api/admin/wishes/clear-all-flags": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin clear all wish flags",
         "description": "Admin clear all wish flags",
         "parameters": [],
@@ -2549,7 +2743,9 @@
     },
     "/api/admin/users": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin list all users",
         "description": "Admin list all users",
         "parameters": [],
@@ -2597,7 +2793,9 @@
     },
     "/api/admin/users/{id}/role": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin update user role",
         "description": "Admin update user role",
         "parameters": [
@@ -2660,7 +2858,9 @@
     },
     "/api/admin/users/{id}/delete-preview": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin preview user deletion",
         "description": "Admin preview user deletion",
         "parameters": [
@@ -2714,7 +2914,9 @@
     },
     "/api/admin/users/{id}/delete": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin delete user",
         "description": "Admin delete user",
         "parameters": [
@@ -2768,7 +2970,9 @@
     },
     "/api/admin/users/{username}/reset-password": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin reset user passphrase",
         "description": "Admin reset user passphrase",
         "parameters": [
@@ -2831,7 +3035,9 @@
     },
     "/api/admin/reset-demo": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin seed demo wishes",
         "description": "Admin seed demo wishes",
         "parameters": [],
@@ -2876,7 +3082,9 @@
     },
     "/api/admin/reset-rules": {
       "post": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin reload default rules",
         "description": "Admin reload default rules",
         "parameters": [],
@@ -2921,7 +3129,9 @@
     },
     "/api/admin/logs": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Retrieve recent server logs",
         "description": "Retrieve recent server logs",
         "parameters": [],
@@ -2969,7 +3179,9 @@
     },
     "/api/admin/config": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Admin inspect server profile & config",
         "description": "Admin inspect server profile & config",
         "parameters": [],
@@ -3017,7 +3229,9 @@
     },
     "/api/admin/local-metrics": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Retrieve local performance metrics",
         "description": "In-process CPU/memory/HTTP metrics. Note: Available in Kiosk/Local mode only; returns 400 in Serverless mode.",
         "parameters": [],
@@ -3065,7 +3279,9 @@
     },
     "/api/admin/aws-metrics": {
       "get": {
-        "tags": ["Admin"],
+        "tags": [
+          "Admin"
+        ],
         "summary": "Retrieve AWS CloudWatch metrics",
         "description": "CloudWatch metrics time-series. Note: Available in AWS Serverless mode only; returns 400 in Kiosk/Local mode.",
         "parameters": [],
@@ -3113,7 +3329,9 @@
     },
     "/api/captive-portal": {
       "get": {
-        "tags": ["Captive Portal"],
+        "tags": [
+          "Captive Portal"
+        ],
         "summary": "RFC 8908 Captive Portal JSON status",
         "description": "Returns captive network state and portal URLs. Active during local Wi-Fi kiosk operation.",
         "parameters": [],
@@ -3133,7 +3351,9 @@
     },
     "/api/captive-portal/accept": {
       "post": {
-        "tags": ["Captive Portal"],
+        "tags": [
+          "Captive Portal"
+        ],
         "summary": "Accept terms and admit client",
         "description": "Admits client IP to access local network.",
         "parameters": [],
