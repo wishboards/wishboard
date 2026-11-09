@@ -339,6 +339,43 @@ const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: string }> = [
   { id: 'high-contrast', label: 'High Contrast', icon: '👁️' },
 ];
 
+interface ThemeSelectorCardProps {
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => Promise<void>;
+  style?: React.CSSProperties;
+}
+
+function ThemeSelectorCard({ themeMode, setThemeMode, style }: ThemeSelectorCardProps) {
+  return (
+    <div className="profile-edit theme-selector-card" style={style}>
+      <h2 style={{ margin: '0 0 8px 0' }}>Appearance & Theme</h2>
+      <p
+        style={{
+          margin: '0 0 16px 0',
+          fontSize: '0.9rem',
+          color: 'var(--wb-text-secondary, #94a3b8)',
+        }}
+      >
+        Choose how Wishboard looks on your device. &apos;Event Default&apos; matches the
+        convention&apos;s branding.
+      </p>
+      <div className="theme-options-grid">
+        {THEME_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            className={`theme-option-btn ${themeMode === opt.id ? 'selected' : ''}`}
+            onClick={() => void setThemeMode(opt.id)}
+          >
+            <span style={{ fontSize: '1.25rem' }}>{opt.icon}</span>
+            <span>{opt.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function UnauthenticatedAccountPage() {
   const { login, register } = useAuth();
   const { excludedIds, unexcludeWish } = useExcludedWishes();
@@ -464,32 +501,11 @@ function UnauthenticatedAccountPage() {
         error={error}
         isSubmitDisabled={regConflicts.length > 0}
       />
-      <div className="profile-edit theme-selector-card" style={{ marginTop: '24px' }}>
-        <h2 style={{ margin: '0 0 8px 0' }}>Appearance & Theme</h2>
-        <p
-          style={{
-            margin: '0 0 16px 0',
-            fontSize: '0.9rem',
-            color: 'var(--wb-text-secondary, #94a3b8)',
-          }}
-        >
-          Choose how Wishboard looks on your device. &apos;Event Default&apos; matches the
-          convention&apos;s branding.
-        </p>
-        <div className="theme-options-grid">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`theme-option-btn ${themeMode === opt.id ? 'selected' : ''}`}
-              onClick={() => void setThemeMode(opt.id)}
-            >
-              <span style={{ fontSize: '1.25rem' }}>{opt.icon}</span>
-              <span>{opt.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <ThemeSelectorCard
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+        style={{ marginTop: '24px' }}
+      />
       {hiddenWishes.length > 0 && (
         <div style={{ marginTop: '40px', marginBottom: '32px' }}>
           <h2>Hidden Wishes (Not Interested)</h2>
@@ -887,32 +903,11 @@ function AuthenticatedAccountPage() {
         </button>
       </div>
 
-      <div className="profile-edit theme-selector-card" style={{ marginBottom: '24px' }}>
-        <h2 style={{ margin: '0 0 8px 0' }}>Appearance & Theme</h2>
-        <p
-          style={{
-            margin: '0 0 16px 0',
-            fontSize: '0.9rem',
-            color: 'var(--wb-text-secondary, #94a3b8)',
-          }}
-        >
-          Choose how Wishboard looks on your device. &apos;Event Default&apos; matches the
-          convention&apos;s branding.
-        </p>
-        <div className="theme-options-grid">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              className={`theme-option-btn ${themeMode === opt.id ? 'selected' : ''}`}
-              onClick={() => void setThemeMode(opt.id)}
-            >
-              <span style={{ fontSize: '1.25rem' }}>{opt.icon}</span>
-              <span>{opt.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <ThemeSelectorCard
+        themeMode={themeMode}
+        setThemeMode={setThemeMode}
+        style={{ marginBottom: '24px' }}
+      />
 
       <div className="profile-edit" style={{ border: '1px solid #e53e3e', marginBottom: '32px' }}>
         <h2 style={{ color: '#e53e3e', margin: '0 0 16px 0' }}>Danger Zone</h2>
