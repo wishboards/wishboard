@@ -348,7 +348,7 @@ export async function processCardImage(
   transform.delete();
 
   const worker = await Tesseract.createWorker('eng', 1, {
-    logger: (m) => console.log(m),
+    logger: () => {},
   });
 
   const {

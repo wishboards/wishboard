@@ -175,7 +175,6 @@ describe('Matchmaking logic', () => {
 
     // Straight man should see "Straight Woman wish" but NOT "Lesbian wish".
     const contents1 = resSearch1.body.map((w) => w.content);
-    console.log(resSearch1.body);
     expect(contents1).toContain('Straight Woman wish');
     expect(contents1).not.toContain('Lesbian wish');
 

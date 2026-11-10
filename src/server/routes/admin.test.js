@@ -396,7 +396,6 @@ describe('Admin routes', () => {
       .post(`/api/admin/users/test-reset-user/reset-password`)
       .set('Authorization', `Bearer ${adminToken}`);
 
-    if (resetResponse.status !== 200) console.log(resetResponse.body);
     expect(resetResponse.status).toBe(200);
     expect(resetResponse.body.success).toBe(true);
     expect(typeof resetResponse.body.new_passphrase).toBe('string');
