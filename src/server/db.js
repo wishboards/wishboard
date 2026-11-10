@@ -217,8 +217,10 @@ const ensureDefaultAdmin = async () => {
     args: [adminId, defaultAdminUsername, hash, salt, 'admin', now],
   });
 
-  console.log(`Created default admin account: ${defaultAdminUsername}`);
-  console.log('Set WISHBOARD_ADMIN_SECRET to change the default password.');
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(`Created default admin account: ${defaultAdminUsername}`);
+    console.log('Set WISHBOARD_ADMIN_SECRET to change the default password.');
+  }
 };
 
 await ensureDefaultAdmin();
@@ -228,7 +230,9 @@ const migrationFlag = path.join(dataDir, '.migrated_to_libsql');
 
 // If using a remote libSQL server and an old local SQLite database exists, migrate it
 if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migrationFlag)) {
-  console.log('Found legacy SQLite database. Migrating data to libSQL server...');
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('Found legacy SQLite database. Migrating data to libSQL server...');
+  }
   const localDb = createClient({ url: `file:${localDbPath}` });
 
   const tablesToMigrate = ['users', 'sessions', 'wishes', 'wishmails'];
@@ -236,7 +240,9 @@ if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migra
     try {
       const rs = await localDb.execute(`SELECT * FROM ${table}`); // NOSONAR
       if (rs.rows.length > 0) {
-        console.log(`Migrating ${rs.rows.length} rows for table ${table}...`);
+        if (process.env.NODE_ENV !== 'test') {
+          console.log(`Migrating ${rs.rows.length} rows for table ${table}...`);
+        }
 
         const stmts = rs.rows.map((row) => {
           const columns = Object.keys(row).join(', ');
@@ -258,12 +264,16 @@ if (url.startsWith('http') && fs.existsSync(localDbPath) && !fs.existsSync(migra
         }
       }
     } catch (err) {
-      console.warn(`Could not migrate table ${table} (might not exist in old db):`, err.message);
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`Could not migrate table ${table} (might not exist in old db):`, err.message);
+      }
     }
   }
 
   fs.writeFileSync(migrationFlag, new Date().toISOString());
-  console.log('Migration complete!');
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('Migration complete!');
+  }
 }
 
 // SQLite boolean mapping (true -> 1, false -> 0, undefined -> null).
