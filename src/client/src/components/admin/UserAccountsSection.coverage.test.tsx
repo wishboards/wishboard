@@ -233,22 +233,28 @@ describe('UserAccountsSection Coverage', () => {
     // Mock failure
     mockFetch.mockResolvedValueOnce({ ok: false });
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
+    // Regression: the server route is keyed on USERNAME, not the opaque account id.
+    // A loose `stringContaining('/reset-password')` here let an id-keyed URL 404 in prod.
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/reset-password'),
-        expect.any(Object)
+        '/api/admin/users/user1/reset-password',
+        expect.objectContaining({ method: 'POST' })
       )
     );
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/users/u1/reset-password'),
+      expect.anything()
+    );
 
-    // Mock success
+    // Mock success — shape mirrors the real server response (snake_case `new_passphrase`).
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ newPassphrase: 'new-passphrase-123' }),
+      json: async () => ({ success: true, new_passphrase: 'new-passphrase-123' }),
     });
     fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
     await waitFor(() =>
       expect(setMessage).toHaveBeenCalledWith(
-        'Passphrase successfully reset! The new passphrase is: new-passphrase-123'
+        'Passphrase for user1 successfully reset! The new passphrase is: new-passphrase-123'
       )
     );
 

@@ -819,6 +819,23 @@
           }
         }
       },
+      "ResetPasswordResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "new_passphrase": {
+            "type": "string",
+            "example": "amber-otter-lantern"
+          }
+        },
+        "required": [
+          "success",
+          "new_passphrase"
+        ]
+      },
       "Branding": {
         "type": "object",
         "properties": {
@@ -3095,7 +3112,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/ResetPasswordResponse"
                 }
               }
             }

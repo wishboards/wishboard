@@ -157,6 +157,16 @@ describe('OpenAPI Specification Generator', () => {
     expect(paths['/api/admin/users/{id}/delete']).toHaveProperty('post');
     expect(paths).toHaveProperty('/api/admin/users/{username}/reset-password');
     expect(paths['/api/admin/users/{username}/reset-password']).toHaveProperty('post');
+    // Regression: the admin UI once read `newPassphrase` from a response documented only as
+    // { success }. Pin the real snake_case contract so client and server can't drift again.
+    const resetOk =
+      paths['/api/admin/users/{username}/reset-password'].post.responses['200'].content[
+        'application/json'
+      ].schema;
+    expect(resetOk.$ref).toBe('#/components/schemas/ResetPasswordResponse');
+    expect(doc.components.schemas.ResetPasswordResponse.properties).toHaveProperty(
+      'new_passphrase'
+    );
     expect(paths).toHaveProperty('/api/admin/reset-demo');
     expect(paths['/api/admin/reset-demo']).toHaveProperty('post');
     expect(paths).toHaveProperty('/api/admin/reset-rules');
