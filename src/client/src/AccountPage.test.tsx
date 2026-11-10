@@ -605,7 +605,7 @@ describe('AccountPage', () => {
     render(<AccountPage />);
 
     const claimIdInput = screen.getByLabelText(/Wish ID/i);
-    const claimSecretInput = screen.getByLabelText(/Passphrase/i);
+    const claimSecretInput = screen.getByLabelText(/^Passphrase$/i);
 
     // Test missing fields
     fireEvent.click(screen.getByRole('button', { name: 'Claim Wish' }));
@@ -646,7 +646,7 @@ describe('AccountPage', () => {
     render(<AccountPage />);
 
     const claimIdInput = screen.getByLabelText(/Wish ID/i);
-    const claimSecretInput = screen.getByLabelText(/Passphrase/i);
+    const claimSecretInput = screen.getByLabelText(/^Passphrase$/i);
 
     fireEvent.change(claimIdInput, { target: { value: 'valid-wish' } });
     fireEvent.change(claimSecretInput, { target: { value: 'correct' } });
@@ -1804,6 +1804,80 @@ describe('AccountPage', () => {
       expect(
         screen.getByText('Username and passphrase are required to log in.')
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('Security & Passphrase Card', () => {
+    it('handles passphrase change validation, errors, and success', async () => {
+      const fetchMock = vi.fn((input, init) => {
+        const url = extractUrl(input as RequestInfo | URL);
+        if (url.includes('/api/users/me/passphrase')) {
+          const body = JSON.parse(init?.body as string);
+          if (body.current_passphrase === 'wrong') {
+            return Promise.resolve({
+              ok: false,
+              status: 401,
+              json: () => Promise.resolve({ error: 'Invalid current passphrase.' }),
+            });
+          }
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () =>
+              Promise.resolve({ success: true, message: 'Passphrase changed successfully.' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      useAuthMock.mockReturnValue({
+        user: {
+          id: 'test-user-id',
+          username: 'testuser',
+          role: 'user',
+          is_active: true,
+          contacts: [],
+          wishmail_enabled: false,
+          attributes: {},
+        },
+        token: 'sample-token',
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+
+      render(<AccountPage />);
+
+      // Switch to Appearance & Security tab
+      fireEvent.click(screen.getByRole('tab', { name: /Appearance & Security/i }));
+
+      expect(screen.getByRole('heading', { name: 'Security & Passphrase' })).toBeInTheDocument();
+
+      const currentInput = screen.getByLabelText(/Current Passphrase/i);
+      const newInput = screen.getByLabelText(/New Passphrase/i);
+      const updateButton = screen.getByRole('button', { name: 'Update Passphrase' });
+      const generateButton = screen.getByRole('button', { name: /Generate Passphrase/i });
+
+      // Generate passphrase populates the new passphrase field
+      fireEvent.click(generateButton);
+      expect((newInput as HTMLInputElement).value.length).toBeGreaterThan(0);
+
+      // Attempt submission with invalid current passphrase
+      fireEvent.change(currentInput, { target: { value: 'wrong' } });
+      fireEvent.click(updateButton);
+
+      expect(await screen.findByText('Invalid current passphrase.')).toBeInTheDocument();
+
+      // Submit with valid credentials
+      fireEvent.change(currentInput, { target: { value: 'correct-current' } });
+      fireEvent.change(newInput, { target: { value: 'shiny-new-secret' } });
+      fireEvent.click(updateButton);
+
+      expect(await screen.findByText('Passphrase updated successfully.')).toBeInTheDocument();
+      expect((currentInput as HTMLInputElement).value).toBe('');
+      expect((newInput as HTMLInputElement).value).toBe('');
     });
   });
 });

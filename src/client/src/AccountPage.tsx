@@ -573,6 +573,57 @@ function AuthenticatedAccountPage() {
     Array<{ message: string; target_attribute: string }>
   >([]);
 
+  // Passphrase Change State
+  const [currentPassphrase, setCurrentPassphrase] = useState('');
+  const [newPassphrase, setNewPassphrase] = useState('');
+  const [passphraseMessage, setPassphraseMessage] = useState<string | null>(null);
+  const [passphraseError, setPassphraseError] = useState<string | null>(null);
+  const [isChangingPassphrase, setIsChangingPassphrase] = useState(false);
+
+  const handlePassphraseChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassphraseMessage(null);
+    setPassphraseError(null);
+
+    if (!currentPassphrase.trim()) {
+      setPassphraseError('Please enter your current passphrase.');
+      return;
+    }
+    if (!newPassphrase.trim()) {
+      setPassphraseError('Please enter a new passphrase.');
+      return;
+    }
+
+    setIsChangingPassphrase(true);
+    try {
+      const response = await fetch('/api/users/me/passphrase', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          current_passphrase: currentPassphrase.trim(),
+          new_passphrase: newPassphrase.trim(),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setPassphraseError(data.error || 'Failed to change passphrase.');
+      } else {
+        setPassphraseMessage('Passphrase updated successfully.');
+        setCurrentPassphrase('');
+        setNewPassphrase('');
+      }
+    } catch (err) {
+      console.error('Passphrase change error:', err);
+      setPassphraseError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsChangingPassphrase(false);
+    }
+  };
+
   // Debounced conflict check for profile edit form
   useEffect(() => {
     const timer = globalThis.setTimeout(async () => {
@@ -1073,6 +1124,101 @@ function AuthenticatedAccountPage() {
             </p>
           </div>
         )}
+
+        {/* Security & Passphrase Card */}
+        <div className="profile-edit" style={{ marginBottom: '24px' }}>
+          <div className="label-with-info" style={{ marginBottom: '16px' }}>
+            <h2 style={{ margin: 0 }}>Security & Passphrase</h2>
+            <InfoToggle>
+              Update your account passphrase. For your security in event environments, you must
+              enter your current passphrase to set a new one.
+            </InfoToggle>
+          </div>
+
+          {passphraseMessage && (
+            <div
+              role="status"
+              className="success-banner"
+              style={{
+                padding: '12px 16px',
+                background: '#dcfce7',
+                color: '#166534',
+                borderRadius: '8px',
+                marginBottom: '16px',
+              }}
+            >
+              {passphraseMessage}
+            </div>
+          )}
+
+          {passphraseError && (
+            <div
+              role="alert"
+              className="error-banner"
+              style={{
+                padding: '12px 16px',
+                background: '#fee2e2',
+                color: '#991b1b',
+                borderRadius: '8px',
+                marginBottom: '16px',
+              }}
+            >
+              {passphraseError}
+            </div>
+          )}
+
+          <form onSubmit={handlePassphraseChange}>
+            <div style={{ marginBottom: '16px' }}>
+              <label htmlFor="current-passphrase" style={{ display: 'block', marginBottom: '6px' }}>
+                Current Passphrase
+              </label>
+              <PassphraseInput
+                id="current-passphrase"
+                value={currentPassphrase}
+                onChange={setCurrentPassphrase}
+                placeholder="Enter your current passphrase"
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '6px',
+                }}
+              >
+                <label htmlFor="new-passphrase" style={{ margin: 0 }}>
+                  New Passphrase
+                </label>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ fontSize: '0.85rem', padding: '4px 8px' }}
+                  onClick={() => setNewPassphrase(generatePassphrase())}
+                >
+                  🎲 Generate Passphrase
+                </button>
+              </div>
+              <PassphraseInput
+                id="new-passphrase"
+                value={newPassphrase}
+                onChange={setNewPassphrase}
+                placeholder="Enter or generate a new passphrase"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={isChangingPassphrase}
+              style={{ width: '100%' }}
+            >
+              {isChangingPassphrase ? 'Updating...' : 'Update Passphrase'}
+            </button>
+          </form>
+        </div>
 
         <div className="profile-edit" style={{ border: '1px solid #e53e3e', marginBottom: '32px' }}>
           <h2 style={{ color: '#e53e3e', margin: '0 0 16px 0' }}>Danger Zone</h2>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BrandingConfig, ThemePreset, BoardTexture } from '../../EventProfileContext';
 import { resolveBoardTextureCss } from '../../hooks/useTheme';
+import { checkWcagAA } from '../../utils/contrast';
 
 export interface SectionProps {
   authHeader: Record<string, string>;
@@ -577,6 +578,28 @@ export default function BrandingStudioSection({
     }
   };
 
+  // Compute live contrast diagnostics
+  const contrastWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    if (branding.primaryColor && branding.surfaceColor) {
+      const check = checkWcagAA(branding.primaryColor, branding.surfaceColor, true);
+      if (!check.pass) {
+        warnings.push(
+          `Primary brand color (${branding.primaryColor}) has low contrast (${check.ratio}:1) against the surface background. WCAG AA requires at least ${check.required}:1.`
+        );
+      }
+    }
+    if (branding.accentColor && branding.surfaceColor) {
+      const check = checkWcagAA(branding.accentColor, branding.surfaceColor, true);
+      if (!check.pass) {
+        warnings.push(
+          `Accent color (${branding.accentColor}) has low contrast (${check.ratio}:1) against the surface background. WCAG AA requires at least ${check.required}:1.`
+        );
+      }
+    }
+    return warnings;
+  }, [branding.primaryColor, branding.accentColor, branding.surfaceColor]);
+
   if (loading) {
     return (
       <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
@@ -594,6 +617,30 @@ export default function BrandingStudioSection({
       </p>
 
       <form className="form-card" onSubmit={handleSave}>
+        {contrastWarnings.length > 0 && (
+          <div
+            role="alert"
+            className="contrast-warning-banner"
+            style={{
+              padding: '12px 16px',
+              backgroundColor: 'rgba(234, 179, 8, 0.15)',
+              border: '1px solid #eab308',
+              borderRadius: '8px',
+              color: '#fef08a',
+              marginBottom: '20px',
+            }}
+          >
+            <strong style={{ display: 'block', marginBottom: '6px' }}>
+              ⚠️ Accessibility & Contrast Warning
+            </strong>
+            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+              {contrastWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Preset Selector */}
         <div style={{ marginBottom: '16px' }}>
           <label
