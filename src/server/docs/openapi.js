@@ -370,6 +370,14 @@ export const ResetPasswordInputSchema = registry.register(
   })
 );
 
+export const ResetPasswordResponseSchema = registry.register(
+  'ResetPasswordResponse',
+  z.object({
+    success: z.boolean().openapi({ example: true }),
+    new_passphrase: z.string().openapi({ example: 'amber-otter-lantern' }),
+  })
+);
+
 export const BrandingSchema = registry.register(
   'Branding',
   z.object({
@@ -956,7 +964,7 @@ addAdminRoute({
   path: '/api/admin/users/{username}/reset-password',
   summary: 'Admin reset user passphrase',
   requestSchema: ResetPasswordInputSchema,
-  responseSchema: SuccessResponseSchema,
+  responseSchema: ResetPasswordResponseSchema,
   params: [{ name: 'username', in: 'path', required: true, schema: { type: 'string' } }],
 });
 

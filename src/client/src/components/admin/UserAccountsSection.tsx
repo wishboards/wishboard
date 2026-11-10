@@ -89,7 +89,10 @@ export default function UserAccountsSection({
     void loadUsers();
   };
 
-  const resetPassphrase = async (id: string) => {
+  // The server route is keyed on USERNAME (POST /api/admin/users/{username}/reset-password)
+  // and responds with snake_case `new_passphrase` — see src/server/routes/admin.js and the
+  // OpenAPI spec. Passing the opaque account id here 404s ("User not found").
+  const resetPassphrase = async (username: string) => {
     if (
       !globalThis.confirm(
         "Are you sure you want to reset this user's passphrase? Any active sessions will be terminated."
@@ -98,17 +101,22 @@ export default function UserAccountsSection({
       return;
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/admin/users/${encodeURIComponent(id)}/reset-password`, {
-      method: 'POST',
-      headers: authHeader,
-    });
+    const response = await fetch(
+      `/api/admin/users/${encodeURIComponent(username)}/reset-password`,
+      {
+        method: 'POST',
+        headers: authHeader,
+      }
+    );
     if (!response.ok) {
       if (handledUnauthorized(response)) return;
       setError('Failed to reset passphrase.');
       return;
     }
-    const data = await response.json();
-    setMessage(`Passphrase successfully reset! The new passphrase is: ${data.newPassphrase}`);
+    const data: { new_passphrase?: string } = await response.json();
+    setMessage(
+      `Passphrase for ${username} successfully reset! The new passphrase is: ${data.new_passphrase}`
+    );
   };
 
   const handleDeletePreview = async (id: string) => {
@@ -163,7 +171,7 @@ export default function UserAccountsSection({
                   <button
                     type="button"
                     className="secondary-button"
-                    onClick={() => resetPassphrase(account.id)}
+                    onClick={() => resetPassphrase(account.username)}
                   >
                     Reset Password
                   </button>
