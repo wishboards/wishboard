@@ -1,16 +1,18 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import cvPromise from '@techstark/opencv-js';
 import {
   Point,
   calculateDrawDimensions,
-  detectDocumentContour,
-  fallbackTextContour,
   getDefaultPoly,
   applyTemporalSmoothing,
   processCardImage,
 } from '../cardProcessor';
 import { useEventProfile } from '../EventProfileContext';
 import { countMatchingStickers } from '../utils/stickers';
+import { projectStickerZoneCorners } from '../utils/perspective';
+import {
+  createScannerWorkerClient,
+  type ScannerWorkerClient,
+} from '../workers/scannerWorkerClient';
 
 export interface StickerZoneConfig {
   visible: boolean;
@@ -35,8 +37,6 @@ interface DrawConfig {
 }
 
 function renderOverlay(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OpenCV WASM instance for perspective transform matrices
-  cv: any,
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   video: HTMLVideoElement,
@@ -56,7 +56,7 @@ function renderOverlay(
 
   drawDocumentOutline(ctx, canvas, p0, p1, p2, p3);
   if (stickerConfig.visible) {
-    drawStickerZone(cv, ctx, p0, p1, p2, p3, stickerConfig);
+    drawStickerZone(ctx, p0, p1, p2, p3, stickerConfig);
   }
 }
 
@@ -91,8 +91,6 @@ function drawDocumentOutline(
 }
 
 function drawStickerZone(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OpenCV WASM instance for perspective transform matrices
-  cv: any,
   ctx: CanvasRenderingContext2D,
   p0: Point,
   p1: Point,
@@ -100,44 +98,15 @@ function drawStickerZone(
   p3: Point,
   config: StickerZoneConfig
 ) {
-  const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, 1000, 0, 1000, 600, 0, 600]);
-  const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-    p0.x,
-    p0.y,
-    p1.x,
-    p1.y,
-    p2.x,
-    p2.y,
-    p3.x,
-    p3.y,
-  ]);
-  const transform = cv.getPerspectiveTransform(srcTri, dstTri);
-
-  const pad = 20;
-  const szW = config.width;
-  const szH = config.height;
-  const szX1 = 1000 - szW - pad;
-  const szY1 = pad;
-  const szX2 = 1000 - pad;
-  const szY2 = pad + szH;
-
-  const zonePtsMat = cv.matFromArray(4, 1, cv.CV_32FC2, [
-    szX1,
-    szY1,
-    szX2,
-    szY1,
-    szX2,
-    szY2,
-    szX1,
-    szY2,
-  ]);
-  const outPtsMat = new cv.Mat();
-  cv.perspectiveTransform(zonePtsMat, outPtsMat, transform);
-
-  const zp0 = { x: outPtsMat.data32F[0], y: outPtsMat.data32F[1] };
-  const zp1 = { x: outPtsMat.data32F[2], y: outPtsMat.data32F[3] };
-  const zp2 = { x: outPtsMat.data32F[4], y: outPtsMat.data32F[5] };
-  const zp3 = { x: outPtsMat.data32F[6], y: outPtsMat.data32F[7] };
+  const [zp0, zp1, zp2, zp3] = projectStickerZoneCorners(
+    p0,
+    p1,
+    p2,
+    p3,
+    config.width,
+    config.height,
+    20
+  );
 
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.lineWidth = 2;
@@ -164,12 +133,6 @@ function drawStickerZone(
   ctx.rotate(angle);
   ctx.fillText(config.label, 0, 0);
   ctx.restore();
-
-  srcTri.delete();
-  dstTri.delete();
-  transform.delete();
-  zonePtsMat.delete();
-  outPtsMat.delete();
 }
 
 async function getCameraStream(): Promise<MediaStream> {
@@ -242,20 +205,19 @@ export default function WishScanner({
   }, [stickerConfig]);
 
   const smoothedCornersRef = useRef<{ x: number; y: number }[] | null>(null);
+  const lastStateLinesRef = useRef<string[]>([]);
   const animationFrameRef = useRef<number | null>(null);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OpenCV.js Emscripten C++ WASM module instance
-  const cvRef = useRef<any>(null);
+  const workerClientRef = useRef<ScannerWorkerClient | null>(null);
   const [cvReady, setCvReady] = useState(false);
 
   useEffect(() => {
     let active = true;
+    const client = createScannerWorkerClient();
+    workerClientRef.current = client;
     async function loadOpenCV() {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cvPromise resolves dynamically-bound C++ Emscripten WASM module
-        const resolved = await (cvPromise as any);
+        await client.init();
         if (active) {
-          cvRef.current = resolved.default || resolved;
           setCvReady(true);
         }
       } catch (err) {
@@ -265,6 +227,8 @@ export default function WishScanner({
     void loadOpenCV();
     return () => {
       active = false;
+      client.terminate();
+      workerClientRef.current = null;
     };
   }, []);
 
@@ -296,8 +260,8 @@ export default function WishScanner({
 
   const drawOverlay = () => {
     if (!videoRef.current || !canvasRef.current || isProcessing) return;
-    const cv = cvRef.current;
-    if (!cv) {
+    const workerClient = workerClientRef.current;
+    if (!workerClient?.isReady()) {
       animationFrameRef.current = requestAnimationFrame(drawOverlay);
       return;
     }
@@ -313,62 +277,61 @@ export default function WishScanner({
     if (!ctx) return;
 
     const { drawW, drawH, drawX, drawY } = calculateDrawDimensions(video, canvas);
+    const processScale = 400 / video.videoWidth;
+    const pWidth = 400;
+    const pHeight = Math.floor(video.videoHeight * processScale);
+
+    // Throttle frame dispatch: only send a new frame when the worker is idle
+    if (!workerClient.isBusy()) {
+      void workerClient
+        .detectFrame(video, processScale, pWidth, pHeight, video.videoWidth, video.videoHeight)
+        .then((res) => {
+          if (!res) return;
+          const stateLines: string[] = [];
+          let bestPoly = res.bestPoly;
+          if (bestPoly) {
+            stateLines.push(`State: Tracked (${Math.floor(res.maxArea)}px)`);
+          } else if (res.fallbackPoly) {
+            bestPoly = res.fallbackPoly;
+            stateLines.push('State: Center Crop Fallback');
+          }
+          bestPoly ??= getDefaultPoly(video);
+          smoothedCornersRef.current = applyTemporalSmoothing(
+            bestPoly,
+            smoothedCornersRef.current,
+            stateLines
+          );
+          lastStateLinesRef.current = stateLines;
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          lastStateLinesRef.current = [`Error: ${msg}`];
+          console.warn('Live OpenCV processing error', err);
+        });
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const activeCorners = smoothedCornersRef.current ?? getDefaultPoly(video);
+    if (activeCorners && activeCorners.length >= 4) {
+      if (!smoothedCornersRef.current) {
+        smoothedCornersRef.current = activeCorners;
+      }
+      renderOverlay(
+        ctx,
+        canvas,
+        video,
+        activeCorners,
+        { x: drawX, y: drawY, w: drawW, h: drawH },
+        stickerConfigRef.current
+      );
+    }
 
     const debugLines: string[] = [
       `Video: ${video.videoWidth}x${video.videoHeight}`,
       `Canvas: ${canvas.width}x${canvas.height}`,
+      ...lastStateLinesRef.current,
     ];
-
-    try {
-      const processScale = 400 / video.videoWidth;
-      const pWidth = 400;
-      const pHeight = Math.floor(video.videoHeight * processScale);
-
-      const {
-        src,
-        contours,
-        hierarchy,
-        maxArea,
-        bestPoly: detectedPoly,
-      } = detectDocumentContour(cv, video, processScale, pWidth, pHeight);
-      let bestPoly = detectedPoly;
-
-      if (bestPoly) {
-        debugLines.push(`State: Tracked (${Math.floor(maxArea)}px)`);
-      } else {
-        bestPoly = fallbackTextContour(cv, video, contours, processScale, pWidth, pHeight);
-        if (bestPoly) {
-          debugLines.push('State: Center Crop Fallback');
-        }
-      }
-
-      src.delete();
-      contours.delete();
-      hierarchy.delete();
-
-      bestPoly ??= getDefaultPoly(video);
-
-      smoothedCornersRef.current = applyTemporalSmoothing(
-        bestPoly,
-        smoothedCornersRef.current,
-        debugLines
-      );
-
-      renderOverlay(
-        cv,
-        ctx,
-        canvas,
-        video,
-        smoothedCornersRef.current,
-        { x: drawX, y: drawY, w: drawW, h: drawH },
-        stickerConfigRef.current
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      debugLines.push(`Error: ${msg}`);
-      console.warn('Live OpenCV processing error', err);
-    }
 
     // Render Debug Text
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';

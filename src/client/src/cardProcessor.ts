@@ -4,8 +4,33 @@ import Tesseract from 'tesseract.js';
 
 export type Point = { x: number; y: number };
 export type ProcessableElement = HTMLVideoElement | HTMLImageElement | HTMLCanvasElement;
+export type FramePixelBuffer = { width: number; height: number; data: Uint8ClampedArray };
+export type ContourInput = ProcessableElement | FramePixelBuffer;
+export type DimensionsSource = ContourInput | { width: number; height: number };
 
-export function getElementDimensions(element: ProcessableElement): {
+export function isFramePixelBuffer(input: unknown): input is FramePixelBuffer {
+  return (
+    Boolean(input) &&
+    typeof input === 'object' &&
+    'data' in (input as Record<string, unknown>) &&
+    (input as FramePixelBuffer).data instanceof Uint8ClampedArray
+  );
+}
+
+export function createProcessingCanvas(
+  width: number,
+  height: number
+): OffscreenCanvas | HTMLCanvasElement {
+  if (typeof globalThis.OffscreenCanvas === 'function') {
+    return new globalThis.OffscreenCanvas(width, height);
+  }
+  const canvas = globalThis.document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+export function getElementDimensions(element: DimensionsSource): {
   width: number;
   height: number;
 } {
@@ -65,20 +90,36 @@ export function calculateAspectFitDrawConfig(
   return { drawW, drawH, drawX, drawY };
 }
 
+function readInputToMat(cv: any, input: ContourInput, pWidth: number, pHeight: number) {
+  if (isFramePixelBuffer(input) && typeof cv.matFromImageData === 'function') {
+    return cv.matFromImageData(input);
+  }
+  const tempCanvas = createProcessingCanvas(pWidth, pHeight);
+  const tempCtx = tempCanvas.getContext('2d', {
+    willReadFrequently: true,
+  }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
+
+  if (!isFramePixelBuffer(input)) {
+    tempCtx?.drawImage(input, 0, 0, pWidth, pHeight);
+  }
+
+  if (typeof cv.matFromImageData === 'function' && typeof tempCtx?.getImageData === 'function') {
+    const imgData = tempCtx.getImageData(0, 0, pWidth, pHeight);
+    if (imgData) {
+      return cv.matFromImageData(imgData);
+    }
+  }
+  return cv.imread(tempCanvas);
+}
+
 export function detectDocumentContour(
   cv: any,
-  video: ProcessableElement,
+  video: ContourInput,
   processScale: number,
   pWidth: number,
   pHeight: number
 ) {
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = pWidth;
-  tempCanvas.height = pHeight;
-  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-  tempCtx?.drawImage(video, 0, 0, pWidth, pHeight);
-
-  const src = cv.imread(tempCanvas);
+  const src = readInputToMat(cv, video, pWidth, pHeight);
   cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
   cv.GaussianBlur(src, src, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
   cv.Canny(src, src, 75, 200, 3, false);
@@ -122,7 +163,7 @@ export function detectDocumentContour(
 
 export function fallbackTextContour(
   cv: any,
-  video: ProcessableElement,
+  video: DimensionsSource,
   contours: any,
   processScale: number,
   pWidth: number,
@@ -179,7 +220,7 @@ export function fallbackTextContour(
   return null;
 }
 
-export function getDefaultPoly(video: ProcessableElement): Point[] {
+export function getDefaultPoly(video: DimensionsSource): Point[] {
   const { width, height } = getElementDimensions(video);
   const ratio = width / height;
   let w, h;
@@ -266,6 +307,49 @@ export function applyTemporalSmoothing(
 
   const alignedPoly = alignPolygons(bestPoly, previousPoly);
   return applyDampening(alignedPoly, previousPoly, debugLines);
+}
+
+export function warpCardBuffer(
+  cv: any,
+  input: FramePixelBuffer,
+  corners: Point[],
+  warpW = 1000,
+  warpH = 600
+): FramePixelBuffer {
+  const cvSrc = cv.matFromImageData(input);
+  const cvDst = new cv.Mat();
+
+  const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+    corners[0].x,
+    corners[0].y,
+    corners[1].x,
+    corners[1].y,
+    corners[2].x,
+    corners[2].y,
+    corners[3].x,
+    corners[3].y,
+  ]);
+  const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, warpW, 0, warpW, warpH, 0, warpH]);
+
+  const transform = cv.getPerspectiveTransform(srcTri, dstTri);
+  cv.warpPerspective(
+    cvSrc,
+    cvDst,
+    transform,
+    new cv.Size(warpW, warpH),
+    cv.INTER_LINEAR,
+    cv.BORDER_CONSTANT,
+    new cv.Scalar()
+  );
+
+  const data = new Uint8ClampedArray(cvDst.data ?? warpW * warpH * 4);
+  cvSrc.delete();
+  cvDst.delete();
+  srcTri.delete();
+  dstTri.delete();
+  transform.delete();
+
+  return { width: warpW, height: warpH, data };
 }
 
 export async function processCardImage(

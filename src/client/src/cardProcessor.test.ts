@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getElementDimensions,
   calculateDrawDimensions,
@@ -7,6 +7,10 @@ import {
   alignPolygons,
   applyDampening,
   fallbackTextContour,
+  isFramePixelBuffer,
+  createProcessingCanvas,
+  detectDocumentContour,
+  warpCardBuffer,
 } from './cardProcessor';
 
 describe('cardProcessor geometry & layout utilities', () => {
@@ -233,5 +237,150 @@ describe('fallbackTextContour', () => {
     expect(result![0].y).toBeCloseTo(cy - expectedH / 2);
     expect(result![2].x).toBeCloseTo(cx + expectedW / 2);
     expect(result![2].y).toBeCloseTo(cy + expectedH / 2);
+  });
+});
+
+describe('worker buffer & OffscreenCanvas utilities in cardProcessor', () => {
+  it('identifies valid FramePixelBuffer objects with isFramePixelBuffer', () => {
+    expect(
+      isFramePixelBuffer({
+        width: 10,
+        height: 10,
+        data: new Uint8ClampedArray(400),
+      })
+    ).toBe(true);
+    expect(isFramePixelBuffer(null)).toBe(false);
+    expect(isFramePixelBuffer({ width: 10, height: 10 })).toBe(false);
+  });
+
+  it('uses OffscreenCanvas when available and falls back to DOM canvas otherwise', () => {
+    const originalOffscreen = globalThis.OffscreenCanvas;
+    try {
+      class FakeOffscreenCanvas {
+        width: number;
+        height: number;
+        constructor(w: number, h: number) {
+          this.width = w;
+          this.height = h;
+        }
+      }
+      (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = FakeOffscreenCanvas;
+      const offscreen = createProcessingCanvas(320, 240);
+      expect(offscreen).toBeInstanceOf(FakeOffscreenCanvas);
+      expect(offscreen.width).toBe(320);
+      expect(offscreen.height).toBe(240);
+
+      (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = undefined;
+      const domCanvas = createProcessingCanvas(160, 120);
+      expect(domCanvas.width).toBe(160);
+      expect(domCanvas.height).toBe(120);
+    } finally {
+      (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = originalOffscreen;
+    }
+  });
+
+  it('detects document contour directly from a FramePixelBuffer using cv.matFromImageData', () => {
+    const approxDelete = vi.fn();
+    const cvMock = {
+      COLOR_RGBA2GRAY: 1,
+      BORDER_DEFAULT: 0,
+      RETR_LIST: 0,
+      CHAIN_APPROX_SIMPLE: 0,
+      matFromImageData: vi.fn(() => ({ delete: vi.fn() })),
+      cvtColor: vi.fn(),
+      GaussianBlur: vi.fn(),
+      Canny: vi.fn(),
+      Size: class {
+        constructor(
+          public w: number,
+          public h: number
+        ) {}
+      },
+      MatVector: class {
+        size() {
+          return 1;
+        }
+        get() {
+          return { id: 'quad' };
+        }
+        delete = vi.fn();
+      },
+      Mat: class {
+        rows = 4;
+        data32S = [10, 10, 190, 10, 190, 110, 10, 110];
+        delete = approxDelete;
+      },
+      findContours: vi.fn(),
+      contourArea: vi.fn(() => 15000),
+      arcLength: vi.fn(() => 400),
+      approxPolyDP: vi.fn(),
+    };
+
+    const buffer = {
+      width: 200,
+      height: 120,
+      data: new Uint8ClampedArray(200 * 120 * 4),
+    };
+
+    const res = detectDocumentContour(cvMock, buffer, 0.5, 200, 120);
+    expect(cvMock.matFromImageData).toHaveBeenCalledWith(buffer);
+    expect(res.maxArea).toBe(15000);
+    expect(res.bestPoly).toHaveLength(4);
+    expect(approxDelete).toHaveBeenCalled();
+  });
+
+  it('warps a FramePixelBuffer using warpCardBuffer and releases all OpenCV Mats', () => {
+    const srcDelete = vi.fn();
+    const dstDelete = vi.fn();
+    const triDelete = vi.fn();
+    const transformDelete = vi.fn();
+
+    const cvMock = {
+      CV_32FC2: 13,
+      INTER_LINEAR: 1,
+      BORDER_CONSTANT: 0,
+      matFromImageData: vi.fn(() => ({ delete: srcDelete })),
+      Mat: class {
+        data = new Uint8Array(100 * 60 * 4);
+        delete = dstDelete;
+      },
+      matFromArray: vi.fn(() => ({ delete: triDelete })),
+      getPerspectiveTransform: vi.fn(() => ({ delete: transformDelete })),
+      warpPerspective: vi.fn(),
+      Size: class {
+        constructor(
+          public w: number,
+          public h: number
+        ) {}
+      },
+      Scalar: class {},
+    };
+
+    const input = {
+      width: 200,
+      height: 120,
+      data: new Uint8ClampedArray(200 * 120 * 4),
+    };
+
+    const warped = warpCardBuffer(
+      cvMock,
+      input,
+      [
+        { x: 0, y: 0 },
+        { x: 200, y: 0 },
+        { x: 200, y: 120 },
+        { x: 0, y: 120 },
+      ],
+      100,
+      60
+    );
+
+    expect(warped.width).toBe(100);
+    expect(warped.height).toBe(60);
+    expect(warped.data).toHaveLength(100 * 60 * 4);
+    expect(srcDelete).toHaveBeenCalledTimes(1);
+    expect(dstDelete).toHaveBeenCalledTimes(1);
+    expect(triDelete).toHaveBeenCalledTimes(2);
+    expect(transformDelete).toHaveBeenCalledTimes(1);
   });
 });
