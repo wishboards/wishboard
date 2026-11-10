@@ -370,4 +370,76 @@ describe('User registration and login', () => {
       expect(invalidRes.body.ui_preferences.themeMode).toBe('host-default');
     });
   });
+
+  describe('PUT /api/users/me/passphrase', () => {
+    it('requires authentication', async () => {
+      const res = await request(app)
+        .put('/api/users/me/passphrase')
+        .send({ current_passphrase: 'old', new_passphrase: 'new' });
+
+      expect(res.status).toBe(401);
+    });
+
+    it('validates required fields', async () => {
+      const reg = await request(app)
+        .post('/api/users/register')
+        .send({ username: 'pw_change_user', passphrase: 'initial-passphrase' });
+      const token = reg.body.token;
+
+      const resNoCurrent = await request(app)
+        .put('/api/users/me/passphrase')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ new_passphrase: 'new-passphrase' });
+      expect(resNoCurrent.status).toBe(400);
+
+      const resNoNew = await request(app)
+        .put('/api/users/me/passphrase')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ current_passphrase: 'initial-passphrase' });
+      expect(resNoNew.status).toBe(400);
+    });
+
+    it('rejects incorrect current passphrase', async () => {
+      const reg = await request(app)
+        .post('/api/users/register')
+        .send({ username: 'pw_wrong_curr', passphrase: 'correct-current' });
+      const token = reg.body.token;
+
+      const res = await request(app)
+        .put('/api/users/me/passphrase')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ current_passphrase: 'wrong-current', new_passphrase: 'brand-new-pass' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toMatch(/Invalid current passphrase/i);
+    });
+
+    it('successfully changes passphrase and enables login with new passphrase', async () => {
+      const reg = await request(app)
+        .post('/api/users/register')
+        .send({ username: 'pw_success_user', passphrase: 'first-passphrase' });
+      const token = reg.body.token;
+
+      const changeRes = await request(app)
+        .put('/api/users/me/passphrase')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ current_passphrase: 'first-passphrase', new_passphrase: 'second-passphrase' });
+
+      expect(changeRes.status).toBe(200);
+      expect(changeRes.body.success).toBe(true);
+
+      // Old passphrase no longer works
+      const oldLogin = await request(app)
+        .post('/api/users/login')
+        .send({ username: 'pw_success_user', passphrase: 'first-passphrase' });
+      expect(oldLogin.status).toBe(401);
+
+      // New passphrase works
+      const newLogin = await request(app)
+        .post('/api/users/login')
+        .send({ username: 'pw_success_user', passphrase: 'second-passphrase' });
+      expect(newLogin.status).toBe(200);
+      expect(newLogin.body.token).toBeTypeOf('string');
+    });
+  });
 });

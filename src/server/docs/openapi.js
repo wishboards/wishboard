@@ -267,6 +267,28 @@ export const LoginInputSchema = registry.register(
   })
 );
 
+export const ChangePassphraseInputSchema = registry.register(
+  'ChangePassphraseInput',
+  z.object({
+    current_passphrase: z
+      .string({
+        message: 'Current passphrase is required.',
+        required_error: 'Current passphrase is required.',
+      })
+      .trim()
+      .min(1, { message: 'Current passphrase is required.' })
+      .openapi({ example: 'apple-river-forest' }),
+    new_passphrase: z
+      .string({
+        message: 'New passphrase is required.',
+        required_error: 'New passphrase is required.',
+      })
+      .trim()
+      .min(1, { message: 'New passphrase is required.' })
+      .openapi({ example: 'solar-spark-blue' }),
+  })
+);
+
 export const UIPreferencesSchema = registry.register(
   'UIPreferences',
   z.object({
@@ -815,6 +837,15 @@ addAuthUserRoute({
   summary: 'Update current user profile',
   requestSchema: UpdateUserInputSchema,
   responseSchema: UserProfileSchema,
+});
+
+addAuthUserRoute({
+  method: 'put',
+  path: '/api/users/me/passphrase',
+  summary: 'Change user passphrase',
+  description: 'Updates the authenticated user passphrase after verifying current credentials.',
+  requestSchema: ChangePassphraseInputSchema,
+  responseSchema: SuccessResponseSchema,
 });
 
 addAuthUserRoute({

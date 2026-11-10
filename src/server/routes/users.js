@@ -20,6 +20,7 @@ import {
   UsernameCheckQuerySchema,
   RegisterUserInputSchema,
   LoginInputSchema,
+  ChangePassphraseInputSchema,
 } from '../docs/openapi.js';
 import { parseCardStyle } from './wishes.js';
 
@@ -178,6 +179,39 @@ router.put('/me', async (req, res) => {
     identity_attributes: identityAttrs,
     ui_preferences: updatedUiPreferences,
   });
+});
+
+router.put('/me/passphrase', validateBody(ChangePassphraseInputSchema), async (req, res) => {
+  const user = req.user;
+  const { current_passphrase, new_passphrase } = req.validatedBody;
+
+  const dbUser = await db
+    .prepare('SELECT passphrase_hash, passphrase_salt FROM users WHERE id = ?')
+    .get(user.id);
+
+  if (
+    !dbUser ||
+    !(await verifyPassphrase(
+      current_passphrase.trim(),
+      dbUser.passphrase_salt,
+      dbUser.passphrase_hash
+    ))
+  ) {
+    logger.warn('Failed passphrase change attempt (invalid current passphrase)', {
+      user_id: user.id,
+    });
+    return res.status(401).json({ error: 'Invalid current passphrase.' });
+  }
+
+  const salt = createSalt();
+  const hash = await hashPassphrase(new_passphrase.trim(), salt);
+
+  await db
+    .prepare('UPDATE users SET passphrase_hash = ?, passphrase_salt = ? WHERE id = ?')
+    .run(hash, salt, user.id);
+
+  logger.info('User changed passphrase', { user_id: user.id });
+  res.json({ success: true, message: 'Passphrase changed successfully.' });
 });
 
 router.post('/login', validateBody(LoginInputSchema), async (req, res) => {

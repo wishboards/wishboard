@@ -186,7 +186,7 @@ export default function UserAccountsSection({
                   )}
                   <button
                     type="button"
-                    className="secondary-button"
+                    className="danger-button"
                     onClick={() => handleDeletePreview(account.id)}
                   >
                     Delete

@@ -552,6 +552,25 @@
           "passphrase"
         ]
       },
+      "ChangePassphraseInput": {
+        "type": "object",
+        "properties": {
+          "current_passphrase": {
+            "type": "string",
+            "minLength": 1,
+            "example": "apple-river-forest"
+          },
+          "new_passphrase": {
+            "type": "string",
+            "minLength": 1,
+            "example": "solar-spark-blue"
+          }
+        },
+        "required": [
+          "current_passphrase",
+          "new_passphrase"
+        ]
+      },
       "UIPreferences": {
         "type": "object",
         "properties": {
@@ -2134,6 +2153,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/passphrase": {
+      "put": {
+        "tags": [
+          "Users & Auth"
+        ],
+        "summary": "Change user passphrase",
+        "description": "Updates the authenticated user passphrase after verifying current credentials.",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePassphraseInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Change user passphrase response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }

@@ -259,7 +259,7 @@ button:hover {
 }
 
 .secondary-button {
-  background: transparent;
+  background: var(--wb-bg-surface-elevated, rgba(51, 65, 85, 0.5));
   color: var(--wb-text-primary, #f8fafc);
   border: 1px solid var(--wb-border-strong, rgba(255, 255, 255, 0.25));
 }
@@ -267,6 +267,18 @@ button:hover {
 .secondary-button:hover {
   background: var(--wb-accent-subtle, rgba(245, 158, 11, 0.15));
   border-color: var(--wb-accent-primary, #f59e0b);
+}
+
+.danger-button {
+  background: var(--wb-danger-bg, rgba(239, 68, 68, 0.15));
+  color: var(--wb-danger, #ef4444);
+  border: 1px solid var(--wb-danger, #ef4444);
+}
+
+.danger-button:hover {
+  background: var(--wb-danger, #ef4444);
+  color: #ffffff;
+  border-color: var(--wb-danger-hover, #dc2626);
 }
 
 .message {
@@ -602,10 +614,10 @@ button:hover {
 .admin-delete-wish-btn,
 .owner-edit-wish-btn,
 .owner-delete-wish-btn {
-  background: transparent;
-  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.15);
   padding: 4px;
-  color: #4a5568;
+  color: var(--wb-card-ink, #1e293b);
   cursor: pointer;
   border-radius: 4px;
   display: flex;
