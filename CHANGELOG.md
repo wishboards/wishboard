@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.37.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.36.0...wishboard-v1.37.0) (2026-11-10)
+
+
+### Features
+
+* **auth:** add change passphrase flow and audit theme button contrast ([#603](https://github.com/wishboards/wishboard/issues/603)) ([64d6156](https://github.com/wishboards/wishboard/commit/64d6156e237ab13c3b13ca672e3310da5d5aba7d))
+
+
+### Bug Fixes
+
+* **admin:** key passphrase reset on username and read new_passphrase ([#601](https://github.com/wishboards/wishboard/issues/601)) ([d3fb923](https://github.com/wishboards/wishboard/commit/d3fb9232fa7808eb8305c15bdec31c308fe35678))
+* **test:** silence repetitive console output during test runs ([#604](https://github.com/wishboards/wishboard/issues/604)) ([8c921e4](https://github.com/wishboards/wishboard/commit/8c921e499237ead0747be7598ff05fdd557699d2))
+
 ## [1.36.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.35.1...wishboard-v1.36.0) (2026-11-09)
 
 

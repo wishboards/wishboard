@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/wishboards/wishboard/compare/api-v1.2.0...api-v1.3.0) (2026-11-10)
+
+
+### Features
+
+* **auth:** add change passphrase flow and audit theme button contrast ([#603](https://github.com/wishboards/wishboard/issues/603)) ([64d6156](https://github.com/wishboards/wishboard/commit/64d6156e237ab13c3b13ca672e3310da5d5aba7d))
+
+
+### Bug Fixes
+
+* **admin:** key passphrase reset on username and read new_passphrase ([#601](https://github.com/wishboards/wishboard/issues/601)) ([d3fb923](https://github.com/wishboards/wishboard/commit/d3fb9232fa7808eb8305c15bdec31c308fe35678))
+
 ## [1.2.0](https://github.com/wishboards/wishboard/compare/api-v1.1.0...api-v1.2.0) (2026-11-09)
 
 
