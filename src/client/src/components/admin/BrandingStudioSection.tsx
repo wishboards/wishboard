@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { BrandingConfig, ThemePreset, BoardTexture } from '../../EventProfileContext';
 import { resolveBoardTextureCss } from '../../hooks/useTheme';
 import { checkWcagAA } from '../../utils/contrast';
+import { apiClient } from '../../api/client';
 
 export interface SectionProps {
   authHeader: Record<string, string>;
@@ -382,13 +383,14 @@ export default function BrandingStudioSection({
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/branding', { headers: authHeader });
+      const { data, response } = await apiClient.GET('/api/admin/branding', {
+        headers: authHeader,
+      });
       if (response.status === 401) {
         onSessionExpired?.();
         return;
       }
-      if (response.ok) {
-        const data: BrandingConfig = await response.json();
+      if (response.ok && data) {
         setBranding({
           themePreset: data.themePreset || 'midnight',
           primaryColor: data.primaryColor || '#f59e0b',
@@ -465,10 +467,15 @@ export default function BrandingStudioSection({
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/admin/branding/upload', {
-        method: 'POST',
+      const {
+        data: resData,
+        error: resErr,
+        response,
+      } = await apiClient.POST('/api/admin/branding/upload', {
         headers: authHeader,
-        body: formData,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FormData passed directly for multipart upload
+        body: formData as any,
+        bodySerializer: (b) => b as unknown as BodyInit,
       });
 
       if (response.status === 401) {
@@ -476,8 +483,7 @@ export default function BrandingStudioSection({
         return;
       }
 
-      const resData = await response.json();
-      if (response.ok && resData.url) {
+      if (response.ok && resData?.url) {
         if (type === 'logo') {
           setBranding((prev) => ({ ...prev, logoUrl: resData.url }));
           setMessage('Logo uploaded successfully.');
@@ -486,7 +492,10 @@ export default function BrandingStudioSection({
           setMessage('Background image uploaded successfully.');
         }
       } else {
-        setError(resData.error || 'Failed to upload image.');
+        const errMsg =
+          (resErr as { error?: string } | undefined)?.error ||
+          (resData as { error?: string } | undefined)?.error;
+        setError(errMsg || 'Failed to upload image.');
       }
     } catch (err) {
       console.error('Error uploading branding image:', err);
@@ -504,13 +513,13 @@ export default function BrandingStudioSection({
     setSaving(true);
 
     try {
-      const response = await fetch('/api/admin/branding', {
-        method: 'PUT',
-        headers: {
-          ...authHeader,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(branding),
+      const {
+        data: resData,
+        error: resErr,
+        response,
+      } = await apiClient.PUT('/api/admin/branding', {
+        headers: authHeader,
+        body: branding,
       });
 
       if (response.status === 401) {
@@ -518,14 +527,16 @@ export default function BrandingStudioSection({
         return;
       }
 
-      const resData = await response.json();
-      if (response.ok && resData.success) {
+      if (response.ok && resData?.success) {
         setMessage('Branding configuration saved successfully.');
         if (resData.branding) {
           setBranding(resData.branding);
         }
       } else {
-        setError(resData.error || 'Failed to save branding.');
+        const errMsg =
+          (resErr as { error?: string } | undefined)?.error ||
+          (resData as { error?: string } | undefined)?.error;
+        setError(errMsg || 'Failed to save branding.');
       }
     } catch (err) {
       console.error('Error saving branding configuration:', err);
@@ -549,8 +560,11 @@ export default function BrandingStudioSection({
     setSaving(true);
 
     try {
-      const response = await fetch('/api/admin/branding', {
-        method: 'DELETE',
+      const {
+        data: resData,
+        error: resErr,
+        response,
+      } = await apiClient.DELETE('/api/admin/branding', {
         headers: authHeader,
       });
 
@@ -559,8 +573,7 @@ export default function BrandingStudioSection({
         return;
       }
 
-      const resData = await response.json();
-      if (response.ok && resData.success) {
+      if (response.ok && resData?.success) {
         setMessage('Branding configuration reset to profile defaults.');
         if (resData.branding) {
           setBranding(resData.branding);
@@ -568,7 +581,10 @@ export default function BrandingStudioSection({
           setBranding(DEFAULT_BRANDING);
         }
       } else {
-        setError(resData.error || 'Failed to reset branding.');
+        const errMsg =
+          (resErr as { error?: string } | undefined)?.error ||
+          (resData as { error?: string } | undefined)?.error;
+        setError(errMsg || 'Failed to reset branding.');
       }
     } catch (err) {
       console.error('Error resetting branding configuration:', err);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ConfirmDeleteAccountModal from '../ConfirmDeleteAccountModal';
 import DemoSeederSection from './DemoSeederSection';
+import { apiClient } from '../../api/client';
 
 interface UserAccountsSectionProps {
   authHeader: Record<string, string>;
@@ -45,9 +46,9 @@ export default function UserAccountsSection({
 
   const loadUsers = async () => {
     setError(null);
-    const response = await fetch('/api/admin/users', { headers: authHeader });
-    if (response.ok) {
-      setUsers(await response.json());
+    const { data, response } = await apiClient.GET('/api/admin/users', { headers: authHeader });
+    if (response.ok && data) {
+      setUsers(data);
     } else if (!handledUnauthorized(response)) {
       // Surface the failure instead of leaving a silently-empty table that
       // reads as "no accounts exist."
@@ -56,9 +57,10 @@ export default function UserAccountsSection({
   };
 
   const loadConfig = async () => {
-    const response = await fetch('/api/admin/config', { headers: authHeader });
-    if (response.ok) {
-      const config = await response.json();
+    const { data: config, response } = await apiClient.GET('/api/admin/config', {
+      headers: authHeader,
+    });
+    if (response.ok && config) {
       setIsProduction(config.isProduction);
       setHasDemoSeeds(config.hasDemoSeeds ?? false);
     } else {
@@ -72,13 +74,13 @@ export default function UserAccountsSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps, @eslint-react/exhaustive-deps
   }, [refreshCounter]);
 
-  const updateRole = async (id: string, role: string) => {
+  const updateRole = async (id: string, role: 'user' | 'admin') => {
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/admin/users/${encodeURIComponent(id)}/role`, {
-      method: 'POST',
-      headers: { ...authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
+    const { response } = await apiClient.POST('/api/admin/users/{id}/role', {
+      params: { path: { id } },
+      headers: authHeader,
+      body: { role },
     });
     if (!response.ok) {
       if (handledUnauthorized(response)) return;
@@ -101,37 +103,39 @@ export default function UserAccountsSection({
       return;
     setMessage(null);
     setError(null);
-    const response = await fetch(
-      `/api/admin/users/${encodeURIComponent(username)}/reset-password`,
-      {
-        method: 'POST',
-        headers: authHeader,
-      }
-    );
+    const { data, response } = await apiClient.POST('/api/admin/users/{username}/reset-password', {
+      params: { path: { username } },
+      headers: authHeader,
+    });
     if (!response.ok) {
       if (handledUnauthorized(response)) return;
       setError('Failed to reset passphrase.');
       return;
     }
-    const data: { new_passphrase?: string } = await response.json();
     setMessage(
-      `Passphrase for ${username} successfully reset! The new passphrase is: ${data.new_passphrase}`
+      `Passphrase for ${username} successfully reset! The new passphrase is: ${data?.new_passphrase}`
     );
   };
 
   const handleDeletePreview = async (id: string) => {
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/admin/users/${encodeURIComponent(id)}/delete-preview`, {
-      headers: authHeader,
-    });
-    if (!response.ok) {
+    const { data: preview, response } = await apiClient.GET(
+      '/api/admin/users/{id}/delete-preview',
+      {
+        params: { path: { id } },
+        headers: authHeader,
+      }
+    );
+    if (!response.ok || !preview) {
       if (handledUnauthorized(response)) return;
       setError('Failed to fetch delete preview.');
       return;
     }
-    const preview = await response.json();
-    setDeletePreview(preview);
+    setDeletePreview({
+      wishesCount: preview.wishesCount ?? preview.wishes_count ?? 0,
+      wishmailsCount: preview.wishmailsCount ?? preview.wishmails_count ?? 0,
+    });
     setUserToDelete(id);
   };
 
@@ -142,8 +146,8 @@ export default function UserAccountsSection({
     setDeletePreview(null);
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/admin/users/${encodeURIComponent(id)}/delete`, {
-      method: 'POST',
+    const { response } = await apiClient.POST('/api/admin/users/{id}/delete', {
+      params: { path: { id } },
       headers: authHeader,
     });
     if (!response.ok) {

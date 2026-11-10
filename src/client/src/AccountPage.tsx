@@ -12,6 +12,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import ConfirmDeleteAccountModal from './components/ConfirmDeleteAccountModal';
 import { parseAttributesString, fetchConflicts, getConflictWarning } from './utils/conflicts';
 import { useEventProfile, Category } from './EventProfileContext';
+import { apiClient, bearerHeader } from './api/client';
 
 // eslint-disable-next-line react-refresh/only-export-components -- Exported hook co-located with AccountPage for unit testing
 export function useUsernameExistence(username: string) {
@@ -33,11 +34,13 @@ export function useUsernameExistence(username: string) {
 
     const timer = globalThis.setTimeout(async () => {
       try {
-        const response = await fetch(`/api/users/exists?username=${encodeURIComponent(name)}`);
+        const { data, response } = await apiClient.GET('/api/users/exists', {
+          params: { query: { username: name } },
+        });
         if (!active) {
           return;
         }
-        const exists = response.ok ? Boolean((await response.json()).exists) : false;
+        const exists = response.ok ? Boolean(data?.exists) : false;
         setExistingUsername(exists);
       } catch (err) {
         console.error(err);
@@ -71,18 +74,14 @@ function useClaimWish(token: string | null, loadWishes: () => void) {
       return;
     }
 
-    const response = await fetch(`/api/wishes/${encodeURIComponent(claimId.trim())}/claim`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ secret: claimSecret.trim() }),
+    const { error: resErr, response } = await apiClient.POST('/api/wishes/{id}/claim', {
+      params: { path: { id: claimId.trim() } },
+      headers: bearerHeader(token),
+      body: { secret: claimSecret.trim() },
     });
 
     if (!response.ok) {
-      const data = await response.json();
-      setError(data.error || 'Unable to claim wish.');
+      setError((resErr as { error?: string } | undefined)?.error || 'Unable to claim wish.');
       return;
     }
 
@@ -379,10 +378,11 @@ function UnauthenticatedAccountPage() {
       return;
     }
     try {
-      const response = await fetch(`/api/wishes?ids=${excludedIds.join(',')}&ignore_attributes=1`);
-      if (response.ok) {
-        const data = await response.json();
-        setHiddenWishes(data);
+      const { data, response } = await apiClient.GET('/api/wishes', {
+        params: { query: { ids: excludedIds.join(','), ignore_attributes: '1' } },
+      });
+      if (response.ok && data) {
+        setHiddenWishes(data as unknown as Wish[]);
       }
     } catch (err) {
       console.error('Failed to load local hidden wishes:', err);
@@ -596,21 +596,18 @@ function AuthenticatedAccountPage() {
 
     setIsChangingPassphrase(true);
     try {
-      const response = await fetch('/api/users/me/passphrase', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
+      const { error: resErr, response } = await apiClient.PUT('/api/users/me/passphrase', {
+        headers: bearerHeader(token),
+        body: {
           current_passphrase: currentPassphrase.trim(),
           new_passphrase: newPassphrase.trim(),
-        }),
+        },
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        setPassphraseError(data.error || 'Failed to change passphrase.');
+        setPassphraseError(
+          (resErr as { error?: string } | undefined)?.error || 'Failed to change passphrase.'
+        );
       } else {
         setPassphraseMessage('Passphrase updated successfully.');
         setCurrentPassphrase('');
@@ -642,26 +639,24 @@ function AuthenticatedAccountPage() {
     if (!user) {
       return;
     }
-    const response = await fetch('/api/users/me/wishes', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    const { data, response } = await apiClient.GET('/api/users/me/wishes', {
+      headers: bearerHeader(token),
     });
-    if (!response.ok) {
+    if (!response.ok || !data) {
       setError('Unable to load your wishes.');
       return;
     }
-    const data = await response.json();
-    setWishes(data);
+    setWishes(data as unknown as Wish[]);
   }, [user, token]);
 
   const loadHiddenWishes = useCallback(async () => {
     if (!user) return;
     try {
-      const response = await fetch('/api/wishes/exclusions', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const { data, response } = await apiClient.GET('/api/wishes/exclusions', {
+        headers: bearerHeader(token),
       });
-      if (response.ok) {
-        const data = await response.json();
-        setHiddenWishes(data);
+      if (response.ok && data) {
+        setHiddenWishes(data as unknown as Wish[]);
       }
     } catch (err) {
       console.error('Failed to load hidden wishes:', err);
@@ -679,22 +674,17 @@ function AuthenticatedAccountPage() {
   const saveProfile = async () => {
     setError(null);
     setMessage(null);
-    const response = await fetch('/api/users/me', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
+    const { error: resErr, response } = await apiClient.PUT('/api/users/me', {
+      headers: bearerHeader(token),
+      body: {
         identity_attributes: editIdentityAttributes,
         contacts,
         wishmail_enabled: wishmailEnabled,
-      }),
+      },
     });
 
     if (!response.ok) {
-      const data = await response.json();
-      setError(data.error || 'Unable to save profile.');
+      setError((resErr as { error?: string } | undefined)?.error || 'Unable to save profile.');
       return;
     }
 
@@ -707,17 +697,13 @@ function AuthenticatedAccountPage() {
   const deleteWish = async (id: string) => {
     setError(null);
     setMessage(null);
-    const response = await fetch(`/api/wishes/${encodeURIComponent(id)}/manage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ action: 'delete' }),
+    const { error: resErr, response } = await apiClient.POST('/api/wishes/{id}/manage', {
+      params: { path: { id } },
+      headers: bearerHeader(token),
+      body: { action: 'delete' },
     });
     if (!response.ok) {
-      const data = await response.json();
-      setError(data.error || 'Unable to delete wish.');
+      setError((resErr as { error?: string } | undefined)?.error || 'Unable to delete wish.');
       return;
     }
     setMessage('Wish deleted successfully.');
@@ -728,9 +714,9 @@ function AuthenticatedAccountPage() {
     setError(null);
     setMessage(null);
     try {
-      const response = await fetch(`/api/wishes/${encodeURIComponent(id)}/exclude`, {
-        method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const { response } = await apiClient.DELETE('/api/wishes/{id}/exclude', {
+        params: { path: { id } },
+        headers: bearerHeader(token),
       });
       if (!response.ok) {
         setError('Unable to un-hide wish.');
@@ -745,23 +731,24 @@ function AuthenticatedAccountPage() {
 
   const handleDeletePreview = async () => {
     setError(null);
-    const response = await fetch('/api/users/me/delete-preview', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    const { data, response } = await apiClient.GET('/api/users/me/delete-preview', {
+      headers: bearerHeader(token),
     });
-    if (!response.ok) {
+    if (!response.ok || !data) {
       setError('Unable to fetch delete preview.');
       return;
     }
-    const data = await response.json();
-    setDeletePreview(data);
+    setDeletePreview({
+      wishesCount: data.wishesCount ?? data.wishes_count ?? 0,
+      wishmailsCount: data.wishmailsCount ?? data.wishmails_count ?? 0,
+    });
     setShowDeleteModal(true);
   };
 
   const confirmDelete = async () => {
     setDeleteError(null);
-    const response = await fetch('/api/users/me/delete', {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    const { response } = await apiClient.POST('/api/users/me/delete', {
+      headers: bearerHeader(token),
     });
     if (!response.ok) {
       setDeleteError('Unable to delete account.');
@@ -773,11 +760,9 @@ function AuthenticatedAccountPage() {
   const toggleProfileStatus = async () => {
     setError(null);
     setMessage(null);
-    const endpoint = user?.is_active ? '/api/users/me/deactivate' : '/api/users/me/reactivate';
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const { response } = user?.is_active
+      ? await apiClient.POST('/api/users/me/deactivate', { headers: bearerHeader(token) })
+      : await apiClient.POST('/api/users/me/reactivate', { headers: bearerHeader(token) });
     if (!response.ok) {
       setError(`Unable to ${user?.is_active ? 'deactivate' : 'reactivate'} profile.`);
       return;

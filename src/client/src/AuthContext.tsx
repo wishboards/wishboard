@@ -103,19 +103,15 @@ const migrateLocalStorageExclusions = async (token: string) => {
   try {
     const localIds: string[] = JSON.parse(localRaw);
     if (!Array.isArray(localIds) || localIds.length === 0) return;
-    await Promise.allSettled(
-      localIds.map((wishId) =>
-        fetch('/api/users/me/exclusions', {
-          // NOSONAR
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ wish_id: wishId }),
-        })
-      )
-    );
+    await fetch('/api/wishes/exclusions/import', {
+      // NOSONAR
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: localIds }),
+    });
   } catch (err) {
     console.warn('Failed to migrate local storage exclusions:', err);
   }

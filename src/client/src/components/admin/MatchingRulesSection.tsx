@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { apiClient, type ApiSchemas } from '../../api/client';
 
 const getSortIcon = (ruleSort: { key: string; dir: 'asc' | 'desc' }, key: string) => {
   if (ruleSort.key !== key) return '';
@@ -264,8 +265,8 @@ export default function MatchingRulesSection({
 
   const loadRules = useCallback(async () => {
     setError(null);
-    const response = await fetch('/api/rules', { headers: authHeader });
-    if (response.ok) setRules(await response.json());
+    const { data, response } = await apiClient.GET('/api/rules', { headers: authHeader });
+    if (response.ok && data) setRules(data as Rule[]);
   }, [authHeader, setError]);
 
   useEffect(() => {
@@ -301,8 +302,8 @@ export default function MatchingRulesSection({
     if (!globalThis.confirm('Are you sure you want to delete this rule?')) return;
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/rules/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
+    const { response } = await apiClient.DELETE('/api/rules/{id}', {
+      params: { path: { id } },
       headers: authHeader,
     });
     if (!response.ok) {
@@ -338,14 +339,17 @@ export default function MatchingRulesSection({
     event.preventDefault();
     setMessage(null);
     setError(null);
-    const method = editingRuleId ? 'PUT' : 'POST';
-    const url = editingRuleId ? `/api/rules/${encodeURIComponent(editingRuleId)}` : '/api/rules';
-
-    const response = await fetch(url, {
-      method,
-      headers: { ...authHeader, 'Content-Type': 'application/json' },
-      body: JSON.stringify(newRule),
-    });
+    const rulePayload = newRule as unknown as ApiSchemas['CreateRuleInput'];
+    const { response } = editingRuleId
+      ? await apiClient.PUT('/api/rules/{id}', {
+          params: { path: { id: editingRuleId } },
+          headers: authHeader,
+          body: rulePayload,
+        })
+      : await apiClient.POST('/api/rules', {
+          headers: authHeader,
+          body: rulePayload,
+        });
     if (!response.ok) {
       setError(`Failed to ${editingRuleId ? 'update' : 'create'} rule.`);
       return;

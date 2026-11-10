@@ -171,18 +171,27 @@ export const ManageWishInputSchema = registry.register(
 export const ClaimWishInputSchema = registry.register(
   'ClaimWishInput',
   z.object({
-    passphrase: z
+    secret: z
       .string({ required_error: 'Passphrase is required.' })
       .trim()
       .min(1, { message: 'Passphrase is required.' })
+      .optional()
       .openapi({ example: 'apple-river-forest' }),
+    passphrase: z.string().trim().optional().openapi({ example: 'apple-river-forest' }),
   })
 );
 
 export const ExclusionImportInputSchema = registry.register(
   'ExclusionImportInput',
   z.object({
-    exclusions: z.array(z.string()).openapi({ example: ['wish_k9x2m', 'wish_abc12'] }),
+    ids: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ['wish_k9x2m', 'wish_abc12'] }),
+    exclusions: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ['wish_k9x2m', 'wish_abc12'] }),
   })
 );
 
@@ -329,8 +338,10 @@ export const UpdateUserInputSchema = registry.register(
 export const UserDeletePreviewSchema = registry.register(
   'UserDeletePreview',
   z.object({
-    wishes_count: z.number().openapi({ example: 2 }),
-    wishmails_count: z.number().openapi({ example: 5 }),
+    wishesCount: z.number().optional().openapi({ example: 2 }),
+    wishmailsCount: z.number().optional().openapi({ example: 5 }),
+    wishes_count: z.number().optional().openapi({ example: 2 }),
+    wishmails_count: z.number().optional().openapi({ example: 5 }),
   })
 );
 
@@ -398,6 +409,36 @@ export const ResetPasswordResponseSchema = registry.register(
     success: z.boolean().openapi({ example: true }),
     new_passphrase: z.string().openapi({ example: 'amber-otter-lantern' }),
   })
+);
+
+export const ResetDemoResponseSchema = registry.register(
+  'ResetDemoResponse',
+  z.object({
+    message: z.string().openapi({ example: 'Demo environment successfully seeded.' }),
+    stats: z.object({
+      usersCreated: z.number().openapi({ example: 25 }),
+      wishesCreated: z.number().openapi({ example: 40 }),
+    }),
+  })
+);
+
+export const AdminLogsResponseSchema = registry.register(
+  'AdminLogsResponse',
+  z.object({
+    logs: z.string().openapi({ example: '[2026-10-13T12:00:00.000Z] info: Server started' }),
+    source: z.enum(['local', 'cloudwatch']).optional().openapi({ example: 'local' }),
+    fetchedAt: z.string().optional().openapi({ example: '2026-10-13T12:00:00.000Z' }),
+  })
+);
+
+export const AdminConfigResponseSchema = registry.register(
+  'AdminConfigResponse',
+  z
+    .object({
+      isProduction: z.boolean().openapi({ example: false }),
+      hasDemoSeeds: z.boolean().optional().openapi({ example: true }),
+    })
+    .catchall(z.any())
 );
 
 export const BrandingSchema = registry.register(
@@ -480,6 +521,7 @@ const createRouteHelper =
     summary,
     description,
     requestSchema,
+    requestBody,
     responseSchema,
     status = 200,
     params = [],
@@ -519,6 +561,10 @@ const createRouteHelper =
     if (requestSchema) {
       pathItem.request = {
         body: { content: { 'application/json': { schema: requestSchema } } },
+      };
+    } else if (requestBody) {
+      pathItem.request = {
+        body: requestBody,
       };
     }
 
@@ -580,6 +626,24 @@ addWishRoute({
     },
     { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
     { name: 'offset', in: 'query', schema: { type: 'integer', default: 0 } },
+    {
+      name: 'ids',
+      in: 'query',
+      schema: { type: 'string' },
+      description: 'Comma-separated wish IDs',
+    },
+    {
+      name: 'ignore_attributes',
+      in: 'query',
+      schema: { type: 'string' },
+      description: 'Skip attribute matching filter when set to 1 or true',
+    },
+    {
+      name: 'include_excluded',
+      in: 'query',
+      schema: { type: 'string' },
+      description: 'Include excluded wishes when set to 1 or true',
+    },
   ],
 });
 
@@ -1003,7 +1067,7 @@ addAdminRoute({
   method: 'post',
   path: '/api/admin/reset-demo',
   summary: 'Admin seed demo wishes',
-  responseSchema: SuccessResponseSchema,
+  responseSchema: ResetDemoResponseSchema,
 });
 
 addAdminRoute({
@@ -1017,14 +1081,15 @@ addAdminRoute({
   method: 'get',
   path: '/api/admin/logs',
   summary: 'Retrieve recent server logs',
-  responseSchema: z.array(z.any()),
+  params: [{ name: '_t', in: 'query', required: false, schema: { type: 'string' } }],
+  responseSchema: AdminLogsResponseSchema,
 });
 
 addAdminRoute({
   method: 'get',
   path: '/api/admin/config',
   summary: 'Admin inspect server profile & config',
-  responseSchema: z.record(z.string(), z.any()),
+  responseSchema: AdminConfigResponseSchema,
 });
 
 addAdminRoute({

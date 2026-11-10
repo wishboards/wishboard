@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AwsMetricsDashboard from './AwsMetricsDashboard';
 import LocalMetricsDashboard from './LocalMetricsDashboard';
 import SystemLogsSection from './SystemLogsSection';
+import { apiClient } from '../../api/client';
 
 interface SystemOverviewSectionProps {
   authHeader: Record<string, string>;
@@ -17,10 +18,9 @@ export default function SystemOverviewSection({
 
   // Detect deployment mode from /api/config
   useEffect(() => {
-    // eslint-disable-next-line @eslint-react/web-api-no-leaked-fetch
-    fetch('/api/config')
-      .then((r) => r.json())
-      .then((cfg) => setIsServerlessMode(cfg.realtimeProvider === 'apigateway'))
+    apiClient
+      .GET('/api/config')
+      .then(({ data }) => setIsServerlessMode(data?.realtimeProvider === 'apigateway'))
       .catch(() => setIsServerlessMode(false));
   }, []);
 
