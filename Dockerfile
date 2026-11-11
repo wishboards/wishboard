@@ -48,6 +48,8 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy the built backend and frontend from the builder stage
 COPY --from=builder /app/dist ./dist
+# package.json is read at startup by src/cli/wishboard.js (`docker exec wishboard node src/cli/wishboard.js db ...`)
+COPY package.json ./package.json
 COPY --from=builder /app/src/server ./src/server
 COPY --from=builder /app/src/cli ./src/cli
 COPY --from=builder /app/src/client/src/passphrase.js ./src/client/src/passphrase.js
