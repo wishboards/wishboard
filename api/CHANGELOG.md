@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/wishboards/wishboard/compare/api-v1.3.0...api-v1.4.0) (2026-11-11)
+
+
+### Features
+
+* **api:** caulk client-server contract seam with typed OpenAPI client and route guard ([#605](https://github.com/wishboards/wishboard/issues/605)) ([d80de20](https://github.com/wishboards/wishboard/commit/d80de209047b0b131a255242816821fc310d390e))
+
 ## [1.3.0](https://github.com/wishboards/wishboard/compare/api-v1.2.0...api-v1.3.0) (2026-11-10)
 
 

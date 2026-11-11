@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.38.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.37.0...wishboard-v1.38.0) (2026-11-11)
+
+
+### Features
+
+* **api:** caulk client-server contract seam with typed OpenAPI client and route guard ([#605](https://github.com/wishboards/wishboard/issues/605)) ([d80de20](https://github.com/wishboards/wishboard/commit/d80de209047b0b131a255242816821fc310d390e))
+
+
+### Performance Improvements
+
+* **scanner:** offload OpenCV frame processing to Web Worker ([#606](https://github.com/wishboards/wishboard/issues/606)) ([a740209](https://github.com/wishboards/wishboard/commit/a7402095348d938702cea2bff9edeaa03747b8e0))
+
 ## [1.37.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.36.0...wishboard-v1.37.0) (2026-11-10)
 
 
