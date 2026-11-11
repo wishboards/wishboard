@@ -11,6 +11,7 @@ describe('build-kiosk.sh shell script', () => {
   vi.setConfig({ testTimeout: 30000 });
   let tempDir;
   let mockEnvFile;
+  let dockerLogFile;
   const tmpRoot = path.join(PROJECT_ROOT, '.tmp-test');
 
   beforeAll(() => {
@@ -30,11 +31,16 @@ describe('build-kiosk.sh shell script', () => {
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(tmpRoot, 'wishboard-kiosk-test-'));
     mockEnvFile = path.join(tempDir, 'mock-env.sh');
+    dockerLogFile = path.join(tempDir, 'docker.log');
 
     const relativeTempDir = './' + path.relative(PROJECT_ROOT, tempDir).replace(/\\/g, '/');
+    const relativeDockerLog = './' + path.relative(PROJECT_ROOT, dockerLogFile).replace(/\\/g, '/');
     const mockFunctions = `
+MOCK_ROOT="$(pwd)"
+export MOCK_ROOT
+
 function sudo() {
-  if [ "$1" = "-u" ]; then
+  if [[ "$1" = "-u" ]]; then
     shift 2
   fi
   if [[ "$1" == *"="* ]]; then
@@ -46,12 +52,13 @@ function sudo() {
 export -f sudo
 
 function docker() {
-  exit 0
+  echo "$@" >> "$MOCK_ROOT/${relativeDockerLog}"
+  return 0
 }
 export -f docker
 
 function systemctl() {
-  exit 0
+  return 0
 }
 export -f systemctl
 
@@ -150,5 +157,36 @@ export -f id
     expect(content).toContain('NODE_ENV=development');
     expect(content).toContain('WISHBOARD_DOMAIN=test-domain.com');
     expect(content).toContain('WISHBOARD_AP_IP=10.42.0.1:3000');
+
+    const dockerLog = fs.readFileSync(dockerLogFile, 'utf8');
+    expect(dockerLog).toContain('compose --env-file .env up -d --pull always');
+    expect(dockerLog).toContain('image prune -af');
+  });
+
+  it('prunes unused Docker images before retrying disk check when free space is initially below 800 MB', () => {
+    const relativeDfState =
+      './' + path.relative(PROJECT_ROOT, path.join(tempDir, 'df-called')).replace(/\\/g, '/');
+    fs.appendFileSync(
+      mockEnvFile,
+      `
+function df() {
+  echo "Filesystem 1M-blocks Used Available Use% Mounted on"
+  if [[ ! -f "$MOCK_ROOT/${relativeDfState}" ]]; then
+    touch "$MOCK_ROOT/${relativeDfState}"
+    echo "/dev/root 10000 9400 600 94% /"
+  else
+    echo "/dev/root 10000 5000 5000 50% /"
+  fi
+}
+export -f df
+`
+    );
+
+    const ran = runScript('prod');
+    if (!ran) return;
+
+    const dockerLog = fs.readFileSync(dockerLogFile, 'utf8');
+    const pruneMatches = dockerLog.match(/^image prune -af$/gm) ?? [];
+    expect(pruneMatches.length).toBe(2);
   });
 });

@@ -117,7 +117,7 @@ If you need to inject special environment variables (like changing the default a
 
 ## Updating the Application
 
-When a new version of Wishboard is published, re-run the same unified deploy command from your developer machine. It pulls the new image and cleanly restarts the container without destroying your persisted data — the matching rules and app database in the `./data/db` libSQL directory, and uploaded images in the `./data/images` bind mount.
+When a new version of Wishboard is published, re-run the same unified deploy command from your developer machine. It pulls the new image, cleanly restarts the container without destroying your persisted data — the matching rules and app database in the `./data/db` libSQL directory, and uploaded images in the `./data/images` bind mount — and automatically prunes superseded Docker images (`docker image prune -af`) so old release tags do not accumulate on the SD card.
 
 ```bash
 # Upgrade to a specific version
