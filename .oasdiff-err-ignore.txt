@@ -1,7 +1,8 @@
 GET /api/config .*themePreset.*
 GET /api/config added the new `custom` enum value to the `branding/themePreset` response property for the response status `200`
-GET /api/users/me/delete-preview .*
-GET /api/admin/users/\{id\}/delete-preview .*
-POST /api/admin/reset-demo .*
-GET /api/admin/logs .*
-GET /api/admin/config .*
+GET /api/admin/logs the response's body `type` changed from `array<any>` to `object` for status `200`
+POST /api/admin/reset-demo removed the required property `success` from the response with the `200` status
+GET /api/admin/users/{id}/delete-preview the response property `wishes_count` became optional for the status `200`
+GET /api/admin/users/{id}/delete-preview the response property `wishmails_count` became optional for the status `200`
+GET /api/users/me/delete-preview the response property `wishes_count` became optional for the status `200`
+GET /api/users/me/delete-preview the response property `wishmails_count` became optional for the status `200`

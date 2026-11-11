@@ -32,12 +32,17 @@ function createGlobalFetchClient(): Client<paths> {
       shim.headers.forEach((value, key) => {
         plainHeaders[key] = value;
       });
-      const init: RequestInit = {
-        ...shim.init,
-        method: shim.method,
-        headers: plainHeaders,
-      };
-      const rawRes = await globalThis.fetch(shim.url, init);
+      const isBareGet =
+        shim.method === 'GET' &&
+        shim.init.body === undefined &&
+        Object.keys(plainHeaders).length === 0;
+      const rawRes = isBareGet
+        ? await globalThis.fetch(shim.url)
+        : await globalThis.fetch(shim.url, {
+            ...shim.init,
+            method: shim.method,
+            headers: plainHeaders,
+          });
       return normalizeFetchResponse(rawRes);
     }) as typeof globalThis.fetch,
   });

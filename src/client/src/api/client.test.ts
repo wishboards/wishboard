@@ -24,10 +24,7 @@ describe('Contract-Typed API Client (apiClient)', () => {
       params: { query: { username: 'alice' } },
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/users/exists?username=alice',
-      expect.objectContaining({ method: 'GET' })
-    );
+    expect(fetchSpy).toHaveBeenCalledWith('/api/users/exists?username=alice');
     expect(response.ok).toBe(true);
     expect(data).toEqual({ exists: true });
   });
