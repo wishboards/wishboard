@@ -10,6 +10,20 @@ const pkg = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json
 const deps = pkg.dependencies ?? {};
 const devDeps = pkg.devDependencies ?? {};
 
+describe('integration: production image ships what the bundled CLI needs', () => {
+  // `docker exec wishboard node src/cli/wishboard.js db ...` (backup, restore,
+  // reset-password) crashed with ENOENT because the runner stage never copied
+  // package.json, which wishboard.js reads at startup for its version.
+  it('copies package.json into the runner image alongside src/cli', () => {
+    const dockerfile = fs.readFileSync(path.resolve(process.cwd(), 'Dockerfile'), 'utf8');
+    const runnerStage = dockerfile.slice(dockerfile.lastIndexOf('AS runner'));
+    expect(runnerStage).toMatch(/COPY --from=builder \/app\/src\/cli \.\/src\/cli/);
+    expect(runnerStage).toMatch(/^COPY package\.json \.\/package\.json$/m);
+    const cliSource = fs.readFileSync(path.resolve(process.cwd(), 'src/cli/wishboard.js'), 'utf8');
+    expect(cliSource).toContain("'../../package.json'");
+  });
+});
+
 describe('integration: package.json dependency-placement contract', () => {
   // `sam build` runs a production-only `npm install` and then requires esbuild,
   // so it MUST be a runtime dependency — a clean runner failed with "Cannot find
