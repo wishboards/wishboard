@@ -53,12 +53,12 @@ export -f sudo
 
 function docker() {
   echo "$@" >> "$MOCK_ROOT/${relativeDockerLog}"
-  exit 0
+  return 0
 }
 export -f docker
 
 function systemctl() {
-  exit 0
+  return 0
 }
 export -f systemctl
 
