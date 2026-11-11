@@ -300,7 +300,7 @@ describe('AuthContext', () => {
   it('migrates local storage excluded wishes on login and register', async () => {
     localStorage.setItem('wishboard_excluded_wishes', JSON.stringify(['w1', 'w2']));
     const postMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-    globalThis.fetch = vi.fn().mockImplementation(async (url) => {
+    globalThis.fetch = vi.fn().mockImplementation(async (url, options) => {
       if (url === '/api/users/login') {
         return {
           ok: true,
@@ -319,8 +319,8 @@ describe('AuthContext', () => {
           }),
         };
       }
-      if (url === '/api/users/me/exclusions') {
-        return postMock();
+      if (url === '/api/wishes/exclusions/import') {
+        return postMock(JSON.parse(options?.body || '{}'));
       }
       return { ok: true, json: async () => ({}) };
     });
@@ -341,13 +341,14 @@ describe('AuthContext', () => {
       await contextValue.login('testuser', 'secret');
     });
 
-    expect(postMock).toHaveBeenCalledTimes(2);
+    expect(postMock).toHaveBeenCalledTimes(1);
+    expect(postMock).toHaveBeenCalledWith({ ids: ['w1', 'w2'] });
 
     await act(async () => {
       await contextValue.register('reguser', 'secret');
     });
 
-    expect(postMock).toHaveBeenCalledTimes(4);
+    expect(postMock).toHaveBeenCalledTimes(2);
   });
 
   it('handles non-array or empty excluded wishes during migration on login', async () => {
@@ -391,7 +392,7 @@ describe('AuthContext', () => {
           json: async () => ({ token: 't1', role: 'user', id: '1', username: 'u1' }),
         };
       }
-      if (url === '/api/users/me/exclusions') {
+      if (url === '/api/wishes/exclusions/import') {
         throw new Error('Network failure');
       }
       return { ok: true, json: async () => ({}) };

@@ -33,6 +33,7 @@ This section guides you through submitting an enhancement suggestion for Wishboa
 - Include screenshots and animated GIFs in your pull request whenever possible.
 - End files with a newline.
 - Add or update unit tests to maintain test coverage for new or modified code.
+- **Client↔Server Contract Seam:** When adding or changing an API route or client API call, update `src/server/docs/openapi.js`, regenerate the OpenAPI spec and TypeScript client types (`npm run api:spec && npm run api:types`), and use the typed `apiClient` (`src/client/src/api/client.ts`). The contract guard test (`tests/integration/client-server-route-guard.integration.test.js`) verifies that every client call matches both a mounted Express route and `api/openapi.json`.
 
 CI runs lint, type-check, format-check, build, tests, gitleaks secret scanning, and a SonarQube scan on every pull request; all must pass before merging.
 

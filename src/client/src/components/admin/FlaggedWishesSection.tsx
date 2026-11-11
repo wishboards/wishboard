@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { apiClient } from '../../api/client';
 
 interface FlaggedWish {
   id: string;
@@ -24,12 +25,12 @@ function useFlaggedWishes(
 
   const loadFlags = React.useCallback(async () => {
     setError(null);
-    const response = await fetch('/api/admin/flags', { headers: authHeader });
-    if (!response.ok) {
+    const { data, response } = await apiClient.GET('/api/admin/flags', { headers: authHeader });
+    if (!response.ok || !data) {
       setError('Unable to load flagged wishes.');
       return;
     }
-    setFlags(await response.json());
+    setFlags(data as FlaggedWish[]);
   }, [authHeader, setError]);
 
   useEffect(() => {
@@ -97,8 +98,8 @@ export default function FlaggedWishesSection({
   const removeWish = async (id: string) => {
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/admin/wishes/${encodeURIComponent(id)}/remove`, {
-      method: 'POST',
+    const { response } = await apiClient.POST('/api/admin/wishes/{id}/remove', {
+      params: { path: { id } },
       headers: authHeader,
     });
     if (!response.ok) {
@@ -112,8 +113,8 @@ export default function FlaggedWishesSection({
   const clearFlag = async (id: string) => {
     setMessage(null);
     setError(null);
-    const response = await fetch(`/api/admin/wishes/${encodeURIComponent(id)}/clear-flag`, {
-      method: 'POST',
+    const { response } = await apiClient.POST('/api/admin/wishes/{id}/clear-flag', {
+      params: { path: { id } },
       headers: authHeader,
     });
     if (!response.ok) {
@@ -129,8 +130,7 @@ export default function FlaggedWishesSection({
       return;
     setMessage(null);
     setError(null);
-    const response = await fetch('/api/admin/wishes/clear-all-flags', {
-      method: 'POST',
+    const { response } = await apiClient.POST('/api/admin/wishes/clear-all-flags', {
       headers: authHeader,
     });
     if (!response.ok) {

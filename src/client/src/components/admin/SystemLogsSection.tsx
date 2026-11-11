@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { apiClient } from '../../api/client';
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'other';
 
@@ -135,14 +136,14 @@ export default function SystemLogsSection({
 
   const loadLogs = React.useCallback(async () => {
     try {
-      const response = await fetch(`/api/admin/logs?_t=${Date.now()}`, {
+      const { data, response } = await apiClient.GET('/api/admin/logs', {
+        params: { query: { _t: String(Date.now()) } },
         headers: { ...authHeader, 'Cache-Control': 'no-cache' },
       });
-      if (!response.ok) {
+      if (!response.ok || !data) {
         setRawLogs('Failed to load logs.');
         return;
       }
-      const data = await response.json();
       setRawLogs(data.logs || '');
       setLogsSource(data.source || 'local');
     } catch (e) {

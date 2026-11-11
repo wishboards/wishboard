@@ -1,4 +1,5 @@
 import React from 'react';
+import { apiClient } from '../../api/client';
 
 interface DemoSeederSectionProps {
   isProduction: boolean;
@@ -22,16 +23,14 @@ export default function DemoSeederSection({
   const runSeeder = async () => {
     setMessage(null);
     setError(null);
-    const response = await fetch('/api/admin/reset-demo', {
-      method: 'POST',
+    const { data, response } = await apiClient.POST('/api/admin/reset-demo', {
       headers: { ...authHeader, 'Content-Type': 'application/json' },
     });
-    if (!response.ok) {
+    if (!response.ok || !data) {
       if (handledUnauthorized(response)) return;
       setError('Failed to run seeder.');
       return;
     }
-    const data = await response.json();
     setMessage(
       `Seeder completed: ${data.stats.usersCreated} users and ${data.stats.wishesCreated} wishes created.`
     );

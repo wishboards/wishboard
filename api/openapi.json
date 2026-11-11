@@ -407,19 +407,30 @@
       "ClaimWishInput": {
         "type": "object",
         "properties": {
-          "passphrase": {
+          "secret": {
             "type": "string",
             "minLength": 1,
             "example": "apple-river-forest"
+          },
+          "passphrase": {
+            "type": "string",
+            "example": "apple-river-forest"
           }
-        },
-        "required": [
-          "passphrase"
-        ]
+        }
       },
       "ExclusionImportInput": {
         "type": "object",
         "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "wish_k9x2m",
+              "wish_abc12"
+            ]
+          },
           "exclusions": {
             "type": "array",
             "items": {
@@ -430,10 +441,7 @@
               "wish_abc12"
             ]
           }
-        },
-        "required": [
-          "exclusions"
-        ]
+        }
       },
       "WishmailMessage": {
         "type": "object",
@@ -682,6 +690,14 @@
       "UserDeletePreview": {
         "type": "object",
         "properties": {
+          "wishesCount": {
+            "type": "number",
+            "example": 2
+          },
+          "wishmailsCount": {
+            "type": "number",
+            "example": 5
+          },
           "wishes_count": {
             "type": "number",
             "example": 2
@@ -690,11 +706,7 @@
             "type": "number",
             "example": 5
           }
-        },
-        "required": [
-          "wishes_count",
-          "wishmails_count"
-        ]
+        }
       },
       "MatchmakingRule": {
         "type": "object",
@@ -854,6 +866,79 @@
           "success",
           "new_passphrase"
         ]
+      },
+      "ResetDemoResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Demo environment successfully seeded."
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "usersCreated": {
+                "type": "number",
+                "example": 25
+              },
+              "wishesCreated": {
+                "type": "number",
+                "example": 40
+              }
+            },
+            "required": [
+              "usersCreated",
+              "wishesCreated"
+            ]
+          }
+        },
+        "required": [
+          "message",
+          "stats"
+        ]
+      },
+      "AdminLogsResponse": {
+        "type": "object",
+        "properties": {
+          "logs": {
+            "type": "string",
+            "example": "[2026-10-13T12:00:00.000Z] info: Server started"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "cloudwatch"
+            ],
+            "example": "local"
+          },
+          "fetchedAt": {
+            "type": "string",
+            "example": "2026-10-13T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "logs"
+        ]
+      },
+      "AdminConfigResponse": {
+        "type": "object",
+        "properties": {
+          "isProduction": {
+            "type": "boolean",
+            "example": false
+          },
+          "hasDemoSeeds": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "isProduction"
+        ],
+        "additionalProperties": {
+          "nullable": true
+        }
       },
       "Branding": {
         "type": "object",
@@ -1118,6 +1203,30 @@
               "type": "integer",
               "default": 0
             }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Comma-separated wish IDs"
+          },
+          {
+            "name": "ignore_attributes",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Skip attribute matching filter when set to 1 or true"
+          },
+          {
+            "name": "include_excluded",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Include excluded wishes when set to 1 or true"
           }
         ],
         "responses": {
@@ -3234,7 +3343,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/ResetDemoResponse"
                 }
               }
             }
@@ -3316,7 +3425,16 @@
         ],
         "summary": "Retrieve recent server logs",
         "description": "Retrieve recent server logs",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "_t",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "security": [
           {
             "BearerAuth": []
@@ -3328,10 +3446,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "nullable": true
-                  }
+                  "$ref": "#/components/schemas/AdminLogsResponse"
                 }
               }
             }
@@ -3378,10 +3493,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "nullable": true
-                  }
+                  "$ref": "#/components/schemas/AdminConfigResponse"
                 }
               }
             }
@@ -3467,6 +3579,16 @@
             "BearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "Branding overrides",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBrandingInput"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Admin update host branding configuration response",
@@ -3585,6 +3707,22 @@
             "BearerAuth": []
           }
         ],
+        "requestBody": {
+          "description": "Raster image file (PNG, JPG, WEBP)",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Admin upload raster logo or board background image response",
