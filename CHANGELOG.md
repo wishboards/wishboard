@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.39.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.38.0...wishboard-v1.39.0) (2026-11-11)
+
+
+### Features
+
+* **cli:** add db backup, restore, and verify-backup commands ([#610](https://github.com/wishboards/wishboard/issues/610)) ([44a0282](https://github.com/wishboards/wishboard/commit/44a0282581e52892653c3f3f850957e1a385ab01))
+
+
+### Bug Fixes
+
+* **docker:** ship package.json in the production image so the bundled CLI runs ([#611](https://github.com/wishboards/wishboard/issues/611)) ([8d390b6](https://github.com/wishboards/wishboard/commit/8d390b67ea7af06a3624ca6cf80e10de8b3e72c6))
+* **kiosk:** prune superseded Docker images during Pi kiosk deployment ([#608](https://github.com/wishboards/wishboard/issues/608)) ([dc4aa25](https://github.com/wishboards/wishboard/commit/dc4aa25554d4a59f57400d96b813396ac9e975f5))
+
 ## [1.38.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.37.0...wishboard-v1.38.0) (2026-11-11)
 
 
