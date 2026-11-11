@@ -259,6 +259,59 @@ dbGroup
     }
   });
 
+const addBackupTargetOptions = (cmd) =>
+  cmd
+    .option('--database-url <url>', 'libSQL database URL (default: $DATABASE_URL)')
+    .option('--auth-token <token>', 'libSQL auth token (default: $DATABASE_AUTH_TOKEN)')
+    .option('--images-dir <path>', 'Local images directory (default: ./data/images)')
+    .option('--s3-bucket <name>', 'S3 bucket holding images/ (serverless) instead of --images-dir');
+
+const runBackupCommand = async (label, run) => {
+  try {
+    const success = await run(await import('./commands/backup.js'));
+    if (!success) process.exit(1);
+  } catch (err) {
+    console.error(`\x1b[31mError during ${label}: ${err.message}\x1b[0m`);
+    process.exit(1);
+  }
+};
+
+addBackupTargetOptions(
+  dbGroup
+    .command('backup')
+    .description('Back up the database and uploaded images to a timestamped directory')
+    .option('--out <dir>', 'Directory to write the backup into', 'backups')
+).action(async (options, command) => {
+  const opts = command.optsWithGlobals();
+  await runBackupCommand('backup', async ({ createBackup }) =>
+    createBackup({ ...opts, imagesDir: opts.imagesDir ?? 'data/images' })
+  );
+});
+
+addBackupTargetOptions(
+  dbGroup
+    .command('restore <backup_dir>')
+    .description('Restore a verified backup into a database and image store')
+    .option('--force', 'Overwrite a target database that already contains data')
+).action(async (backupDir, options, command) => {
+  const opts = command.optsWithGlobals();
+  await runBackupCommand('restore', async ({ restoreBackup }) =>
+    restoreBackup(backupDir, { ...opts, imagesDir: opts.imagesDir ?? 'data/images' })
+  );
+});
+
+dbGroup
+  .command('verify-backup <backup_dir>')
+  .description('Recovery test: restore a backup into a temporary database and check integrity')
+  .option('--strict', 'Also fail when wishes reference images missing from the backup')
+  .action(async (backupDir, options, command) => {
+    const opts = command.optsWithGlobals();
+    await runBackupCommand('backup verification', async ({ verifyBackup }) => {
+      const report = await verifyBackup(backupDir, opts);
+      return report.ok;
+    });
+  });
+
 const buildGroup = program.command('build').description('Manage wishboard build tasks');
 
 buildGroup

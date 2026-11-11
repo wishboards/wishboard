@@ -221,6 +221,24 @@ If you modify any frontend files:
    aws cloudfront create-invalidation --distribution-id <Your-CloudFront-Distribution-Id> --paths "/*"
    ```
 
+### Backups & Recovery
+
+Back up the Turso database and the S3 `images/` prefix (wish images and host branding assets) from any machine with AWS credentials:
+
+```bash
+npx wishboard db backup \
+  --database-url libsql://<your-db>.turso.io --auth-token <token> \
+  --s3-bucket <Your-Frontend-Bucket-Name> --out ./backups
+```
+
+Prove the backup is recoverable by restoring it into a throwaway local database (checks checksums, row counts, SQLite and foreign-key integrity, and wish-image references):
+
+```bash
+npx wishboard db verify-backup ./backups/<backup_dir>
+```
+
+Restore with `npx wishboard db restore ./backups/<backup_dir> --database-url ... --auth-token ... --s3-bucket ... [--force]`. Restore refuses a backup that fails verification, and refuses a target that already contains data unless `--force` is given. Run `db backup` + `db verify-backup` on a schedule (cron, or a scheduled GitHub Actions workflow) for ongoing recovery testing.
+
 ---
 
 ## Accessing the Application

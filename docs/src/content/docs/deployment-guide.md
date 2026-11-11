@@ -123,3 +123,25 @@ When a new version of Wishboard is published, re-run the same unified deploy com
 # Upgrade to a specific version
 npx wishboard kiosk deploy --host raspberrypi.local --mode prod --domain wishboard.example.com --app-version v1.3.0
 ```
+
+## Backups & Recovery
+
+`wishboard db backup` writes a self-contained directory (`manifest.json`, `database.json`, `images/`) containing every persistent table and every uploaded image, including host branding assets (they share the images store). Ephemeral tables (`sessions`, `websocket_connections`) are skipped.
+
+The backup runs inside the `wishboard` container, which can reach the `db` (sqld) service and mounts `./data`, so the result lands on the Pi's SD card at `/home/wishboard/wishboard/data/backups/`:
+
+```bash
+sudo -u wishboard DOCKER_HOST=unix:///run/user/$(id -u wishboard)/docker.sock \
+  docker exec wishboard node src/cli/wishboard.js db backup \
+  --database-url http://db:8080 --images-dir /app/data/images --out /app/data/backups
+```
+
+Copy backups **off** the SD card (a USB stick or `scp`) — a backup on the same card does not survive card failure.
+
+Verify a backup at any time. This restores it into a temporary database and checks checksums, row counts, SQLite integrity, foreign keys, and that every wish image is present:
+
+```bash
+docker exec wishboard node src/cli/wishboard.js db verify-backup /app/data/backups/<backup_dir>
+```
+
+To restore onto a fresh or rebuilt Pi, deploy first (Step 2), then run `db restore <backup_dir> --database-url http://db:8080 --images-dir /app/data/images --force` inside the container. Restore refuses a backup that fails verification.

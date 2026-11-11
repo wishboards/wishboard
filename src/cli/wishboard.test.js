@@ -29,6 +29,12 @@ vi.mock('./commands/build.js', () => ({
   downloadFonts: vi.fn().mockResolvedValue(),
 }));
 
+vi.mock('./commands/backup.js', () => ({
+  createBackup: vi.fn().mockResolvedValue({ dir: 'd' }),
+  restoreBackup: vi.fn().mockResolvedValue(true),
+  verifyBackup: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
 describe('wishboard CLI entrypoint', () => {
   let originalArgv;
   let exitSpy;
@@ -260,6 +266,64 @@ describe('wishboard CLI entrypoint', () => {
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Error generating token: Auth Token Failed')
     );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('routes db backup with target options and the default images dir', async () => {
+    const mod = await import('./commands/backup.js');
+    await runCLI(['db', 'backup', '--database-url', 'libsql://x', '--out', 'o', '--dry-run']);
+    expect(mod.createBackup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        databaseUrl: 'libsql://x',
+        out: 'o',
+        dryRun: true,
+        imagesDir: 'data/images',
+      })
+    );
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
+  });
+
+  it('exits non-zero when db backup fails', async () => {
+    const mod = await import('./commands/backup.js');
+    vi.mocked(mod.createBackup).mockResolvedValueOnce(null);
+    await runCLI(['db', 'backup', '--s3-bucket', 'bkt']);
+    expect(mod.createBackup).toHaveBeenCalledWith(expect.objectContaining({ s3Bucket: 'bkt' }));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('routes db restore with --force', async () => {
+    const mod = await import('./commands/backup.js');
+    await runCLI(['db', 'restore', 'some/dir', '--force', '--images-dir', 'imgs']);
+    expect(mod.restoreBackup).toHaveBeenCalledWith(
+      'some/dir',
+      expect.objectContaining({ force: true, imagesDir: 'imgs' })
+    );
+  });
+
+  it('exits non-zero when db restore throws', async () => {
+    const mod = await import('./commands/backup.js');
+    vi.mocked(mod.restoreBackup).mockRejectedValueOnce(new Error('Restore Failed'));
+    await runCLI(['db', 'restore', 'some/dir']);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Error during restore: Restore Failed')
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('routes db verify-backup', async () => {
+    const mod = await import('./commands/backup.js');
+    await runCLI(['db', 'verify-backup', 'some/dir', '--strict']);
+    expect(mod.verifyBackup).toHaveBeenCalledWith(
+      'some/dir',
+      expect.objectContaining({ strict: true })
+    );
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
+  });
+
+  it('exits non-zero when db verify-backup fails verification', async () => {
+    const mod = await import('./commands/backup.js');
+    vi.mocked(mod.verifyBackup).mockResolvedValueOnce({ ok: false });
+    await runCLI(['db', 'verify-backup', 'bad/dir']);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
