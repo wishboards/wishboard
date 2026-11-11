@@ -464,3 +464,107 @@ sudo systemctl daemon-reload
 sudo systemctl enable tty-watchdog.service
 sudo systemctl start tty-watchdog.service
 echo "TTY Watchdog configured and started."
+
+echo "Configuring Scheduled Database & Media Backup Service (#238, #314)..."
+sudo tee /usr/local/bin/wishboard-backup.sh > /dev/null << 'EOF'
+#!/bin/bash
+set -e
+
+WISHBOARD_UID=$(id -u wishboard)
+WISHBOARD_HOME=$(getent passwd wishboard | cut -d: -f6 || echo "/home/wishboard")
+ENV_FILE="$WISHBOARD_HOME/wishboard/.env"
+DATA_DIR="$WISHBOARD_HOME/wishboard/data"
+BACKUP_DIR="$DATA_DIR/backups"
+
+read_env() {
+  local key="$1" default_val="$2"
+  if [[ -f "$ENV_FILE" ]]; then
+    local val
+    val=$(grep -E "^${key}=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- | tr -d '\r' || true)
+    if [[ -n "$val" ]]; then
+      echo "$val"
+      return
+    fi
+  fi
+  echo "$default_val"
+}
+
+KEEP=$(read_env "WISHBOARD_BACKUP_KEEP" "14")
+COPY_TO=$(read_env "WISHBOARD_BACKUP_COPY_TO" "")
+REMOTE_DEST=$(read_env "WISHBOARD_BACKUP_REMOTE" "")
+ARCHIVE_S3=$(read_env "WISHBOARD_BACKUP_S3_BUCKET" "")
+
+RUN_CMD="sudo -u wishboard DOCKER_HOST=unix:///run/user/$WISHBOARD_UID/docker.sock docker"
+
+if ! $RUN_CMD ps --format '{{.Names}}' | grep -qx 'wishboard'; then
+  echo "wishboard container is not running; skipping scheduled backup."
+  exit 0
+fi
+
+EXTRA_ARGS=()
+if [[ -n "$ARCHIVE_S3" ]]; then
+  EXTRA_ARGS+=(--archive-s3-bucket "$ARCHIVE_S3")
+fi
+
+$RUN_CMD exec wishboard node src/cli/wishboard.js db backup \
+  --database-url http://db:8080 \
+  --images-dir /app/data/images \
+  --out /app/data/backups \
+  --verify \
+  --keep "$KEEP" \
+  "${EXTRA_ARGS[@]}"
+
+if [[ -z "$COPY_TO" ]]; then
+  for candidate in /media/*/*/wishboard-backups /media/*/wishboard-backups /mnt/*/wishboard-backups; do
+    if [[ -d "$candidate" ]]; then
+      COPY_TO="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -n "$COPY_TO" && -d "$(dirname "$COPY_TO")" ]]; then
+  mkdir -p "$COPY_TO"
+  LATEST=$(ls -1d "$BACKUP_DIR"/wishboard-backup-* 2>/dev/null | sort | tail -n 1 || true)
+  if [[ -n "$LATEST" ]]; then
+    cp -a "$LATEST" "$COPY_TO/"
+    echo "Copied verified backup $(basename "$LATEST") to off-device path $COPY_TO"
+    ls -1d "$COPY_TO"/wishboard-backup-* 2>/dev/null | sort | head -n -"$KEEP" | xargs -r rm -rf --
+  fi
+fi
+
+if [[ -n "$REMOTE_DEST" ]]; then
+  rsync -az --delete "$BACKUP_DIR/" "$REMOTE_DEST"
+  echo "Synced verified backups to off-device remote $REMOTE_DEST"
+fi
+EOF
+sudo chmod +x /usr/local/bin/wishboard-backup.sh
+
+sudo tee /etc/systemd/system/wishboard-backup.service > /dev/null << 'EOF'
+[Unit]
+Description=Wishboard database and media backup with recovery verification
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wishboard-backup.sh
+EOF
+
+sudo tee /etc/systemd/system/wishboard-backup.timer > /dev/null << 'EOF'
+[Unit]
+Description=Periodic Wishboard database and media backup timer
+
+[Timer]
+OnCalendar=*-*-* 00/6:00:00
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable wishboard-backup.timer
+sudo systemctl start wishboard-backup.timer
+echo "Scheduled backup timer (wishboard-backup.timer) configured and started."
+

@@ -75,6 +75,12 @@ Resources:
     Properties:
       BucketNamePrefix: !Sub '${ProjectName}-images'
       BucketNamespace: account-regional
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireArchivedBackups
+            Prefix: backups/
+            Status: Enabled
+            ExpirationInDays: 30
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

@@ -281,6 +281,18 @@ addBackupTargetOptions(
     .command('backup')
     .description('Back up the database and uploaded images to a timestamped directory')
     .option('--out <dir>', 'Directory to write the backup into', 'backups')
+    .option('--verify', 'Run recovery verification immediately after creating the backup')
+    .option('--strict', 'With --verify, fail when wishes reference images missing from the backup')
+    .option('--keep <count>', 'Retain only the <count> most recent backups')
+    .option(
+      '--copy-to <dir>',
+      'Copy the backup to an off-device directory (e.g. a mounted USB drive)'
+    )
+    .option(
+      '--archive-s3-bucket <name>',
+      'Upload the backup to s3://<name>/<prefix><backup_dir>/ for off-device retention'
+    )
+    .option('--archive-s3-prefix <prefix>', 'S3 key prefix for archived backups', 'backups/')
 ).action(async (options, command) => {
   const opts = command.optsWithGlobals();
   await runBackupCommand('backup', async ({ createBackup }) =>
@@ -304,6 +316,10 @@ dbGroup
   .command('verify-backup <backup_dir>')
   .description('Recovery test: restore a backup into a temporary database and check integrity')
   .option('--strict', 'Also fail when wishes reference images missing from the backup')
+  .option(
+    '--latest',
+    'Treat <backup_dir> as a parent backups folder and verify its newest snapshot'
+  )
   .action(async (backupDir, options, command) => {
     const opts = command.optsWithGlobals();
     await runBackupCommand('backup verification', async ({ verifyBackup }) => {

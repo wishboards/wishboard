@@ -14,6 +14,11 @@ import {
   decodeCell,
   openClient,
   backupDirName,
+  parseKeepCount,
+  listBackupDirs,
+  pruneLocalBackups,
+  copyBackupDir,
+  archiveBackupToS3,
   DATABASE_FILE,
   MANIFEST_FILE,
   IMAGES_DIR,
@@ -38,6 +43,7 @@ vi.mock('@aws-sdk/client-s3', () => {
     ListObjectsV2Command: cmd('list'),
     GetObjectCommand: cmd('get'),
     PutObjectCommand: cmd('put'),
+    DeleteObjectCommand: cmd('del'),
   };
 });
 
@@ -74,6 +80,7 @@ describe('backup / restore / verify', () => {
     createClient({ url: `file:${path.join(tmp, name)}`, intMode: 'bigint' });
 
   beforeEach(async () => {
+    s3Send.mockReset();
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wishboard-backup-test-'));
     srcUrl = `file:${path.join(tmp, 'src.db')}`;
     src = createClient({ url: srcUrl, intMode: 'bigint' });
@@ -94,11 +101,12 @@ describe('backup / restore / verify', () => {
     }
   });
 
-  const makeBackup = async (extra = {}) => {
+  const makeBackup = async (extra = {}, deps = {}) => {
     const result = await createBackup(
       { databaseUrl: srcUrl, imagesDir, out: outDir, ...extra },
       quiet,
-      quiet
+      quiet,
+      deps
     );
     expect(result).not.toBeNull();
     return result;
@@ -137,6 +145,121 @@ describe('backup / restore / verify', () => {
     );
   });
 
+  describe('retention & off-device helpers', () => {
+    it('validates --keep values', () => {
+      expect(parseKeepCount(undefined)).toBeNull();
+      expect(parseKeepCount(null)).toBeNull();
+      expect(parseKeepCount('')).toBeNull();
+      expect(parseKeepCount('3')).toBe(3);
+      expect(parseKeepCount(1)).toBe(1);
+      expect(() => parseKeepCount(0)).toThrow(/positive integer/);
+      expect(() => parseKeepCount(-2)).toThrow(/positive integer/);
+      expect(() => parseKeepCount('abc')).toThrow(/positive integer/);
+      expect(() => parseKeepCount(1.5)).toThrow(/positive integer/);
+    });
+
+    it('lists and prunes local backups keeping only the newest N', async () => {
+      expect(listBackupDirs(path.join(tmp, 'nonexistent'))).toEqual([]);
+      expect(pruneLocalBackups(outDir, null, quiet)).toEqual([]);
+
+      await makeBackup({}, { now: () => new Date('2026-01-01T00:00:00Z') });
+      await makeBackup({}, { now: () => new Date('2026-01-02T00:00:00Z') });
+      await makeBackup({}, { now: () => new Date('2026-01-03T00:00:00Z') });
+      // Non-backup directory should be ignored
+      fs.mkdirSync(path.join(outDir, 'other-folder'));
+
+      expect(listBackupDirs(outDir)).toEqual([
+        'wishboard-backup-2026-01-01T00-00-00-000Z',
+        'wishboard-backup-2026-01-02T00-00-00-000Z',
+        'wishboard-backup-2026-01-03T00-00-00-000Z',
+      ]);
+      expect(pruneLocalBackups(outDir, 5, quiet)).toEqual([]);
+
+      const logs = [];
+      const removed = pruneLocalBackups(outDir, 2, (m) => logs.push(m));
+      expect(removed).toEqual(['wishboard-backup-2026-01-01T00-00-00-000Z']);
+      expect(logs[0]).toContain('Pruned old backup:');
+      expect(listBackupDirs(outDir)).toEqual([
+        'wishboard-backup-2026-01-02T00-00-00-000Z',
+        'wishboard-backup-2026-01-03T00-00-00-000Z',
+      ]);
+      expect(fs.existsSync(path.join(outDir, 'other-folder'))).toBe(true);
+    });
+
+    it('copies a backup to an off-device directory and prunes both locations via createBackup', async () => {
+      const usbDir = path.join(tmp, 'usb-backups');
+      await makeBackup(
+        { verify: true, keep: 1, copyTo: usbDir },
+        { now: () => new Date('2026-01-01T00:00:00Z') }
+      );
+      await makeBackup(
+        { verify: true, keep: 1, copyTo: usbDir },
+        { now: () => new Date('2026-01-02T00:00:00Z') }
+      );
+      expect(listBackupDirs(outDir)).toEqual(['wishboard-backup-2026-01-02T00-00-00-000Z']);
+      expect(listBackupDirs(usbDir)).toEqual(['wishboard-backup-2026-01-02T00-00-00-000Z']);
+
+      const directCopy = copyBackupDir(
+        path.join(outDir, 'wishboard-backup-2026-01-02T00-00-00-000Z'),
+        path.join(tmp, 'manual-copy'),
+        quiet
+      );
+      expect(fs.existsSync(path.join(directCopy, MANIFEST_FILE))).toBe(true);
+    });
+
+    it('archives a backup to S3 and prunes older S3 backup prefixes when --keep is set', async () => {
+      const putKeys = [];
+      const delKeys = [];
+      const s3 = {
+        list: vi
+          .fn()
+          .mockResolvedValue([
+            'backups/lifestyle/wishboard-backup-2026-01-01T00-00-00-000Z/manifest.json',
+            'backups/lifestyle/wishboard-backup-2026-01-01T00-00-00-000Z/database.json',
+            'backups/lifestyle/wishboard-backup-2026-01-02T00-00-00-000Z/manifest.json',
+            'backups/lifestyle/wishboard-backup-2026-01-02T00-00-00-000Z/database.json',
+            'backups/lifestyle/unrelated.txt',
+          ]),
+        get: vi.fn(),
+        put: vi.fn(async (_b, k) => {
+          putKeys.push(k);
+        }),
+        del: vi.fn(async (_b, k) => {
+          delKeys.push(k);
+        }),
+      };
+
+      const res = await createBackup(
+        {
+          databaseUrl: srcUrl,
+          imagesDir,
+          out: outDir,
+          verify: true,
+          keep: 1,
+          archiveS3Bucket: 'archive-bkt',
+          archiveS3Prefix: '/backups/lifestyle',
+        },
+        quiet,
+        quiet,
+        { now: () => new Date('2026-01-02T00:00:00Z'), s3 }
+      );
+      expect(res).not.toBeNull();
+      expect(putKeys).toEqual([
+        'backups/lifestyle/wishboard-backup-2026-01-02T00-00-00-000Z/manifest.json',
+        'backups/lifestyle/wishboard-backup-2026-01-02T00-00-00-000Z/database.json',
+        'backups/lifestyle/wishboard-backup-2026-01-02T00-00-00-000Z/images/photo.png',
+      ]);
+      expect(delKeys).toEqual([
+        'backups/lifestyle/wishboard-backup-2026-01-01T00-00-00-000Z/manifest.json',
+        'backups/lifestyle/wishboard-backup-2026-01-01T00-00-00-000Z/database.json',
+      ]);
+
+      // Also test archiveBackupToS3 with empty prefix and no pruning needed
+      await archiveBackupToS3(res.dir, { bucket: 'b2', prefix: '', keep: 5 }, quiet, { s3 });
+      expect(putKeys).toContain('wishboard-backup-2026-01-02T00-00-00-000Z/manifest.json');
+    });
+  });
+
   describe('createBackup', () => {
     it('writes manifest, database dump, and images; skips ephemeral tables', async () => {
       const { dir, manifest } = await makeBackup();
@@ -146,6 +269,20 @@ describe('backup / restore / verify', () => {
       expect(Object.keys(manifest.images)).toEqual(['photo.png']);
       expect(manifest.tables).toEqual({ users: 1, wishes: 2, blobs: 1 });
       for (const t of EXCLUDED_TABLES) expect(manifest.tables[t]).toBeUndefined();
+    });
+
+    it('removes the backup directory and returns null when --verify fails', async () => {
+      await src.execute('PRAGMA foreign_keys = OFF');
+      await src.execute("INSERT INTO wishes VALUES ('w3', 'missing-user', 'orphan', NULL)");
+      const errors = [];
+      const res = await createBackup(
+        { databaseUrl: srcUrl, imagesDir, out: outDir, verify: true },
+        quiet,
+        (m) => errors.push(m)
+      );
+      expect(res).toBeNull();
+      expect(errors[0]).toContain('Backup verification failed');
+      expect(listBackupDirs(outDir)).toEqual([]);
     });
 
     it('supports a dry run without touching disk', async () => {
@@ -222,6 +359,18 @@ describe('backup / restore / verify', () => {
       expect(report.ok).toBe(true);
       expect(report.errors).toEqual([]);
       expect(report.tables).toEqual({ users: 1, wishes: 2, blobs: 1 });
+    });
+
+    it('verifies the newest backup in a parent directory when latest: true is set', async () => {
+      await expect(verifyBackup(outDir, { latest: true }, quiet)).rejects.toThrow(
+        /No Wishboard backups found/
+      );
+      await makeBackup({}, { now: () => new Date('2026-01-01T00:00:00Z') });
+      const { dir: newest } = await makeBackup({}, { now: () => new Date('2026-01-02T00:00:00Z') });
+      const logs = [];
+      const report = await verifyBackup(outDir, { latest: true }, (m) => logs.push(m));
+      expect(report.ok).toBe(true);
+      expect(logs.at(-1)).toContain(newest);
     });
 
     it('rejects a directory that is not a backup', async () => {
@@ -424,7 +573,7 @@ describe('backup / restore / verify', () => {
   });
 
   describe('default S3 adapter', () => {
-    it('lists (paginated), downloads, and uploads via the AWS SDK', async () => {
+    it('lists (paginated), downloads, uploads, and deletes via the AWS SDK', async () => {
       const pages = [
         {
           Contents: [{ Key: 'images/' }, { Key: 'images/a.png' }],
@@ -433,6 +582,13 @@ describe('backup / restore / verify', () => {
         },
         { Contents: [{ Key: 'images/b.png' }], IsTruncated: false },
         { Contents: undefined, IsTruncated: false },
+        {
+          Contents: [
+            { Key: 'backups/wishboard-backup-2026-01-01T00-00-00-000Z/manifest.json' },
+            { Key: 'backups/wishboard-backup-2026-01-02T00-00-00-000Z/manifest.json' },
+          ],
+          IsTruncated: false,
+        },
       ];
       s3Send.mockImplementation(async (command) => {
         if (command.type === 'list') return pages.shift();
@@ -460,7 +616,15 @@ describe('backup / restore / verify', () => {
       expect(ok).toBe(true);
       const puts = s3Send.mock.calls.map(([c]) => c).filter((c) => c.type === 'put');
       expect(puts.map((c) => c.input.Key).sort()).toEqual(['images/a.png', 'images/b.png']);
-      expect(pages.length).toBe(1);
+      expect(pages.length).toBe(2);
+
+      // Exercise default S3 adapter's list(prefix) and del(key) via archiveBackupToS3
+      pages.shift(); // consume the undefined-Contents page
+      await archiveBackupToS3(dir, { bucket: 'bkt', keep: 1 }, quiet);
+      const dels = s3Send.mock.calls.map(([c]) => c).filter((c) => c.type === 'del');
+      expect(dels.map((c) => c.input.Key)).toEqual([
+        'backups/wishboard-backup-2026-01-01T00-00-00-000Z/manifest.json',
+      ]);
     });
   });
 

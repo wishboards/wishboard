@@ -17,7 +17,5 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 
 ## Infrastructure & DevOps
 
-- **[#238](https://github.com/wishboards/wishboard/issues/238)** — Backup/restore/verify CLI (`db backup` / `restore` / `verify-backup`) shipped; remaining: schedule it automatically on both deployment targets (systemd timer on the Pi, scheduled workflow/EventBridge for Serverless) with off-device retention. Original scope: periodically snapshot the SQLite database (Turso point-in-time restore / dump on Serverless, `./data/db` on Pi Kiosk) and uploaded images (`AWS_S3_BUCKET` on Serverless, `./data/images` on Pi Kiosk).
-- **[#314](https://github.com/wishboards/wishboard/issues/314)** — Automated database and media backup recovery testing: `db verify-backup` shipped; remaining: run it on a schedule against the latest snapshot and alert on failure (follow-up to #238).
 - **[#398](https://github.com/wishboards/wishboard/issues/398)** — UI Component Documentation (ADR-0008 Phase 3): Implement Storybook for UI isolation and accessibility testing.
 - **[#399](https://github.com/wishboards/wishboard/issues/399)** — Automate external site bootstrapping: Expand the CLI to seamlessly provision SonarCloud, Stryker, AWS OIDC roles, and GitHub secrets for a frictionless fork deployment experience.

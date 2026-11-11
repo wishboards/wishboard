@@ -128,20 +128,38 @@ npx wishboard kiosk deploy --host raspberrypi.local --mode prod --domain wishboa
 
 `wishboard db backup` writes a self-contained directory (`manifest.json`, `database.json`, `images/`) containing every persistent table and every uploaded image, including host branding assets (they share the images store). Ephemeral tables (`sessions`, `websocket_connections`) are skipped.
 
-The backup runs inside the `wishboard` container, which can reach the `db` (sqld) service and mounts `./data`, so the result lands on the Pi's SD card at `/home/wishboard/wishboard/data/backups/`:
+### Automated Scheduled Backups (`wishboard-backup.timer`)
+
+`setup-kiosk.sh` installs a systemd timer (`wishboard-backup.timer` + `wishboard-backup.service`, invoking `/usr/local/bin/wishboard-backup.sh`) that runs every 6 hours (`OnCalendar=*-*-* 00/6:00:00`, `Persistent=true`):
+
+1. Runs `wishboard db backup --verify --keep 14` inside the `wishboard` container, writing snapshots to `/home/wishboard/wishboard/data/backups/`, verifying recoverability against a throwaway SQLite instance, and pruning snapshots older than the 14 most recent.
+2. Automatically copies verified snapshots **off the SD card** when a removable USB drive with a `wishboard-backups` folder is mounted under `/media/*` or `/mnt/*`, or when configured in `/home/wishboard/wishboard/.env`:
+   - `WISHBOARD_BACKUP_KEEP=14` — Number of recent verified snapshots to retain (default: `14`).
+   - `WISHBOARD_BACKUP_COPY_TO=/media/usb/wishboard-backups` — Off-device directory on a mounted USB drive or network share.
+   - `WISHBOARD_BACKUP_REMOTE=backup@nas.local:/backups/wishboard` — Optional `rsync` destination over SSH/LAN.
+   - `WISHBOARD_BACKUP_S3_BUCKET=<bucket>` — Optional S3 bucket for cloud archival when running in `dual` or `dev` mode.
+
+Check timer status or trigger an immediate verified backup run on the Pi:
+
+```bash
+sudo systemctl status wishboard-backup.timer
+sudo systemctl start wishboard-backup.service
+```
+
+### Manual On-Demand Backup, Verification & Restore
+
+You can also run a backup or recovery check manually inside the `wishboard` container:
 
 ```bash
 sudo -u wishboard DOCKER_HOST=unix:///run/user/$(id -u wishboard)/docker.sock \
   docker exec wishboard node src/cli/wishboard.js db backup \
-  --database-url http://db:8080 --images-dir /app/data/images --out /app/data/backups
+  --database-url http://db:8080 --images-dir /app/data/images --out /app/data/backups --verify --keep 14
 ```
 
-Copy backups **off** the SD card (a USB stick or `scp`) — a backup on the same card does not survive card failure.
-
-Verify a backup at any time. This restores it into a temporary database and checks checksums, row counts, SQLite integrity, foreign keys, and that every wish image is present:
+Verify a specific backup directory (or pass `--latest` on the parent backups folder) at any time. This restores it into a temporary database and checks checksums, row counts, SQLite integrity, foreign keys, and that every wish image is present:
 
 ```bash
-docker exec wishboard node src/cli/wishboard.js db verify-backup /app/data/backups/<backup_dir>
+docker exec wishboard node src/cli/wishboard.js db verify-backup /app/data/backups --latest
 ```
 
 To restore onto a fresh or rebuilt Pi, deploy first (Step 2), then run `db restore <backup_dir> --database-url http://db:8080 --images-dir /app/data/images --force` inside the container. Restore refuses a backup that fails verification.

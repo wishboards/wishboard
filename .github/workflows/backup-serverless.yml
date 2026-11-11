@@ -1,0 +1,161 @@
+name: Serverless Backup & Recovery Verification
+
+on:
+  schedule:
+    - cron: '15 4 * * *' # Daily at 04:15 UTC
+  workflow_dispatch:
+    inputs:
+      event_profile:
+        description: 'Event profile to back up (all, lifestyle, or professional)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - lifestyle
+          - professional
+      keep:
+        description: 'Number of most recent verified backups to retain per profile'
+        required: false
+        default: '14'
+        type: string
+
+concurrency:
+  group: 'backup-serverless'
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  backup:
+    name: Backup & Verify Serverless (${{ inputs.event_profile || 'all' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          audience: sts.amazonaws.com
+
+      - name: Run database & media backup with recovery verification
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+        shell: bash
+        env:
+          VARS_JSON: ${{ toJson(vars) }}
+          TARGET_PROFILE: ${{ inputs.event_profile || 'all' }}
+          KEEP_COUNT: ${{ inputs.keep || '14' }}
+          AWS_REGION_VAL: ${{ vars.AWS_REGION || 'us-east-1' }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$TARGET_PROFILE" = "all" ]]; then
+            PROFILES=("lifestyle" "professional")
+          else
+            PROFILES=("$TARGET_PROFILE")
+          fi
+
+          get_profile_var() {
+            local prefix="$1" key="$2" fallback="$3"
+            local val
+            val=$(echo "$VARS_JSON" | jq -r --arg k "${prefix}_${key}" '.[$k] // empty')
+            if [[ -n "$val" ]]; then
+              echo "$val"
+              return
+            fi
+            if [[ "$prefix" = "LIFESTYLE" ]]; then
+              val=$(echo "$VARS_JSON" | jq -r --arg k "$key" '.[$k] // empty')
+              if [[ -n "$val" ]]; then
+                echo "$val"
+                return
+              fi
+            fi
+            echo "$fallback"
+          }
+
+          RAN_ANY=0
+          for prof in "${PROFILES[@]}"; do
+            PREFIX=$(echo "$prof" | tr '[:lower:]' '[:upper:]')
+            DB_URL=$(get_profile_var "$PREFIX" "DATABASE_URL" "")
+            SSM_PARAM=$(get_profile_var "$PREFIX" "DATABASE_AUTH_TOKEN_SSM" "")
+            STACK_NAME=$(get_profile_var "$PREFIX" "AWS_STACK_NAME" "")
+
+            if [[ -z "$DB_URL" ]]; then
+              echo "Skipping profile '$prof': ${PREFIX}_DATABASE_URL is not configured."
+              continue
+            fi
+
+            echo "==> Backing up and verifying profile: $prof"
+            AUTH_TOKEN=""
+            if [[ -n "$SSM_PARAM" ]]; then
+              AUTH_TOKEN=$(aws ssm get-parameter \
+                --name "$SSM_PARAM" \
+                --with-decryption \
+                --region "$AWS_REGION_VAL" \
+                --query 'Parameter.Value' \
+                --output text)
+              echo "::add-mask::$AUTH_TOKEN"
+            fi
+
+            IMAGES_BUCKET=""
+            if [[ -n "$STACK_NAME" ]]; then
+              IMAGES_BUCKET=$(aws cloudformation describe-stacks \
+                --stack-name "$STACK_NAME" \
+                --region "$AWS_REGION_VAL" \
+                --query "Stacks[0].Outputs[?OutputKey=='ImagesBucketName'].OutputValue | [0]" \
+                --output text || true)
+              if [[ "$IMAGES_BUCKET" = "None" ]]; then
+                IMAGES_BUCKET=""
+              fi
+            fi
+
+            ARGS=(
+              db backup
+              --database-url "$DB_URL"
+              --out "./backups/$prof"
+              --verify
+              --keep "$KEEP_COUNT"
+            )
+            if [[ -n "$AUTH_TOKEN" ]]; then
+              ARGS+=(--auth-token "$AUTH_TOKEN")
+            fi
+            if [[ -n "$IMAGES_BUCKET" ]]; then
+              ARGS+=(
+                --s3-bucket "$IMAGES_BUCKET"
+                --archive-s3-bucket "$IMAGES_BUCKET"
+                --archive-s3-prefix "backups/$prof/"
+              )
+            fi
+
+            node src/cli/wishboard.js "${ARGS[@]}"
+            RAN_ANY=1
+          done
+
+          if [[ "$RAN_ANY" -eq 0 ]]; then
+            echo "No serverless database URLs configured in repository variables; nothing to back up."
+          fi
+
+      - name: Upload verified backup snapshot artifact
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: wishboard-serverless-backups
+          path: backups/
+          retention-days: 14
+          if-no-files-found: ignore

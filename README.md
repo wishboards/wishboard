@@ -199,11 +199,11 @@ npx wishboard db reset-password <username> [new_passphrase]
 # Reset matching rules to bundled defaults (remote URLs optionally supported via --url and --admin)
 npx wishboard db reset-rules
 
-# Back up the database + uploaded images to ./backups/wishboard-backup-<timestamp>/
-npx wishboard db backup --database-url <url> [--auth-token <token>] [--images-dir <dir> | --s3-bucket <bucket>]
+# Back up the database + uploaded images, verify recoverability, and retain the 14 newest snapshots
+npx wishboard db backup --database-url <url> [--auth-token <token>] [--images-dir <dir> | --s3-bucket <bucket>] [--verify] [--keep 14] [--copy-to <dir>] [--archive-s3-bucket <bucket>]
 
-# Recovery test: restore a backup into a throwaway database and check integrity
-npx wishboard db verify-backup <backup_dir>
+# Recovery test: restore a backup into a throwaway database and check integrity (--latest picks the newest snapshot)
+npx wishboard db verify-backup <backup_dir> [--latest] [--strict]
 
 # Restore a backup (use --force to overwrite a target that already contains data)
 npx wishboard db restore <backup_dir> --database-url <url> [--force]
