@@ -19,6 +19,11 @@ echo "Deployment Mode: $MODE, Domain: $DOMAIN_NAME, Rules: $DEPLOY_RULES, Versio
 REQUIRED_MB=800
 AVAILABLE_MB=$(df -m /home | awk 'NR==2 {print $4}')
 if [[ "$AVAILABLE_MB" -lt "$REQUIRED_MB" ]]; then
+    echo "Low disk space (${AVAILABLE_MB} MB < ${REQUIRED_MB} MB). Pruning unused Docker images..."
+    $RUN_CMD image prune -af || true
+    AVAILABLE_MB=$(df -m /home | awk 'NR==2 {print $4}')
+fi
+if [[ "$AVAILABLE_MB" -lt "$REQUIRED_MB" ]]; then
     echo "ERROR: Not enough disk space. Available: ${AVAILABLE_MB} MB, Required: ${REQUIRED_MB} MB" >&2
     exit 1
 fi
@@ -104,6 +109,9 @@ if [[ "$MODE" = "dev" || "$MODE" = "dual" ]]; then
 fi
 echo "Docker image pull policy: $PULL_POLICY (mode: $MODE)"
 $RUN_CMD compose --env-file .env up -d --pull "$PULL_POLICY"
+
+echo "Pruning superseded Docker images..."
+$RUN_CMD image prune -af || true
 
 # Note: libsql-server data ownership alignment is handled via /etc/subuid offset mapping
 # (NODE_SUBUID = SUBUID_START + 999, SQLD_SUBUID = SUBUID_START + 665) configured above prior to container launch.
