@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  attachScannerWorkerListener,
   handleScannerWorkerMessage,
   resetWorkerCvCacheForTests,
+  type ScannerWorkerRequest,
   type ScannerWorkerResponse,
 } from './scanner.worker';
 import * as cardProcessor from '../cardProcessor';
@@ -197,5 +199,37 @@ describe('scanner.worker message handler', () => {
       id: 99,
       message: 'WASM out of bounds',
     });
+  });
+
+  it('attaches worker message listener and verifies event origin', async () => {
+    const postMessage = vi.fn();
+    const target: {
+      onmessage: ((event: MessageEvent<ScannerWorkerRequest>) => void) | null;
+      postMessage: (message: ScannerWorkerResponse, transfer?: Transferable[]) => void;
+      location?: { origin?: string };
+    } = {
+      onmessage: null,
+      postMessage,
+      location: { origin: 'https://wishboard.local' },
+    };
+
+    attachScannerWorkerListener(target);
+    expect(typeof target.onmessage).toBe('function');
+
+    // Untrusted origin is ignored
+    target.onmessage?.({
+      origin: 'https://evil.example',
+      data: { type: 'INIT' },
+    } as MessageEvent<ScannerWorkerRequest>);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(postMessage).not.toHaveBeenCalled();
+
+    // Dedicated worker empty origin ("") is accepted
+    target.onmessage?.({
+      origin: '',
+      data: { type: 'INIT' },
+    } as MessageEvent<ScannerWorkerRequest>);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(postMessage).toHaveBeenCalledWith({ type: 'READY' }, []);
   });
 });

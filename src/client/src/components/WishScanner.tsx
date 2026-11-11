@@ -314,9 +314,7 @@ export default function WishScanner({
 
     const activeCorners = smoothedCornersRef.current ?? getDefaultPoly(video);
     if (activeCorners && activeCorners.length >= 4) {
-      if (!smoothedCornersRef.current) {
-        smoothedCornersRef.current = activeCorners;
-      }
+      smoothedCornersRef.current ??= activeCorners;
       renderOverlay(
         ctx,
         canvas,

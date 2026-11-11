@@ -143,7 +143,7 @@ export function createScannerWorkerClient(
 
     try {
       if (worker) {
-        if (!frameCanvas || frameCanvas.width !== pWidth || frameCanvas.height !== pHeight) {
+        if (frameCanvas?.width !== pWidth || frameCanvas?.height !== pHeight) {
           frameCanvas = createProcessingCanvas(pWidth, pHeight);
         }
         const ctx = frameCanvas.getContext('2d', {

@@ -155,19 +155,32 @@ export function resetWorkerCvCacheForTests(): void {
   cvInstance = null;
 }
 
-// Attach message listener when executing inside a Web Worker scope
-if (
-  typeof globalThis !== 'undefined' &&
-  typeof (globalThis as { postMessage?: unknown }).postMessage === 'function' &&
-  typeof globalThis.document === 'undefined'
-) {
-  globalThis.onmessage = (event: MessageEvent<ScannerWorkerRequest>) => {
+export function attachScannerWorkerListener(target: {
+  onmessage: ((event: MessageEvent<ScannerWorkerRequest>) => void) | null;
+  postMessage: (message: ScannerWorkerResponse, transfer?: Transferable[]) => void;
+  location?: { origin?: string };
+}): void {
+  target.onmessage = (event: MessageEvent<ScannerWorkerRequest>) => {
+    const expectedOrigin = target.location?.origin ?? '';
+    if (event.origin !== '' && event.origin !== expectedOrigin) {
+      return;
+    }
     void handleScannerWorkerMessage(event.data, (res, transfer) => {
-      (
-        globalThis as unknown as {
-          postMessage: (message: ScannerWorkerResponse, transfer?: Transferable[]) => void;
-        }
-      ).postMessage(res, transfer ?? []);
+      target.postMessage(res, transfer ?? []);
     });
   };
+}
+
+// Attach message listener when executing inside a Web Worker scope
+if (
+  typeof (globalThis as { postMessage?: unknown }).postMessage === 'function' &&
+  globalThis.document === undefined
+) {
+  attachScannerWorkerListener(
+    globalThis as unknown as {
+      onmessage: ((event: MessageEvent<ScannerWorkerRequest>) => void) | null;
+      postMessage: (message: ScannerWorkerResponse, transfer?: Transferable[]) => void;
+      location?: { origin?: string };
+    }
+  );
 }
