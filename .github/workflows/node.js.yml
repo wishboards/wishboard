@@ -16,7 +16,7 @@ jobs:
   quality-checks:
     name: Code Quality & Security
     if: ${{ !startsWith(github.head_ref, 'release-please-') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -65,7 +65,7 @@ jobs:
   unit-and-integration:
     name: Unit & Integration Tests
     if: ${{ !startsWith(github.head_ref, 'release-please-') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     strategy:
@@ -131,7 +131,7 @@ jobs:
   e2e-tests:
     name: Playwright E2E Tests (${{ matrix.project }})
     if: ${{ !startsWith(github.head_ref, 'release-please-') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -176,7 +176,7 @@ jobs:
     name: CI Success
     if: always()
     needs: [quality-checks, unit-and-integration, e2e-tests]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:

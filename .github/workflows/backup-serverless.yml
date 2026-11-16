@@ -31,7 +31,9 @@ permissions:
 jobs:
   backup:
     name: Backup & Verify Serverless (${{ inputs.event_profile || 'all' }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    env:
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
     steps:
       - name: Checkout repository
@@ -47,7 +49,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Configure AWS credentials (OIDC)
-        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+        if: env.AWS_ROLE_TO_ASSUME != ''
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -55,7 +57,7 @@ jobs:
           audience: sts.amazonaws.com
 
       - name: Run database & media backup with recovery verification
-        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+        if: env.AWS_ROLE_TO_ASSUME != ''
         shell: bash
         env:
           VARS_JSON: ${{ toJson(vars) }}
@@ -152,8 +154,8 @@ jobs:
           fi
 
       - name: Upload verified backup snapshot artifact
-        if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
-        uses: actions/upload-artifact@v7
+        if: env.AWS_ROLE_TO_ASSUME != ''
+        uses: actions/upload-artifact@v4
         with:
           name: wishboard-serverless-backups
           path: backups/
