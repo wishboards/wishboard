@@ -192,12 +192,37 @@ describe('commandUtils', () => {
     });
 
     it('covers all sensitive flag names case-insensitively', () => {
-      expect(redactArgs(['--Password', 'p', '--passphrase', 'q', '--auth-token', 'r'])).toEqual([
+      expect(
+        redactArgs([
+          '--Password',
+          'p',
+          '--passphrase',
+          'q',
+          '--auth-token',
+          'r',
+          '--sonar-token',
+          'st',
+          '--stryker-key',
+          'sk',
+          '--gitleaks-license',
+          'gl',
+          '--database-auth-token',
+          'db',
+        ])
+      ).toEqual([
         '--Password',
         '***',
         '--passphrase',
         '***',
         '--auth-token',
+        '***',
+        '--sonar-token',
+        '***',
+        '--stryker-key',
+        '***',
+        '--gitleaks-license',
+        '***',
+        '--database-auth-token',
         '***',
       ]);
     });

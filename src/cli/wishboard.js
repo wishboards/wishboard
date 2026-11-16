@@ -65,6 +65,33 @@ oidc
     }
   });
 
+// Bootstrap Command (#399)
+program
+  .command('bootstrap')
+  .description('Automate external site, CI/CD, database, and repository bootstrapping for forks')
+  .option('--org <name>', 'GitHub organization or username')
+  .option('--repo <name>', 'GitHub repository name')
+  .option('--region <name>', 'AWS region', 'us-east-1')
+  .option('--sonar-token <token>', 'SonarCloud authentication token')
+  .option('--stryker-key <key>', 'Stryker Dashboard API key')
+  .option('--gitleaks-license <license>', 'Gitleaks organization license key')
+  .option('--turso-db <name>', 'Turso database name to create or use')
+  .option('--database-url <url>', 'libSQL / Turso database URL')
+  .option('--database-auth-token <token>', 'libSQL / Turso database auth token')
+  .option('--database-auth-token-ssm <name>', 'SSM parameter name for the database auth token')
+  .option('--skip-oidc', 'Skip AWS OIDC role provisioning')
+  .option('--skip-secrets', 'Skip setting CI/CD scanner secrets (Sonar, Stryker, Gitleaks)')
+  .option('--skip-db', 'Skip Turso database and SSM setup')
+  .action(async (options, command) => {
+    try {
+      const { runBootstrap } = await import('./commands/bootstrap.js');
+      await runBootstrap(command.optsWithGlobals());
+    } catch (err) {
+      console.error(`\x1b[31mError during bootstrap: ${err.message}\x1b[0m`);
+      process.exit(1);
+    }
+  });
+
 // Serverless Command Group
 const serverless = program
   .command('serverless')

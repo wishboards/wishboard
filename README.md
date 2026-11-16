@@ -145,6 +145,20 @@ npx wishboard --help
 
 ### Supported Commands
 
+#### Fork & Site Bootstrapping
+
+Bootstrap a repository fork with CI/CD scanner secrets, AWS OIDC deployment roles, and database provisioning in one step:
+
+```bash
+npx wishboard bootstrap \
+  --sonar-token <token> \
+  --stryker-key <key> \
+  --gitleaks-license <license> \
+  --turso-db <db-name>
+```
+
+Add `--dry-run` to preview external resources and commands before creating them.
+
 #### GitHub Actions OIDC Setup & Teardown
 
 Configure or destroy GitHub Actions OIDC authentication with AWS:
