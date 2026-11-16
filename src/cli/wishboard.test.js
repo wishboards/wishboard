@@ -271,11 +271,35 @@ describe('wishboard CLI entrypoint', () => {
 
   it('routes db backup with target options and the default images dir', async () => {
     const mod = await import('./commands/backup.js');
-    await runCLI(['db', 'backup', '--database-url', 'libsql://x', '--out', 'o', '--dry-run']);
+    await runCLI([
+      'db',
+      'backup',
+      '--database-url',
+      'libsql://x',
+      '--out',
+      'o',
+      '--verify',
+      '--strict',
+      '--keep',
+      '7',
+      '--copy-to',
+      '/media/usb',
+      '--archive-s3-bucket',
+      'archive-bkt',
+      '--archive-s3-prefix',
+      'backups/lifestyle/',
+      '--dry-run',
+    ]);
     expect(mod.createBackup).toHaveBeenCalledWith(
       expect.objectContaining({
         databaseUrl: 'libsql://x',
         out: 'o',
+        verify: true,
+        strict: true,
+        keep: '7',
+        copyTo: '/media/usb',
+        archiveS3Bucket: 'archive-bkt',
+        archiveS3Prefix: 'backups/lifestyle/',
         dryRun: true,
         imagesDir: 'data/images',
       })
@@ -312,10 +336,10 @@ describe('wishboard CLI entrypoint', () => {
 
   it('routes db verify-backup', async () => {
     const mod = await import('./commands/backup.js');
-    await runCLI(['db', 'verify-backup', 'some/dir', '--strict']);
+    await runCLI(['db', 'verify-backup', 'some/dir', '--strict', '--latest']);
     expect(mod.verifyBackup).toHaveBeenCalledWith(
       'some/dir',
-      expect.objectContaining({ strict: true })
+      expect.objectContaining({ strict: true, latest: true })
     );
     expect(exitSpy).not.toHaveBeenCalledWith(1);
   });

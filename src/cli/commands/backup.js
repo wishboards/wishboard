@@ -24,6 +24,8 @@ export const MANIFEST_FILE = 'manifest.json';
 export const DATABASE_FILE = 'database.json';
 export const IMAGES_DIR = 'images';
 export const S3_IMAGES_PREFIX = 'images/';
+export const S3_BACKUPS_PREFIX = 'backups/';
+export const BACKUP_DIR_PREFIX = 'wishboard-backup-';
 
 /** Ephemeral tables that are never worth restoring (stale sessions, live socket ids). */
 export const EXCLUDED_TABLES = Object.freeze(['sessions', 'websocket_connections']);
@@ -139,23 +141,28 @@ function listLocalImages(dir) {
 
 async function getS3(deps) {
   if (deps.s3) return deps.s3;
-  const { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } =
-    await import('@aws-sdk/client-s3');
+  const {
+    S3Client,
+    ListObjectsV2Command,
+    GetObjectCommand,
+    PutObjectCommand,
+    DeleteObjectCommand,
+  } = await import('@aws-sdk/client-s3');
   const client = new S3Client({});
   return {
-    async list(bucket) {
+    async list(bucket, prefix = S3_IMAGES_PREFIX) {
       const keys = [];
       let token;
       do {
         const res = await client.send(
           new ListObjectsV2Command({
             Bucket: bucket,
-            Prefix: S3_IMAGES_PREFIX,
+            Prefix: prefix,
             ContinuationToken: token,
           })
         );
         for (const obj of res.Contents ?? []) {
-          if (obj.Key && obj.Key !== S3_IMAGES_PREFIX) keys.push(obj.Key);
+          if (obj.Key && obj.Key !== prefix) keys.push(obj.Key);
         }
         token = res.IsTruncated ? res.NextContinuationToken : undefined;
       } while (token);
@@ -167,6 +174,9 @@ async function getS3(deps) {
     },
     async put(bucket, key, body) {
       await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body }));
+    },
+    async del(bucket, key) {
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
   };
 }
@@ -210,16 +220,127 @@ async function copyImagesOut(srcDir, opts, deps) {
   return names.length;
 }
 
+/* ---------------------------------------------- retention & off-device sync */
+
+export function parseKeepCount(keep) {
+  if (keep === undefined || keep === null || keep === '') return null;
+  const n = Number(keep);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error('--keep must be a positive integer.');
+  }
+  return n;
+}
+
+/** List `wishboard-backup-*` subdirectories inside `parentDir` sorted oldest-first. */
+export function listBackupDirs(parentDir) {
+  if (!parentDir || !fs.existsSync(parentDir)) return [];
+  return fs
+    .readdirSync(parentDir, { withFileTypes: true })
+    .filter(
+      (e) =>
+        e.isDirectory() &&
+        e.name.startsWith(BACKUP_DIR_PREFIX) &&
+        fs.existsSync(path.join(parentDir, e.name, MANIFEST_FILE))
+    )
+    .map((e) => e.name)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/** Remove oldest backup directories in `parentDir` beyond the newest `keep` snapshots. */
+export function pruneLocalBackups(parentDir, keep, log = console.log) {
+  const count = parseKeepCount(keep);
+  if (count === null) return [];
+  const names = listBackupDirs(parentDir);
+  if (names.length <= count) return [];
+  const toRemove = names.slice(0, names.length - count);
+  for (const name of toRemove) {
+    const full = path.join(parentDir, name);
+    removeDir(full);
+    log(`Pruned old backup: ${full}`);
+  }
+  return toRemove;
+}
+
+/** Copy a backup directory to a secondary off-device destination (e.g. USB mount). */
+export function copyBackupDir(srcBackupDir, copyToParentDir, log = console.log) {
+  const destParent = path.resolve(copyToParentDir);
+  fs.mkdirSync(destParent, { recursive: true });
+  const destDir = path.join(destParent, path.basename(srcBackupDir));
+  fs.cpSync(srcBackupDir, destDir, { recursive: true, force: true });
+  log(`Off-device backup copied to ${destDir}.`);
+  return destDir;
+}
+
+function normalizeS3Prefix(prefix = S3_BACKUPS_PREFIX) {
+  const trimmed = String(prefix).replace(/^\/+/, '');
+  if (!trimmed) return '';
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+}
+
+/**
+ * Upload a verified backup directory to S3 under `<prefix><backup_dir_name>/` and optionally
+ * prune older backup prefixes beyond `keep`.
+ */
+export async function archiveBackupToS3(
+  backupDir,
+  { bucket, prefix = S3_BACKUPS_PREFIX, keep },
+  log = console.log,
+  deps = {}
+) {
+  const s3 = await getS3(deps);
+  const normPrefix = normalizeS3Prefix(prefix);
+  const backupName = path.basename(backupDir);
+  const baseKey = `${normPrefix}${backupName}`;
+
+  for (const file of [MANIFEST_FILE, DATABASE_FILE]) {
+    await s3.put(bucket, `${baseKey}/${file}`, fs.readFileSync(path.join(backupDir, file)));
+  }
+  for (const img of listLocalImages(path.join(backupDir, IMAGES_DIR))) {
+    await s3.put(
+      bucket,
+      `${baseKey}/${IMAGES_DIR}/${img}`,
+      fs.readFileSync(path.join(backupDir, IMAGES_DIR, img))
+    );
+  }
+  log(`Archived backup to s3://${bucket}/${baseKey}/`);
+
+  const count = parseKeepCount(keep);
+  if (count !== null && s3.del) {
+    const keys = await s3.list(bucket, normPrefix);
+    const byBackup = new Map();
+    for (const key of keys) {
+      const rel = key.slice(normPrefix.length);
+      const [dirName] = rel.split('/');
+      if (dirName?.startsWith(BACKUP_DIR_PREFIX)) {
+        if (!byBackup.has(dirName)) byBackup.set(dirName, []);
+        byBackup.get(dirName).push(key);
+      }
+    }
+    const sortedNames = [...byBackup.keys()].sort((a, b) => a.localeCompare(b));
+    if (sortedNames.length > count) {
+      const pruned = sortedNames.slice(0, sortedNames.length - count);
+      for (const oldName of pruned) {
+        for (const key of byBackup.get(oldName)) {
+          await s3.del(bucket, key);
+        }
+        log(`Pruned old S3 backup: s3://${bucket}/${normPrefix}${oldName}/`);
+      }
+    }
+  }
+}
+
 /* ----------------------------------------------------------------- backup */
 
 export function backupDirName(now = new Date()) {
-  return `wishboard-backup-${now.toISOString().replaceAll(/[:.]/g, '-')}`;
+  return `${BACKUP_DIR_PREFIX}${now.toISOString().replaceAll(/[:.]/g, '-')}`;
 }
 
 /**
  * Create a backup directory. Returns `{ dir, manifest }`, or `null` on failure.
  * @param {{ databaseUrl?: string, authToken?: string, imagesDir?: string, s3Bucket?: string,
- *           out?: string, dryRun?: boolean }} opts
+ *           out?: string, verify?: boolean, strict?: boolean, keep?: number | string,
+ *           copyTo?: string, archiveS3Bucket?: string, archiveS3Prefix?: string,
+ *           dryRun?: boolean }} opts
  */
 export async function createBackup(
   opts = {},
@@ -227,6 +348,7 @@ export async function createBackup(
   logError = console.error,
   deps = {}
 ) {
+  const keep = parseKeepCount(opts.keep);
   const out = path.resolve(opts.out || 'backups');
   if (opts.dryRun) {
     log(
@@ -267,6 +389,34 @@ export async function createBackup(
     log(
       `Backup written to ${dir} (${Object.keys(manifest.tables).length} tables, ${imageNames.length} images).`
     );
+
+    if (opts.verify) {
+      const report = await verifyBackup(dir, { strict: opts.strict }, log, deps);
+      if (!report.ok) {
+        removeDir(dir);
+        logError('Backup verification failed; removed unverified backup directory.');
+        return null;
+      }
+    }
+
+    if (opts.copyTo) {
+      copyBackupDir(dir, opts.copyTo, log);
+      if (keep !== null) pruneLocalBackups(path.resolve(opts.copyTo), keep, log);
+    }
+
+    if (opts.archiveS3Bucket) {
+      await archiveBackupToS3(
+        dir,
+        { bucket: opts.archiveS3Bucket, prefix: opts.archiveS3Prefix, keep },
+        log,
+        deps
+      );
+    }
+
+    if (keep !== null) {
+      pruneLocalBackups(out, keep, log);
+    }
+
     return { dir, manifest };
   } catch (err) {
     removeDir(dir);
@@ -278,6 +428,16 @@ export async function createBackup(
 }
 
 /* ----------------------------------------------------------------- verify */
+
+function resolveTargetBackupDir(dir, latest = false) {
+  const resolved = path.resolve(dir);
+  if (!latest) return resolved;
+  const names = listBackupDirs(resolved);
+  if (names.length === 0) {
+    throw new Error(`No Wishboard backups found in '${resolved}'.`);
+  }
+  return path.join(resolved, names.at(-1));
+}
 
 function readBackup(dir) {
   const manifestPath = path.join(dir, MANIFEST_FILE);
@@ -304,13 +464,14 @@ function readBackup(dir) {
 export async function verifyBackup(dir, opts = {}, log = console.log, deps = {}) {
   const errors = [];
   const warnings = [];
-  const { manifest, databaseJson, dump } = readBackup(path.resolve(dir));
+  const targetDir = resolveTargetBackupDir(dir, Boolean(opts.latest));
+  const { manifest, databaseJson, dump } = readBackup(targetDir);
 
   if (sha256(databaseJson) !== manifest.databaseSha256) {
     errors.push(`${DATABASE_FILE} checksum mismatch (backup is corrupt or was modified).`);
   }
   for (const [name, expected] of Object.entries(manifest.images)) {
-    const file = path.join(dir, IMAGES_DIR, name);
+    const file = path.join(targetDir, IMAGES_DIR, name);
     if (!fs.existsSync(file)) errors.push(`Image missing from backup: ${name}`);
     else if (sha256File(file) !== expected) errors.push(`Image checksum mismatch: ${name}`);
   }
@@ -358,7 +519,7 @@ export async function verifyBackup(dir, opts = {}, log = console.log, deps = {})
   const ok = errors.length === 0 && (!opts.strict || warnings.length === 0);
   for (const e of errors) log(`FAIL: ${e}`);
   for (const w of warnings) log(`WARN: ${w}`);
-  log(ok ? `Backup verified: ${dir}` : `Backup verification FAILED: ${dir}`);
+  log(ok ? `Backup verified: ${targetDir}` : `Backup verification FAILED: ${targetDir}`);
   return { ok, errors, warnings, tables };
 }
 

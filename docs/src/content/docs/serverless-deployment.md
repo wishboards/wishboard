@@ -223,21 +223,34 @@ If you modify any frontend files:
 
 ### Backups & Recovery
 
+#### Automated Daily Backups & Recovery Verification
+
+The repository includes a scheduled GitHub Actions workflow (`.github/workflows/backup-serverless.yml`) that runs daily at `04:15 UTC` (and on demand via `workflow_dispatch`):
+
+1. Authenticates to AWS via OIDC (`AWS_ROLE_TO_ASSUME`) and retrieves the Turso auth token from SSM Parameter Store (`<PROFILE>_DATABASE_AUTH_TOKEN_SSM`).
+2. Runs `wishboard db backup --verify --keep 14` against each configured serverless profile (`lifestyle`, `professional`), dumping all persistent Turso tables and S3 `images/` objects.
+3. Immediately executes a full recovery verification (`db verify-backup`) into an isolated temporary SQLite database, failing the workflow and alerting on any checksum, row-count, schema, or foreign-key mismatch.
+4. Archives verified snapshots to S3 under `s3://<ImagesBucketName>/backups/<profile>/<backup_dir>/` (private prefix protected by S3 public access blocks, pruned to the `--keep` count plus a 30-day S3 `LifecycleConfiguration` expiration rule) and uploads a 14-day GitHub Actions workflow artifact for off-AWS redundancy.
+
+#### On-Demand CLI Backup, Verification & Restore
+
 Back up the Turso database and the S3 `images/` prefix (wish images and host branding assets) from any machine with AWS credentials:
 
 ```bash
 npx wishboard db backup \
   --database-url libsql://<your-db>.turso.io --auth-token <token> \
-  --s3-bucket <Your-Frontend-Bucket-Name> --out ./backups
+  --s3-bucket <Your-Images-Bucket-Name> \
+  --archive-s3-bucket <Your-Images-Bucket-Name> \
+  --out ./backups --verify --keep 14
 ```
 
-Prove the backup is recoverable by restoring it into a throwaway local database (checks checksums, row counts, SQLite and foreign-key integrity, and wish-image references):
+Prove a backup is recoverable by restoring it into a throwaway local database (checks checksums, row counts, SQLite and foreign-key integrity, and wish-image references):
 
 ```bash
-npx wishboard db verify-backup ./backups/<backup_dir>
+npx wishboard db verify-backup ./backups --latest
 ```
 
-Restore with `npx wishboard db restore ./backups/<backup_dir> --database-url ... --auth-token ... --s3-bucket ... [--force]`. Restore refuses a backup that fails verification, and refuses a target that already contains data unless `--force` is given. Run `db backup` + `db verify-backup` on a schedule (cron, or a scheduled GitHub Actions workflow) for ongoing recovery testing.
+Restore with `npx wishboard db restore ./backups/<backup_dir> --database-url ... --auth-token ... --s3-bucket ... [--force]`. Restore refuses a backup that fails verification, and refuses a target that already contains data unless `--force` is given.
 
 ---
 
