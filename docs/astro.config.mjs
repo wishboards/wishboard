@@ -50,6 +50,7 @@ export default defineConfig({
             { label: 'Event Profiles', slug: 'event-profiles' },
             { label: 'Matching Rules', slug: 'matching-rules' },
             { label: 'Mutation Testing', slug: 'mutation-testing' },
+            { label: 'UI Component Catalog (Storybook)', slug: 'component-catalog' },
           ],
         },
         {

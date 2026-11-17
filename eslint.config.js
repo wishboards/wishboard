@@ -28,6 +28,7 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       '.vite/**',
+      'storybook-static/**',
     ],
   },
 

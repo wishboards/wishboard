@@ -14,7 +14,3 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 ### Features & Enhancements
 
 - **[#332](https://github.com/wishboards/wishboard/issues/332)** — Decomposable & Optional AI Integration: Implement `InferenceProvider` / `EmbeddingProvider` interfaces, async tagging worker, UX suggestion badges, and optional vector search (see [ADR 0007](docs/src/content/docs/adr/0007-ai-integration.md)).
-
-## Infrastructure & DevOps
-
-- **[#398](https://github.com/wishboards/wishboard/issues/398)** — UI Component Documentation (ADR-0008 Phase 3): Implement Storybook for UI isolation and accessibility testing.
