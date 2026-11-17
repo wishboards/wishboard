@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { setupOidc, destroyOidc } from './oidc.js';
+import { setupOidc, destroyOidc, checkGitHubAuth, setGitHubRepoValue } from './oidc.js';
 import * as commandUtils from '../commandUtils.js';
 
 vi.mock('../commandUtils.js', () => ({
@@ -376,6 +376,64 @@ describe('oidc commands', () => {
         expect.arrayContaining(['secret', 'delete']),
         expect.any(Object)
       );
+    });
+  });
+
+  describe('checkGitHubAuth', () => {
+    it('returns true on dryRun without invoking gh', () => {
+      expect(checkGitHubAuth(true)).toBe(true);
+      expect(commandUtils.execCommand).not.toHaveBeenCalled();
+    });
+
+    it('returns true when gh status exits 0', () => {
+      vi.mocked(commandUtils.execCommand).mockReturnValue({ status: 0, stdout: 'ok', stderr: '' });
+      expect(checkGitHubAuth(false)).toBe(true);
+      expect(commandUtils.execCommand).toHaveBeenCalledWith('gh', ['auth', 'status'], {
+        stdio: 'pipe',
+      });
+    });
+
+    it('returns false when gh status fails', () => {
+      vi.mocked(commandUtils.execCommand).mockReturnValue({
+        status: 1,
+        stdout: '',
+        stderr: 'error',
+      });
+      expect(checkGitHubAuth(false)).toBe(false);
+    });
+  });
+
+  describe('setGitHubRepoValue', () => {
+    it('sets secret without app flag', () => {
+      vi.mocked(commandUtils.execCommand).mockReturnValue({ status: 0, stdout: '', stderr: '' });
+      const ok = setGitHubRepoValue('secret', 'MY_SECRET', 'val123', false);
+      expect(ok).toBe(true);
+      expect(commandUtils.execCommand).toHaveBeenCalledWith(
+        'gh',
+        ['secret', 'set', 'MY_SECRET', '--body', 'val123'],
+        { dryRun: false }
+      );
+    });
+
+    it('sets secret with --app flag', () => {
+      vi.mocked(commandUtils.execCommand).mockReturnValue({ status: 0, stdout: '', stderr: '' });
+      const ok = setGitHubRepoValue('secret', 'MY_SECRET', 'val123', false, 'dependabot');
+      expect(ok).toBe(true);
+      expect(commandUtils.execCommand).toHaveBeenCalledWith(
+        'gh',
+        ['secret', 'set', 'MY_SECRET', '--body', 'val123', '--app', 'dependabot'],
+        { dryRun: false }
+      );
+    });
+
+    it('returns false and logs warning if gh command fails', () => {
+      vi.mocked(commandUtils.execCommand).mockReturnValue({
+        status: 1,
+        stdout: '',
+        stderr: 'failed',
+      });
+      const ok = setGitHubRepoValue('variable', 'MY_VAR', 'val123', false);
+      expect(ok).toBe(false);
     });
   });
 });

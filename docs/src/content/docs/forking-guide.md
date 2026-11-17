@@ -2,9 +2,39 @@
 title: Forking and Bootstrapping Guide
 ---
 
-Welcome to the Wishboard project! If you've forked this repository to deploy your own instance of Wishboard, this guide will walk you through the external services and credentials you need to set up for the CI/CD pipelines to pass and deployments to succeed.
+Welcome to the Wishboard project! If you've forked this repository to deploy your own instance of Wishboard, this guide will walk you through setting up the external services, credentials, CI/CD secrets, AWS OIDC deployment roles, and databases.
 
-## 1. External Quality & Security Scanners
+## Quickstart: Automated Bootstrapping (Recommended)
+
+Wishboard includes a unified `bootstrap` CLI command that provisions external services and configures GitHub secrets/variables in a single interactive or scripted invocation:
+
+```bash
+npx wishboard bootstrap \
+  --sonar-token <token> \
+  --stryker-key <key> \
+  --gitleaks-license <license> \
+  --turso-db <db-name>
+```
+
+### What `bootstrap` automates:
+
+1. **CI/CD Quality & Security Secrets**: Configures `SONAR_TOKEN`, `STRYKER_DASHBOARD_API_KEY`, and `GITLEAKS_LICENSE` (sharing with Dependabot automatically to keep automated dependency PRs green).
+2. **AWS OIDC Deployment Role**: Deploys the CloudFormation stack in `aws-serverless/github-oidc-role.yaml` to create an OpenID Connect IAM role and configures `AWS_ROLE_TO_ASSUME`, `AWS_REGION`, and `AWS_STACK_NAME`.
+3. **Database & SSM Parameter Store**: Uses the `turso` CLI to create or retrieve a libSQL/Turso database and auth token, stores the token as an encrypted `SecureString` in AWS SSM (`/<repo>/<profile>/database-auth-token`), and configures `DATABASE_URL` and `DATABASE_AUTH_TOKEN_SSM` repository variables.
+
+### Common Options:
+
+- `--org <name>` and `--repo <name>`: GitHub repository (auto-detected from git remote or `package.json`).
+- `--region <name>`: Target AWS region (defaults to `us-east-1`).
+- `--event-profile <name>`: Profile prefix for variables and SSM paths (e.g. `lifestyle`, `professional`).
+- `--skip-secrets`: Skip configuring SonarCloud, Stryker, and Gitleaks secrets.
+- `--skip-oidc`: Skip provisioning the AWS OIDC deployment role.
+- `--skip-db`: Skip Turso database provisioning and AWS SSM parameter registration.
+- `--dry-run`: Preview all CloudFormation, AWS SSM, and GitHub CLI operations without making changes.
+
+---
+
+## Manual Service Configuration
 
 Wishboard uses several external services to maintain code quality. To make the CI pipeline pass in your fork, you will need to set up the following:
 

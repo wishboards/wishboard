@@ -213,7 +213,7 @@ function printManualInstructions(roleArn, region, repo) {
 /**
  * Checks if the GitHub CLI is authenticated.
  */
-function checkGitHubAuth(dryRun) {
+export function checkGitHubAuth(dryRun) {
   if (dryRun) {
     return true;
   }
@@ -224,13 +224,17 @@ function checkGitHubAuth(dryRun) {
 /**
  * Helper to set a GitHub secret or variable.
  */
-function setGitHubRepoValue(type, name, value, dryRun) {
-  const res = execCommand('gh', [type, 'set', name, '--body', value], { dryRun });
+export function setGitHubRepoValue(type, name, value, dryRun, app = '') {
+  const args = [type, 'set', name, '--body', value];
+  if (app) {
+    args.push('--app', app);
+  }
+  const res = execCommand('gh', args, { dryRun });
   if (res.status === 0) {
-    logInfo(`Set ${type}: ${name}`);
+    logInfo(`Set ${type}: ${name}${app ? ` (app: ${app})` : ''}`);
     return true;
   }
-  logWarn(`Failed to set ${type} ${name} via GitHub CLI.`);
+  logWarn(`Failed to set ${type} ${name}${app ? ` (app: ${app})` : ''} via GitHub CLI.`);
   return false;
 }
 

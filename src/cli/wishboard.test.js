@@ -35,6 +35,10 @@ vi.mock('./commands/backup.js', () => ({
   verifyBackup: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
+vi.mock('./commands/bootstrap.js', () => ({
+  runBootstrap: vi.fn().mockResolvedValue({}),
+}));
+
 describe('wishboard CLI entrypoint', () => {
   let originalArgv;
   let exitSpy;
@@ -348,6 +352,48 @@ describe('wishboard CLI entrypoint', () => {
     const mod = await import('./commands/backup.js');
     vi.mocked(mod.verifyBackup).mockResolvedValueOnce({ ok: false });
     await runCLI(['db', 'verify-backup', 'bad/dir']);
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('routes to bootstrap command with options', async () => {
+    const mod = await import('./commands/bootstrap.js');
+    await runCLI([
+      'bootstrap',
+      '--org',
+      'my-org',
+      '--repo',
+      'my-repo',
+      '--sonar-token',
+      'st-123',
+      '--stryker-key',
+      'sk-456',
+      '--gitleaks-license',
+      'gl-789',
+      '--turso-db',
+      'custom-db',
+      '--dry-run',
+    ]);
+    expect(mod.runBootstrap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        org: 'my-org',
+        repo: 'my-repo',
+        sonarToken: 'st-123',
+        strykerKey: 'sk-456',
+        gitleaksLicense: 'gl-789',
+        tursoDb: 'custom-db',
+        dryRun: true,
+      })
+    );
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
+  });
+
+  it('exits non-zero when bootstrap fails', async () => {
+    const mod = await import('./commands/bootstrap.js');
+    vi.mocked(mod.runBootstrap).mockRejectedValueOnce(new Error('Bootstrap Failed'));
+    await runCLI(['bootstrap']);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Error during bootstrap: Bootstrap Failed')
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 

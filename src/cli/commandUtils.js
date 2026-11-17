@@ -79,8 +79,10 @@ export function getGitRepoInfo() {
 // Flags whose value is a secret and must never be echoed — e.g. in the --dry-run
 // preview, which can end up in CI logs. Covers both "--token VALUE" and
 // "--token=VALUE" forms. See jssecurity:S8689 and the planned auth-token helper.
-const SENSITIVE_FLAG = /^--?(token|secret|password|passphrase|auth-token)$/i;
-const SENSITIVE_FLAG_INLINE = /^(--?(?:token|secret|password|passphrase|auth-token))=/i;
+const SENSITIVE_FLAG =
+  /^--?(token|secret|password|passphrase|auth-token|sonar-token|stryker-key|gitleaks-license|database-auth-token)$/i;
+const SENSITIVE_FLAG_INLINE =
+  /^(--?(?:token|secret|password|passphrase|auth-token|sonar-token|stryker-key|gitleaks-license|database-auth-token))=/i;
 
 /**
  * Returns a copy of `args` with the value of any sensitive flag masked, so a

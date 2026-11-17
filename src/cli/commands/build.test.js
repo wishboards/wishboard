@@ -14,11 +14,13 @@ vi.mock('fs', async (importOriginal) => {
       mkdirSync: vi.fn(),
       createWriteStream: vi.fn(),
       existsSync: vi.fn(),
+      statSync: vi.fn().mockReturnValue({ size: 1024 }),
       unlink: vi.fn((p, cb) => cb && cb()),
     },
     mkdirSync: vi.fn(),
     createWriteStream: vi.fn(),
     existsSync: vi.fn(),
+    statSync: vi.fn().mockReturnValue({ size: 1024 }),
     unlink: vi.fn((p, cb) => cb && cb()),
   };
 });
