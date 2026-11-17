@@ -48,12 +48,22 @@ jobs:
           node-version: '24' # Use the project's supported node version
           cache: 'npm'
 
+      - name: Build Storybook Catalog
+        run: |
+          npm ci --ignore-scripts
+          npm run build:storybook
+
       - name: Build Starlight Docs
         run: |
           cd docs
           npm ci --ignore-scripts
           npm run build
           cd ..
+
+      - name: Merge Storybook into Docs
+        run: |
+          mkdir -p docs/dist/storybook
+          cp -r storybook-static/* docs/dist/storybook/
 
       # Best-effort: the site still publishes if no run has produced a report yet
       # (or the last one expired), it just won't carry the /mutation section.
