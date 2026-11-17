@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.40.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.39.0...wishboard-v1.40.0) (2026-11-17)
+
+
+### Features
+
+* **backup:** schedule automated backups, recovery verification, and off-device retention ([#615](https://github.com/wishboards/wishboard/issues/615)) ([2af7170](https://github.com/wishboards/wishboard/commit/2af717062079f88d8a6c9baf441bf036191c0378))
+* **cli:** automate external site bootstrapping ([#399](https://github.com/wishboards/wishboard/issues/399)) ([#617](https://github.com/wishboards/wishboard/issues/617)) ([8e1b67b](https://github.com/wishboards/wishboard/commit/8e1b67bff769208ff5648f18d06cb7ac8fb4a5b2))
+
 ## [1.39.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.38.0...wishboard-v1.39.0) (2026-11-11)
 
 
