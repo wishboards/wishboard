@@ -58,9 +58,9 @@ jobs:
 
           jsdom_ver=$(npm view "jsdom@latest" version 2>/dev/null || true)
           echo "jsdom latest -> $jsdom_ver"
-          if [ -n "$jsdom_ver" ] && npx --yes semver -r ">30.1.3" "$jsdom_ver" >/dev/null 2>&1; then
-            notify '531' '<!-- watch:jsdom-webstorage -->' \
-              "✅ **jsdom** has published \`v$jsdom_ver\` (>30.1.3). Check release notes to see if Node 25+ uninitialized globalThis.localStorage is supported so the WebStorage polyfill can be retired (#531)."
+          if [ -n "$jsdom_ver" ] && npx --yes semver -r ">31.0.1" "$jsdom_ver" >/dev/null 2>&1; then
+            notify '531' '<!-- watch:jsdom-webstorage-post-3101 -->' \
+              "✅ **jsdom** has published \`v$jsdom_ver\` (>31.0.1). Check release notes to see if Node 25+ uninitialized globalThis.localStorage is supported so the WebStorage polyfill can be retired (#531)."
           fi
 
           echo "Done."
