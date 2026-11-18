@@ -27,6 +27,13 @@ const meta: Meta<typeof WishCard> = {
   parameters: {
     layout: 'centered',
   },
+  decorators: [
+    (Story) => (
+      <div style={{ width: '520px', maxWidth: '95vw' }}>
+        <Story />
+      </div>
+    ),
+  ],
   tags: ['autodocs'],
 };
 
