@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.41.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.40.0...wishboard-v1.41.0) (2026-11-18)
+
+
+### Features
+
+* **docs:** implement Storybook UI component catalog and a11y checks ([#398](https://github.com/wishboards/wishboard/issues/398)) ([#618](https://github.com/wishboards/wishboard/issues/618)) ([5235f9c](https://github.com/wishboards/wishboard/commit/5235f9cb4db07626bea535e99dffc7a79aabafef))
+
+
+### Bug Fixes
+
+* **docs:** enlarge card preview and provide sample identity sticker assets ([#621](https://github.com/wishboards/wishboard/issues/621)) ([2ab1390](https://github.com/wishboards/wishboard/commit/2ab139081d887980a1485a02e09c1e166eb87898))
+* **test:** exclude static route guard and storybook stories from Stryker mutation runs ([#620](https://github.com/wishboards/wishboard/issues/620)) ([ee0b5ea](https://github.com/wishboards/wishboard/commit/ee0b5eafd986df74a332dd2f77639bbfabe738e3))
+
 ## [1.40.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.39.0...wishboard-v1.40.0) (2026-11-17)
 
 
