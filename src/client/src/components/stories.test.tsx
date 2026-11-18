@@ -38,14 +38,29 @@ describe('Storybook Stories Smoke Tests', () => {
     expect(c1).toBeTruthy();
 
     const { container: c2 } = render(
-      <Component {...IdentityStickersStories.SingleAttribute.args!} />
+      <Component {...IdentityStickersStories.OrientationHearts.args!} />
     );
     expect(c2).toBeTruthy();
 
     const { container: c3 } = render(
-      <Component {...IdentityStickersStories.MultiCategory.args!} />
+      <Component {...IdentityStickersStories.GenderFlagsAndIcons.args!} />
     );
     expect(c3).toBeTruthy();
+
+    const { container: c4 } = render(
+      <Component {...IdentityStickersStories.InterestBadges.args!} />
+    );
+    expect(c4).toBeTruthy();
+
+    const { container: c5 } = render(
+      <Component {...IdentityStickersStories.ProfessionalRoles.args!} />
+    );
+    expect(c5).toBeTruthy();
+
+    const { container: c6 } = render(
+      <Component {...IdentityStickersStories.MultiCategory.args!} />
+    );
+    expect(c6).toBeTruthy();
   });
 
   it('renders InfoToggle story without crashing', () => {

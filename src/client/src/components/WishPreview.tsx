@@ -63,7 +63,7 @@ export default function WishPreview({
           Watch your card scale automatically! If text turns red, it won't fit on the board.
         </InfoToggle>
       </div>
-      <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+      <div style={{ width: '100%', maxWidth: '520px', margin: '0 auto' }}>
         <WishCard
           wish={wish}
           showFlag={false}
