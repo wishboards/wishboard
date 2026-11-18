@@ -12,6 +12,7 @@ if (base.test) {
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
     ]),
     'src/server/index.test.js',
+    'tests/integration/client-server-route-guard.integration.test.js',
   ];
 }
 

@@ -24,16 +24,14 @@
     "src/client/src/**/*.tsx",
     "src/client/src/**/*.js",
     "src/server/**/*.js",
-    "src/server/**/*.ts",
     "src/cli/**/*.js",
     "!src/client/src/**/*.test.ts",
     "!src/client/src/**/*.test.tsx",
-    "!src/client/src/**/*.test.js",
     "!src/server/**/*.test.js",
-    "!src/server/**/*.test.ts",
     "!src/cli/**/*.test.js",
     "!src/server/index.js",
-    "!src/client/src/main.tsx"
+    "!src/client/src/main.tsx",
+    "!src/client/src/**/*.stories.tsx"
   ],
   "ignorePatterns": ["!dist/**/*"]
 }
