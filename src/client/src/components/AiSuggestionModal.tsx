@@ -12,6 +12,286 @@ export interface AiSuggestionModalProps {
   onApplied?: () => void;
 }
 
+function formatAttributesForEdit(
+  attrs: Record<string, unknown> | undefined
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!attrs) return result;
+  for (const [key, val] of Object.entries(attrs)) {
+    if (Array.isArray(val)) {
+      result[key] = val.join(', ');
+    } else if (typeof val === 'string') {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
+function parseAttributesFromEdit(attrs: Record<string, string>): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const [key, val] of Object.entries(attrs)) {
+    const items = val
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (items.length > 0) {
+      result[key] = items;
+    }
+  }
+  return result;
+}
+
+function getEmptySuggestionMessage(suggestions: WishAiSuggestion[]): string {
+  if (suggestions.length > 0) {
+    return `All suggestions have already been reviewed (Status: ${suggestions[0]?.status}).`;
+  }
+  return 'No AI suggestions found for this wish.';
+}
+
+interface AttributeFieldInputsProps {
+  title: string;
+  emptyLabel: string;
+  values: Record<string, string>;
+  onChange: (category: string, value: string) => void;
+}
+
+function AttributeFieldInputs({
+  title,
+  emptyLabel,
+  values,
+  onChange,
+}: Readonly<AttributeFieldInputsProps>) {
+  const entries = Object.entries(values);
+  return (
+    <div>
+      <h3 style={{ fontSize: '0.95rem', margin: '0 0 6px 0', color: '#1e293b' }}>{title}</h3>
+      {entries.length === 0 ? (
+        <div style={{ fontStyle: 'italic', fontSize: '0.85rem', color: '#64748b' }}>
+          {emptyLabel}
+        </div>
+      ) : (
+        entries.map(([category, val]) => (
+          <div key={category} style={{ marginBottom: '8px' }}>
+            <label style={{ fontSize: '0.85rem', textTransform: 'capitalize', fontWeight: 600 }}>
+              {category}
+              <input
+                type="text"
+                value={val}
+                onChange={(e) => onChange(category, e.target.value)}
+                style={{ marginTop: '4px', width: '100%', boxSizing: 'border-box' }}
+              />
+            </label>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+interface EditAttributesFormProps {
+  modifiedCreator: Record<string, string>;
+  setModifiedCreator: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  modifiedDesired: Record<string, string>;
+  setModifiedDesired: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+}
+
+function EditAttributesForm({
+  modifiedCreator,
+  setModifiedCreator,
+  modifiedDesired,
+  setModifiedDesired,
+}: Readonly<EditAttributesFormProps>) {
+  return (
+    <div style={{ display: 'grid', gap: '14px', marginTop: '12px' }}>
+      <AttributeFieldInputs
+        title="Your Attributes (Comma-separated)"
+        emptyLabel="No creator attributes suggested."
+        values={modifiedCreator}
+        onChange={(cat, val) => setModifiedCreator((prev) => ({ ...prev, [cat]: val }))}
+      />
+      <AttributeFieldInputs
+        title="Looking For / Desired Attributes (Comma-separated)"
+        emptyLabel="No desired attributes suggested."
+        values={modifiedDesired}
+        onChange={(cat, val) => setModifiedDesired((prev) => ({ ...prev, [cat]: val }))}
+      />
+    </div>
+  );
+}
+
+interface SuggestionCardSectionProps {
+  title: string;
+  titleColor: string;
+  bgColor: string;
+  borderColor: string;
+  badgeBg: string;
+  badgeColor: string;
+  attributes: Record<string, unknown> | undefined;
+}
+
+function SuggestionCardSection({
+  title,
+  titleColor,
+  bgColor,
+  borderColor,
+  badgeBg,
+  badgeColor,
+  attributes,
+}: Readonly<SuggestionCardSectionProps>) {
+  const entries = Object.entries((attributes as Record<string, string[]>) || {});
+  const hasItems = entries.some(([, items]) => Array.isArray(items) && items.length > 0);
+
+  return (
+    <div
+      style={{
+        backgroundColor: bgColor,
+        border: `1px solid ${borderColor}`,
+        borderRadius: '10px',
+        padding: '12px 16px',
+      }}
+    >
+      <h3 style={{ fontSize: '0.9rem', margin: '0 0 8px 0', color: titleColor }}>{title}</h3>
+      {!hasItems ? (
+        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>None</span>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {entries.flatMap(([cat, items]) =>
+            (Array.isArray(items) ? items : []).map((item) => (
+              <span
+                key={`${cat}-${item}`}
+                style={{
+                  padding: '3px 8px',
+                  backgroundColor: badgeBg,
+                  color: badgeColor,
+                  borderRadius: '9999px',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                }}
+              >
+                {item}
+              </span>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ReviewAttributesDisplayProps {
+  suggestion: WishAiSuggestion;
+}
+
+function ReviewAttributesDisplay({ suggestion }: Readonly<ReviewAttributesDisplayProps>) {
+  return (
+    <div style={{ display: 'grid', gap: '16px', marginTop: '8px' }}>
+      <SuggestionCardSection
+        title="Suggested Attributes For You"
+        titleColor="#5b21b6"
+        bgColor="rgba(139, 92, 246, 0.05)"
+        borderColor="rgba(139, 92, 246, 0.2)"
+        badgeBg="#ede9fe"
+        badgeColor="#6d28d9"
+        attributes={suggestion.suggested_creator_attributes as Record<string, unknown> | undefined}
+      />
+      <SuggestionCardSection
+        title="Suggested Matches You Are Seeking"
+        titleColor="#1d4ed8"
+        bgColor="rgba(59, 130, 246, 0.05)"
+        borderColor="rgba(59, 130, 246, 0.2)"
+        badgeBg="#dbeafe"
+        badgeColor="#1e40af"
+        attributes={suggestion.suggested_desired_attributes as Record<string, unknown> | undefined}
+      />
+    </div>
+  );
+}
+
+interface ModalActionsProps {
+  pendingSuggestion: WishAiSuggestion | undefined;
+  isModifying: boolean;
+  submitting: boolean;
+  onClose: () => void;
+  onReject: () => void;
+  onModifyStart: () => void;
+  onCancelEdit: () => void;
+  onAccept: () => void;
+  onSaveModify: () => void;
+}
+
+function ModalActions({
+  pendingSuggestion,
+  isModifying,
+  submitting,
+  onClose,
+  onReject,
+  onModifyStart,
+  onCancelEdit,
+  onAccept,
+  onSaveModify,
+}: Readonly<ModalActionsProps>) {
+  return (
+    <div className="kiosk-modal-actions" style={{ marginTop: '20px', flexWrap: 'wrap' }}>
+      <button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>
+        Close
+      </button>
+
+      {pendingSuggestion && !isModifying && (
+        <>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onReject}
+            disabled={submitting}
+            style={{ color: '#b91c1c' }}
+          >
+            Reject
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onModifyStart}
+            disabled={submitting}
+          >
+            Modify
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={onAccept}
+            disabled={submitting}
+            style={{ backgroundColor: '#7c3aed' }}
+          >
+            Accept All
+          </button>
+        </>
+      )}
+
+      {pendingSuggestion && isModifying && (
+        <>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onCancelEdit}
+            disabled={submitting}
+          >
+            Cancel Edit
+          </button>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={onSaveModify}
+            disabled={submitting}
+            style={{ backgroundColor: '#7c3aed' }}
+          >
+            Save &amp; Apply
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AiSuggestionModal({
   wishId,
   secret,
@@ -26,36 +306,8 @@ export default function AiSuggestionModal({
   const [isModifying, setIsModifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Editable attribute states for modification mode
   const [modifiedCreator, setModifiedCreator] = useState<Record<string, string>>({});
   const [modifiedDesired, setModifiedDesired] = useState<Record<string, string>>({});
-
-  const formatAttributesForEdit = (attrs: Record<string, unknown> | undefined) => {
-    const result: Record<string, string> = {};
-    if (!attrs) return result;
-    for (const [key, val] of Object.entries(attrs)) {
-      if (Array.isArray(val)) {
-        result[key] = val.join(', ');
-      } else if (typeof val === 'string') {
-        result[key] = val;
-      }
-    }
-    return result;
-  };
-
-  const parseAttributesFromEdit = (attrs: Record<string, string>) => {
-    const result: Record<string, string[]> = {};
-    for (const [key, val] of Object.entries(attrs)) {
-      const items = val
-        .split(',')
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-      if (items.length > 0) {
-        result[key] = items;
-      }
-    }
-    return result;
-  };
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true);
@@ -157,7 +409,7 @@ export default function AiSuggestionModal({
       }, 1000);
     } catch (err) {
       console.error(`Failed to ${action} suggestion:`, err);
-      setError(`An unexpected error occurred while processing the suggestion.`);
+      setError('An unexpected error occurred while processing the suggestion.');
     } finally {
       setSubmitting(false);
     }
@@ -165,12 +417,51 @@ export default function AiSuggestionModal({
 
   const pendingSuggestion = suggestions.find((s) => s.status === 'pending');
 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+          Loading suggestions...
+        </div>
+      );
+    }
+
+    if (!pendingSuggestion) {
+      return (
+        <div style={{ padding: '16px 0', textAlign: 'center', color: '#64748b' }}>
+          {getEmptySuggestionMessage(suggestions)}
+        </div>
+      );
+    }
+
+    if (isModifying) {
+      return (
+        <EditAttributesForm
+          modifiedCreator={modifiedCreator}
+          setModifiedCreator={setModifiedCreator}
+          modifiedDesired={modifiedDesired}
+          setModifiedDesired={setModifiedDesired}
+        />
+      );
+    }
+
+    return <ReviewAttributesDisplay suggestion={pendingSuggestion} />;
+  };
+
   return (
-    <div
+    <dialog
+      open
       className="kiosk-modal-backdrop"
-      style={{ zIndex: 100000 }}
-      role="dialog"
-      aria-modal="true"
+      style={{
+        zIndex: 100000,
+        border: 'none',
+        padding: 0,
+        margin: 0,
+        width: '100vw',
+        height: '100vh',
+        maxWidth: '100vw',
+        maxHeight: '100vh',
+      }}
       aria-labelledby="ai-suggestions-title"
     >
       <div className="kiosk-modal" style={{ maxWidth: '560px', width: '92%' }}>
@@ -186,220 +477,20 @@ export default function AiSuggestionModal({
         {error && <div className="kiosk-modal-error">{error}</div>}
         {message && <div className="message success">{message}</div>}
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
-            Loading suggestions...
-          </div>
-        ) : !pendingSuggestion ? (
-          <div style={{ padding: '16px 0', textAlign: 'center', color: '#64748b' }}>
-            {suggestions.length > 0
-              ? `All suggestions have already been reviewed (Status: ${suggestions[0]?.status}).`
-              : 'No AI suggestions found for this wish.'}
-          </div>
-        ) : isModifying ? (
-          <div style={{ display: 'grid', gap: '14px', marginTop: '12px' }}>
-            <div>
-              <h3 style={{ fontSize: '0.95rem', margin: '0 0 6px 0', color: '#1e293b' }}>
-                Your Attributes (Comma-separated)
-              </h3>
-              {Object.keys(modifiedCreator).length === 0 ? (
-                <div style={{ fontStyle: 'italic', fontSize: '0.85rem', color: '#64748b' }}>
-                  No creator attributes suggested.
-                </div>
-              ) : (
-                Object.entries(modifiedCreator).map(([category, val]) => (
-                  <div key={category} style={{ marginBottom: '8px' }}>
-                    <label
-                      style={{ fontSize: '0.85rem', textTransform: 'capitalize', fontWeight: 600 }}
-                    >
-                      {category}
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={(e) =>
-                          setModifiedCreator((prev) => ({ ...prev, [category]: e.target.value }))
-                        }
-                        style={{ marginTop: '4px', width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </label>
-                  </div>
-                ))
-              )}
-            </div>
+        {renderContent()}
 
-            <div>
-              <h3 style={{ fontSize: '0.95rem', margin: '0 0 6px 0', color: '#1e293b' }}>
-                Looking For / Desired Attributes (Comma-separated)
-              </h3>
-              {Object.keys(modifiedDesired).length === 0 ? (
-                <div style={{ fontStyle: 'italic', fontSize: '0.85rem', color: '#64748b' }}>
-                  No desired attributes suggested.
-                </div>
-              ) : (
-                Object.entries(modifiedDesired).map(([category, val]) => (
-                  <div key={category} style={{ marginBottom: '8px' }}>
-                    <label
-                      style={{ fontSize: '0.85rem', textTransform: 'capitalize', fontWeight: 600 }}
-                    >
-                      {category}
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={(e) =>
-                          setModifiedDesired((prev) => ({ ...prev, [category]: e.target.value }))
-                        }
-                        style={{ marginTop: '4px', width: '100%', boxSizing: 'border-box' }}
-                      />
-                    </label>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gap: '16px', marginTop: '8px' }}>
-            <div
-              style={{
-                backgroundColor: 'rgba(139, 92, 246, 0.05)',
-                border: '1px solid rgba(139, 92, 246, 0.2)',
-                borderRadius: '10px',
-                padding: '12px 16px',
-              }}
-            >
-              <h3 style={{ fontSize: '0.9rem', margin: '0 0 8px 0', color: '#5b21b6' }}>
-                Suggested Attributes For You
-              </h3>
-              {Object.keys(pendingSuggestion.suggested_creator_attributes || {}).length === 0 ? (
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>None</span>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {Object.entries(
-                    pendingSuggestion.suggested_creator_attributes as Record<string, string[]>
-                  ).flatMap(([cat, items]) =>
-                    (Array.isArray(items) ? items : []).map((item) => (
-                      <span
-                        key={`${cat}-${item}`}
-                        style={{
-                          padding: '3px 8px',
-                          backgroundColor: '#ede9fe',
-                          color: '#6d28d9',
-                          borderRadius: '9999px',
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {item}
-                      </span>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div
-              style={{
-                backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                borderRadius: '10px',
-                padding: '12px 16px',
-              }}
-            >
-              <h3 style={{ fontSize: '0.9rem', margin: '0 0 8px 0', color: '#1d4ed8' }}>
-                Suggested Matches You Are Seeking
-              </h3>
-              {Object.keys(pendingSuggestion.suggested_desired_attributes || {}).length === 0 ? (
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>None</span>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {Object.entries(
-                    pendingSuggestion.suggested_desired_attributes as Record<string, string[]>
-                  ).flatMap(([cat, items]) =>
-                    (Array.isArray(items) ? items : []).map((item) => (
-                      <span
-                        key={`${cat}-${item}`}
-                        style={{
-                          padding: '3px 8px',
-                          backgroundColor: '#dbeafe',
-                          color: '#1e40af',
-                          borderRadius: '9999px',
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {item}
-                      </span>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="kiosk-modal-actions" style={{ marginTop: '20px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            Close
-          </button>
-
-          {pendingSuggestion && !isModifying && (
-            <>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => handleAction('reject')}
-                disabled={submitting}
-                style={{ color: '#b91c1c' }}
-              >
-                Reject
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setIsModifying(true)}
-                disabled={submitting}
-              >
-                Modify
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => handleAction('accept')}
-                disabled={submitting}
-                style={{ backgroundColor: '#7c3aed' }}
-              >
-                Accept All
-              </button>
-            </>
-          )}
-
-          {pendingSuggestion && isModifying && (
-            <>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setIsModifying(false)}
-                disabled={submitting}
-              >
-                Cancel Edit
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => handleAction('modify')}
-                disabled={submitting}
-                style={{ backgroundColor: '#7c3aed' }}
-              >
-                Save &amp; Apply
-              </button>
-            </>
-          )}
-        </div>
+        <ModalActions
+          pendingSuggestion={pendingSuggestion}
+          isModifying={isModifying}
+          submitting={submitting}
+          onClose={onClose}
+          onReject={() => void handleAction('reject')}
+          onModifyStart={() => setIsModifying(true)}
+          onCancelEdit={() => setIsModifying(false)}
+          onAccept={() => void handleAction('accept')}
+          onSaveModify={() => void handleAction('modify')}
+        />
       </div>
-    </div>
+    </dialog>
   );
 }

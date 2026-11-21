@@ -390,6 +390,40 @@ function mergeSearcherAttributes(searcher, manualAttributes) {
   return searcherAttributes;
 }
 
+async function applyQuerySearch({ sql, args, query, mode }) {
+  if (!query) {
+    return { sql, args };
+  }
+
+  if (mode === 'semantic') {
+    const embeddingProvider = getEmbeddingProvider();
+    if (embeddingProvider.isAvailable()) {
+      const queryEmb = await embeddingProvider.generateEmbedding(query);
+      if (Array.isArray(queryEmb) && queryEmb.length > 0) {
+        const candidateRows = await db
+          .prepare('SELECT wish_id, embedding FROM wish_embeddings')
+          .all();
+        const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
+          minScore: 0.15,
+          limit: 50,
+        });
+        if (ranked.length > 0) {
+          const rankedIds = ranked.map((r) => r.wish_id);
+          return {
+            sql: `${sql} AND w.id IN (SELECT value FROM json_each(?))`,
+            args: [...args, JSON.stringify(rankedIds)],
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    sql: `${sql} AND w.content LIKE ?`,
+    args: [...args, `%${query}%`],
+  };
+}
+
 router.get('/', async (req, res) => {
   const searcher = await getRequestUser(req);
   const query = (req.query.q || '').trim();
@@ -413,33 +447,7 @@ router.get('/', async (req, res) => {
     'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1)';
   let args = [];
 
-  let usedSemanticSearch = false;
-  if (query && req.query.mode === 'semantic') {
-    const embeddingProvider = getEmbeddingProvider();
-    if (embeddingProvider.isAvailable()) {
-      const queryEmb = await embeddingProvider.generateEmbedding(query);
-      if (Array.isArray(queryEmb) && queryEmb.length > 0) {
-        const candidateRows = await db
-          .prepare('SELECT wish_id, embedding FROM wish_embeddings')
-          .all();
-        const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
-          minScore: 0.15,
-          limit: 50,
-        });
-        if (ranked.length > 0) {
-          const rankedIds = ranked.map((r) => r.wish_id);
-          sql += ' AND w.id IN (SELECT value FROM json_each(?))';
-          args.push(JSON.stringify(rankedIds));
-          usedSemanticSearch = true;
-        }
-      }
-    }
-  }
-
-  if (query && !usedSemanticSearch) {
-    sql += ' AND w.content LIKE ?';
-    args.push(`%${query}%`);
-  }
+  ({ sql, args } = await applyQuerySearch({ sql, args, query, mode: req.query.mode }));
 
   if (req.query.ids) {
     const filterIds = parseQueryIds(req.query.ids);
@@ -690,6 +698,54 @@ router.get('/:id/suggestions', async (req, res) => {
   );
 });
 
+function mergeSuggestionAttributes(existing, suggested) {
+  const result = { ...existing };
+  for (const [cat, vals] of Object.entries(suggested)) {
+    if (Array.isArray(vals) && vals.length > 0) {
+      result[cat] = Array.from(new Set([...(result[cat] || []), ...vals]));
+    }
+  }
+  return result;
+}
+
+function resolveReviewedAttributes(action, wishRow, suggestion, body) {
+  let creator = parseJsonObject(wishRow.creator_attributes);
+  let desired = parseJsonObject(wishRow.desired_attributes);
+
+  if (action === 'accept') {
+    creator = mergeSuggestionAttributes(
+      creator,
+      parseJsonObject(suggestion.suggested_creator_attributes)
+    );
+    desired = mergeSuggestionAttributes(
+      desired,
+      parseJsonObject(suggestion.suggested_desired_attributes)
+    );
+  } else if (action === 'modify') {
+    if (body.creator_attributes) {
+      creator = parseAttributesInput(body.creator_attributes);
+    }
+    if (body.desired_attributes) {
+      desired = parseAttributesInput(body.desired_attributes);
+    }
+  }
+
+  return { creator, desired };
+}
+
+function validateAttributesConflicts(creatorAttrs, desiredAttrs) {
+  const rules = getRules();
+  const creatorConflicts = getExclusionConflicts(creatorAttrs, rules);
+  if (creatorConflicts.length > 0) {
+    return `Validation failed: Creator attributes conflict. ${creatorConflicts.map((c) => c.message).join(' ')}`;
+  }
+  const desiredConflicts = getExclusionConflicts(desiredAttrs, rules);
+  if (desiredConflicts.length > 0) {
+    return `Validation failed: Desired criteria conflict. ${desiredConflicts.map((c) => c.message).join(' ')}`;
+  }
+  return null;
+}
+
 router.post('/:id/suggestions/:action', async (req, res) => {
   const { action, id } = req.params;
   if (!['accept', 'reject', 'modify'].includes(action)) {
@@ -721,62 +777,26 @@ router.post('/:id/suggestions/:action', async (req, res) => {
     return res.json({ success: true, message: 'Suggestion rejected.' });
   }
 
-  let newCreatorAttrs = parseJsonObject(wishRow.creator_attributes);
-  let newDesiredAttrs = parseJsonObject(wishRow.desired_attributes);
-
-  if (action === 'accept') {
-    const suggCreator = parseJsonObject(suggestion.suggested_creator_attributes);
-    const suggDesired = parseJsonObject(suggestion.suggested_desired_attributes);
-
-    for (const [cat, vals] of Object.entries(suggCreator)) {
-      if (Array.isArray(vals) && vals.length > 0) {
-        newCreatorAttrs[cat] = Array.from(new Set([...(newCreatorAttrs[cat] || []), ...vals]));
-      }
-    }
-    for (const [cat, vals] of Object.entries(suggDesired)) {
-      if (Array.isArray(vals) && vals.length > 0) {
-        newDesiredAttrs[cat] = Array.from(new Set([...(newDesiredAttrs[cat] || []), ...vals]));
-      }
-    }
-
-    await db
-      .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
-      .run('accepted', now, suggestion.id);
-  } else if (action === 'modify') {
-    const { creator_attributes, desired_attributes } = req.body;
-    if (creator_attributes) {
-      newCreatorAttrs = parseAttributesInput(creator_attributes);
-    }
-    if (desired_attributes) {
-      newDesiredAttrs = parseAttributesInput(desired_attributes);
-    }
-    await db
-      .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
-      .run('modified', now, suggestion.id);
+  const { creator, desired } = resolveReviewedAttributes(action, wishRow, suggestion, req.body);
+  const conflictError = validateAttributesConflicts(creator, desired);
+  if (conflictError) {
+    return res.status(400).json({ error: conflictError });
   }
 
-  const rules = getRules();
-  const creatorConflicts = getExclusionConflicts(newCreatorAttrs, rules);
-  if (creatorConflicts.length > 0) {
-    return res.status(400).json({
-      error: `Validation failed: Creator attributes conflict. ${creatorConflicts.map((c) => c.message).join(' ')}`,
-    });
-  }
-  const desiredConflicts = getExclusionConflicts(newDesiredAttrs, rules);
-  if (desiredConflicts.length > 0) {
-    return res.status(400).json({
-      error: `Validation failed: Desired criteria conflict. ${desiredConflicts.map((c) => c.message).join(' ')}`,
-    });
-  }
+  const statusVal = action === 'accept' ? 'accepted' : 'modified';
+  await db
+    .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
+    .run(statusVal, now, suggestion.id);
 
   await db
     .prepare(
       'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
     )
-    .run(JSON.stringify(newCreatorAttrs), JSON.stringify(newDesiredAttrs), now, id);
+    .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
 
   logger.info('Wish updated from AI suggestion', { wish_id: id, action });
-  return res.json({ success: true, message: `Suggestion ${action}ed successfully.` });
+  const actionPastTense = action === 'accept' ? 'accepted' : 'modified';
+  return res.json({ success: true, message: `Suggestion ${actionPastTense} successfully.` });
 });
 
 router.post('/:id/deactivate', async (req, res) => {

@@ -1,5 +1,73 @@
 import { InferenceProvider, EmbeddingProvider } from './interfaces.js';
 
+function isTermAssignedToDesired(
+  text,
+  termIdx,
+  seekingIndicators,
+  hasSeekingContext,
+  hasSelfContext
+) {
+  for (const ind of seekingIndicators) {
+    const indIdx = text.indexOf(ind);
+    if (indIdx !== -1 && indIdx < termIdx) {
+      return true;
+    }
+  }
+  return hasSeekingContext && !hasSelfContext;
+}
+
+function appendAttributeSuggestion(targetObj, catId, term, existingArr = []) {
+  const termLower = term.toLowerCase();
+  if (existingArr.some((e) => e.toLowerCase() === termLower)) {
+    return;
+  }
+  targetObj[catId] = targetObj[catId] || [];
+  if (!targetObj[catId].includes(term)) {
+    targetObj[catId].push(term);
+  }
+}
+
+function processCategoryTerms(category, text, context, state) {
+  const catId = category.id;
+  const suggestions = category.suggestions || [];
+
+  for (const term of suggestions) {
+    const termLower = term.toLowerCase();
+    const regexPattern = String.raw`\b${escapeRegExp(termLower)}\b`;
+    const matches = [...text.matchAll(new RegExp(regexPattern, 'gi'))];
+    if (matches.length === 0) continue;
+
+    state.matchedTerms.push(term);
+
+    for (const match of matches) {
+      const termIdx = match.index ?? 0;
+      const assignedToDesired = isTermAssignedToDesired(
+        text,
+        termIdx,
+        context.seekingIndicators,
+        context.hasSeekingContext,
+        context.hasSelfContext
+      );
+
+      if (assignedToDesired) {
+        appendAttributeSuggestion(
+          state.suggestedDesired,
+          catId,
+          term,
+          state.existingDesired[catId]
+        );
+      } else {
+        appendAttributeSuggestion(
+          state.suggestedCreator,
+          catId,
+          term,
+          state.existingCreator[catId]
+        );
+      }
+    }
+  }
+}
+
 /**
  * Lightweight, zero-dependency local inference provider suitable for edge
  * hardware (Raspberry Pi 4) and offline convention environments.
@@ -34,67 +102,33 @@ export class LocalInferenceProvider extends InferenceProvider {
     taxonomy = [],
   }) {
     const text = content.toLowerCase();
-    const suggestedCreator = {};
-    const suggestedDesired = {};
-    const matchedTerms = [];
-
-    // Simple context splitting heuristics
     const seekingIndicators = ['looking for', 'seeking', 'want', 'interested in', 'iso', 'desired'];
     const selfIndicators = ['i am', "i'm", 'myself', 'as a'];
 
-    const hasSeekingContext = seekingIndicators.some((indicator) => text.includes(indicator));
-    const hasSelfContext = selfIndicators.some((indicator) => text.includes(indicator));
+    const context = {
+      seekingIndicators,
+      hasSeekingContext: seekingIndicators.some((indicator) => text.includes(indicator)),
+      hasSelfContext: selfIndicators.some((indicator) => text.includes(indicator)),
+    };
+
+    const state = {
+      suggestedCreator: {},
+      suggestedDesired: {},
+      matchedTerms: [],
+      existingCreator: existingCreatorAttributes,
+      existingDesired: existingDesiredAttributes,
+    };
 
     for (const category of taxonomy) {
-      const catId = category.id;
-      const suggestions = category.suggestions || [];
-
-      for (const term of suggestions) {
-        const termLower = term.toLowerCase();
-        const matches = [...text.matchAll(new RegExp(`\\b${escapeRegExp(termLower)}\\b`, 'gi'))];
-        if (matches.length > 0) {
-          matchedTerms.push(term);
-
-          for (const match of matches) {
-            const termIdx = match.index ?? 0;
-            let assignedToDesired = false;
-
-            for (const ind of seekingIndicators) {
-              const indIdx = text.indexOf(ind);
-              if (indIdx !== -1 && indIdx < termIdx) {
-                assignedToDesired = true;
-                break;
-              }
-            }
-
-            if (assignedToDesired || (hasSeekingContext && !hasSelfContext)) {
-              const existing = existingDesiredAttributes[catId] || [];
-              if (!existing.some((e) => e.toLowerCase() === termLower)) {
-                suggestedDesired[catId] = suggestedDesired[catId] || [];
-                if (!suggestedDesired[catId].includes(term)) {
-                  suggestedDesired[catId].push(term);
-                }
-              }
-            } else {
-              const existing = existingCreatorAttributes[catId] || [];
-              if (!existing.some((e) => e.toLowerCase() === termLower)) {
-                suggestedCreator[catId] = suggestedCreator[catId] || [];
-                if (!suggestedCreator[catId].includes(term)) {
-                  suggestedCreator[catId].push(term);
-                }
-              }
-            }
-          }
-        }
-      }
+      processCategoryTerms(category, text, context, state);
     }
 
     return {
-      suggestedCreatorAttributes: suggestedCreator,
-      suggestedDesiredAttributes: suggestedDesired,
+      suggestedCreatorAttributes: state.suggestedCreator,
+      suggestedDesiredAttributes: state.suggestedDesired,
       reasoning:
-        matchedTerms.length > 0
-          ? `Local inference matched taxonomy keywords: ${matchedTerms.join(', ')}`
+        state.matchedTerms.length > 0
+          ? `Local inference matched taxonomy keywords: ${state.matchedTerms.join(', ')}`
           : 'No taxonomy terms identified in wish text',
     };
   }
@@ -158,15 +192,14 @@ export class LocalEmbeddingProvider extends EmbeddingProvider {
 }
 
 function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 function hashString(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0; // Convert to 32bit integer
+    const char = str.codePointAt(i) || 0;
+    hash = Math.trunc((hash << 5) - hash + char);
   }
   return hash;
 }
