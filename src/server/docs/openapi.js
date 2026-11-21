@@ -102,6 +102,8 @@ export const WishSchema = registry.register(
     allow_wishmail: z.boolean().default(true).openapi({ example: true }),
     image_url: z.string().nullable().optional().openapi({ example: '/images/card_123.jpg' }),
     card_style: CardStyleSchema.optional(),
+    has_ai_suggestions: z.boolean().optional().openapi({ example: false }),
+    pending_suggestions_count: z.number().optional().openapi({ example: 0 }),
   })
 );
 
@@ -192,6 +194,32 @@ export const ExclusionImportInputSchema = registry.register(
       .array(z.string())
       .optional()
       .openapi({ example: ['wish_k9x2m', 'wish_abc12'] }),
+  })
+);
+
+export const WishAiSuggestionSchema = registry.register(
+  'WishAiSuggestion',
+  z.object({
+    id: z.string().openapi({ example: 'sug_12345678' }),
+    wish_id: z.string().openapi({ example: 'wish_k9x2m' }),
+    suggested_creator_attributes: z
+      .record(z.any())
+      .openapi({ example: { genders: ['woman'], roles: ['switch'] } }),
+    suggested_desired_attributes: z
+      .record(z.any())
+      .openapi({ example: { genders: ['man'], roles: ['top'] } }),
+    status: z.enum(['pending', 'accepted', 'rejected', 'modified']).openapi({ example: 'pending' }),
+    created_at: z.string().openapi({ example: '2026-10-13T20:00:00.000Z' }),
+    reviewed_at: z.string().nullable().optional().openapi({ example: null }),
+  })
+);
+
+export const WishAiSuggestionActionInputSchema = registry.register(
+  'WishAiSuggestionActionInput',
+  z.object({
+    secret: z.string().optional().openapi({ example: 'apple-river-forest' }),
+    creator_attributes: z.record(z.any()).optional(),
+    desired_attributes: z.record(z.any()).optional(),
   })
 );
 
@@ -644,6 +672,12 @@ addWishRoute({
       schema: { type: 'string' },
       description: 'Include excluded wishes when set to 1 or true',
     },
+    {
+      name: 'mode',
+      in: 'query',
+      schema: { type: 'string', enum: ['standard', 'semantic'], default: 'standard' },
+      description: 'Search mode: standard SQL text filter or vector semantic similarity',
+    },
   ],
 });
 
@@ -742,6 +776,37 @@ addWishRoute({
   requestSchema: z.object({ reason: z.string().optional() }),
   responseSchema: SuccessResponseSchema,
   params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+});
+
+addWishRoute({
+  method: 'get',
+  path: '/api/wishes/{id}/suggestions',
+  summary: 'Retrieve AI suggestions for a wish',
+  description:
+    'Fetches pending or generated AI attribute suggestions for the wish creator to review.',
+  responseSchema: z.array(WishAiSuggestionSchema),
+  params: [
+    { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    { name: 'secret', in: 'query', schema: { type: 'string' }, description: 'Creator passphrase' },
+  ],
+});
+
+addWishRoute({
+  method: 'post',
+  path: '/api/wishes/{id}/suggestions/{action}',
+  summary: 'Review AI suggestion for a wish',
+  description: 'Accepts, rejects, or modifies AI attribute suggestions.',
+  requestSchema: WishAiSuggestionActionInputSchema,
+  responseSchema: SuccessResponseSchema,
+  params: [
+    { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    {
+      name: 'action',
+      in: 'path',
+      required: true,
+      schema: { type: 'string', enum: ['accept', 'reject', 'modify'] },
+    },
+  ],
 });
 
 addAuthUserRoute({

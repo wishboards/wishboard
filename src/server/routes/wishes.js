@@ -54,6 +54,7 @@ import {
   normalizeArrayInput,
   createSalt,
   requireAuth,
+  parseJsonObject,
 } from '../auth.js';
 import { generatePassphrase } from '../../client/src/passphrase.js';
 import logger from '../logger.js';
@@ -62,6 +63,8 @@ import { emitNewWish, emitWishFlagged, emitWishDeleted } from '../socket.js';
 import { ensureArray } from '../utils/arrays.js';
 import { validateBody } from '../utils/validation.js';
 import { CreateWishInputSchema } from '../docs/openapi.js';
+import { queueWishForTagging } from '../ai/taggingWorker.js';
+import { getEmbeddingProvider, rankWishesBySimilarity } from '../ai/index.js';
 
 export const CARD_PAPER_COLORS = ['ivory', 'canary', 'rose', 'sky', 'sage'];
 export const CARD_PIN_COLORS = ['ruby', 'amber', 'emerald', 'sapphire', 'violet'];
@@ -234,6 +237,13 @@ router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), as
   };
   emitNewWish(newWish);
 
+  queueWishForTagging({
+    wishId: id,
+    content: content.trim(),
+    creatorAttributes: creatorAttrs,
+    desiredAttributes: desiredAttrs,
+  });
+
   res.status(201).json({ id, secret });
 });
 
@@ -380,6 +390,40 @@ function mergeSearcherAttributes(searcher, manualAttributes) {
   return searcherAttributes;
 }
 
+async function applyQuerySearch({ sql, args, query, mode }) {
+  if (!query) {
+    return { sql, args };
+  }
+
+  if (mode === 'semantic') {
+    const embeddingProvider = getEmbeddingProvider();
+    if (embeddingProvider.isAvailable()) {
+      const queryEmb = await embeddingProvider.generateEmbedding(query);
+      if (Array.isArray(queryEmb) && queryEmb.length > 0) {
+        const candidateRows = await db
+          .prepare('SELECT wish_id, embedding FROM wish_embeddings')
+          .all();
+        const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
+          minScore: 0.15,
+          limit: 50,
+        });
+        if (ranked.length > 0) {
+          const rankedIds = ranked.map((r) => r.wish_id);
+          return {
+            sql: `${sql} AND w.id IN (SELECT value FROM json_each(?))`,
+            args: [...args, JSON.stringify(rankedIds)],
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    sql: `${sql} AND w.content LIKE ?`,
+    args: [...args, `%${query}%`],
+  };
+}
+
 router.get('/', async (req, res) => {
   const searcher = await getRequestUser(req);
   const query = (req.query.q || '').trim();
@@ -403,10 +447,7 @@ router.get('/', async (req, res) => {
     'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1)';
   let args = [];
 
-  if (query) {
-    sql += ' AND w.content LIKE ?';
-    args.push(`%${query}%`);
-  }
+  ({ sql, args } = await applyQuerySearch({ sql, args, query, mode: req.query.mode }));
 
   if (req.query.ids) {
     const filterIds = parseQueryIds(req.query.ids);
@@ -532,7 +573,7 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
   const row = await db
     .prepare(
-      'SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id, card_style FROM wishes WHERE id = ?'
+      "SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wish_ai_suggestions was WHERE was.wish_id = wishes.id AND was.status = 'pending') AS pending_suggestions_count FROM wishes WHERE id = ?"
     )
     .get(id);
   if (!row) {
@@ -542,15 +583,21 @@ router.get('/:id', async (req, res) => {
   row.wishmail_enabled = Boolean(row.wishmail_enabled);
   row.is_active = Boolean(row.is_active);
   row.card_style = parseCardStyle(row.card_style);
+  row.pending_suggestions_count = Number(row.pending_suggestions_count || 0);
+  row.has_ai_suggestions = row.pending_suggestions_count > 0;
   res.json(row);
 });
 
 const getAuthorizedWish = async (req, res) => {
   const { id } = req.params;
-  const secret = req.body?.secret;
+  const secret = req.body?.secret || req.query?.secret || req.headers['x-passphrase'];
   const user = await getRequestUser(req);
 
-  const row = await db.prepare('SELECT secret_hash, user_id FROM wishes WHERE id = ?').get(id);
+  const row = await db
+    .prepare(
+      'SELECT secret_hash, user_id, creator_attributes, desired_attributes FROM wishes WHERE id = ?'
+    )
+    .get(id);
   if (!row) {
     res.status(404).json({ error: 'Wish not found.' });
     return null;
@@ -584,6 +631,8 @@ router.post('/:id/manage', async (req, res) => {
   if (action === 'delete') {
     await db.prepare('DELETE FROM wishmails WHERE wish_id = ?').run(id);
     await db.prepare('DELETE FROM wish_exclusions WHERE wish_id = ?').run(id);
+    await db.prepare('DELETE FROM wish_ai_suggestions WHERE wish_id = ?').run(id);
+    await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(id);
     await db.prepare('DELETE FROM wishes WHERE id = ?').run(id);
     logger.info('Wish deleted by owner', { user_id: user?.id, wish_id: id });
     emitWishDeleted(id);
@@ -611,10 +660,143 @@ router.post('/:id/manage', async (req, res) => {
       )
       .run(content.trim(), JSON.stringify(parsedContacts), wme, secretHashToUpdate, now, id);
 
+    queueWishForTagging({
+      wishId: id,
+      content: content.trim(),
+      creatorAttributes: parseJsonSafe(row.creator_attributes),
+      desiredAttributes: parseJsonSafe(row.desired_attributes),
+    });
+
     return res.json({ success: true, newSecret });
   }
 
   res.status(400).json({ error: 'Invalid update payload.' });
+});
+
+router.get('/:id/suggestions', async (req, res) => {
+  const auth = await getAuthorizedWish(req, res);
+  if (!auth) return;
+  const { id } = auth;
+
+  const rows = await db
+    .prepare(
+      'SELECT id, wish_id, suggested_creator_attributes, suggested_desired_attributes, reasoning, status, created_at, updated_at FROM wish_ai_suggestions WHERE wish_id = ? ORDER BY created_at DESC'
+    )
+    .all(id);
+
+  res.json(
+    rows.map((row) => ({
+      id: row.id,
+      wish_id: row.wish_id,
+      suggested_creator_attributes: parseJsonObject(row.suggested_creator_attributes),
+      suggested_desired_attributes: parseJsonObject(row.suggested_desired_attributes),
+      reasoning: row.reasoning,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }))
+  );
+});
+
+function mergeSuggestionAttributes(existing, suggested) {
+  const result = { ...existing };
+  for (const [cat, vals] of Object.entries(suggested)) {
+    if (Array.isArray(vals) && vals.length > 0) {
+      result[cat] = Array.from(new Set([...(result[cat] || []), ...vals]));
+    }
+  }
+  return result;
+}
+
+function resolveReviewedAttributes(action, wishRow, suggestion, body) {
+  let creator = parseJsonObject(wishRow.creator_attributes);
+  let desired = parseJsonObject(wishRow.desired_attributes);
+
+  if (action === 'accept') {
+    creator = mergeSuggestionAttributes(
+      creator,
+      parseJsonObject(suggestion.suggested_creator_attributes)
+    );
+    desired = mergeSuggestionAttributes(
+      desired,
+      parseJsonObject(suggestion.suggested_desired_attributes)
+    );
+  } else if (action === 'modify') {
+    if (body.creator_attributes) {
+      creator = parseAttributesInput(body.creator_attributes);
+    }
+    if (body.desired_attributes) {
+      desired = parseAttributesInput(body.desired_attributes);
+    }
+  }
+
+  return { creator, desired };
+}
+
+function validateAttributesConflicts(creatorAttrs, desiredAttrs) {
+  const rules = getRules();
+  const creatorConflicts = getExclusionConflicts(creatorAttrs, rules);
+  if (creatorConflicts.length > 0) {
+    return `Validation failed: Creator attributes conflict. ${creatorConflicts.map((c) => c.message).join(' ')}`;
+  }
+  const desiredConflicts = getExclusionConflicts(desiredAttrs, rules);
+  if (desiredConflicts.length > 0) {
+    return `Validation failed: Desired criteria conflict. ${desiredConflicts.map((c) => c.message).join(' ')}`;
+  }
+  return null;
+}
+
+router.post('/:id/suggestions/:action', async (req, res) => {
+  const { action, id } = req.params;
+  if (!['accept', 'reject', 'modify'].includes(action)) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid suggestion action. Must be accept, reject, or modify.' });
+  }
+
+  const auth = await getAuthorizedWish(req, res);
+  if (!auth) return;
+  const { row: wishRow } = auth;
+
+  const suggestion = await db
+    .prepare(
+      'SELECT id, suggested_creator_attributes, suggested_desired_attributes, status FROM wish_ai_suggestions WHERE wish_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1'
+    )
+    .get(id, 'pending');
+
+  if (!suggestion) {
+    return res.status(404).json({ error: 'No pending AI suggestions found for this wish.' });
+  }
+
+  const now = new Date().toISOString();
+
+  if (action === 'reject') {
+    await db
+      .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
+      .run('rejected', now, suggestion.id);
+    return res.json({ success: true, message: 'Suggestion rejected.' });
+  }
+
+  const { creator, desired } = resolveReviewedAttributes(action, wishRow, suggestion, req.body);
+  const conflictError = validateAttributesConflicts(creator, desired);
+  if (conflictError) {
+    return res.status(400).json({ error: conflictError });
+  }
+
+  const statusVal = action === 'accept' ? 'accepted' : 'modified';
+  await db
+    .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
+    .run(statusVal, now, suggestion.id);
+
+  await db
+    .prepare(
+      'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
+    )
+    .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
+
+  logger.info('Wish updated from AI suggestion', { wish_id: id, action });
+  const actionPastTense = action === 'accept' ? 'accepted' : 'modified';
+  return res.json({ success: true, message: `Suggestion ${actionPastTense} successfully.` });
 });
 
 router.post('/:id/deactivate', async (req, res) => {

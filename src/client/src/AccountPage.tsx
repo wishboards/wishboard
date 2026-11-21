@@ -13,6 +13,8 @@ import ConfirmDeleteAccountModal from './components/ConfirmDeleteAccountModal';
 import { parseAttributesString, fetchConflicts, getConflictWarning } from './utils/conflicts';
 import { useEventProfile, Category } from './EventProfileContext';
 import { apiClient, bearerHeader } from './api/client';
+import AiSuggestionBadge from './components/AiSuggestionBadge';
+import AiSuggestionModal from './components/AiSuggestionModal';
 
 // eslint-disable-next-line react-refresh/only-export-components -- Exported hook co-located with AccountPage for unit testing
 export function useUsernameExistence(username: string) {
@@ -291,6 +293,8 @@ interface Wish {
   image_id?: string;
   image_url?: string;
   unread_wishmail_count?: number;
+  has_ai_suggestions?: boolean;
+  pending_suggestions_count?: number;
 }
 
 const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: string }> = [
@@ -563,6 +567,7 @@ function AuthenticatedAccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [hiddenWishes, setHiddenWishes] = useState<Wish[]>([]);
+  const [aiSuggestionWishId, setAiSuggestionWishId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePreview, setDeletePreview] = useState<{
     wishesCount: number;
@@ -868,6 +873,17 @@ function AuthenticatedAccountPage() {
                     }}
                     unreadWishmailCount={wish.unread_wishmail_count}
                   />
+                  {Boolean(
+                    wish.has_ai_suggestions ||
+                    (wish.pending_suggestions_count && wish.pending_suggestions_count > 0)
+                  ) && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
+                      <AiSuggestionBadge
+                        count={wish.pending_suggestions_count || 1}
+                        onClick={() => setAiSuggestionWishId(wish.id)}
+                      />
+                    </div>
+                  )}
                   {!wish.is_active && (
                     <div
                       style={{
@@ -1242,6 +1258,17 @@ function AuthenticatedAccountPage() {
           deleteError={deleteError}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {aiSuggestionWishId && (
+        <AiSuggestionModal
+          wishId={aiSuggestionWishId}
+          token={token}
+          onClose={() => setAiSuggestionWishId(null)}
+          onApplied={() => {
+            void loadWishes();
+          }}
         />
       )}
     </section>

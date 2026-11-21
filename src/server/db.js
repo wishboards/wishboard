@@ -144,6 +144,25 @@ await db.executeMultiple(`
     value TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS wish_ai_suggestions (
+    id TEXT PRIMARY KEY,
+    wish_id TEXT NOT NULL,
+    suggested_creator_attributes TEXT,
+    suggested_desired_attributes TEXT,
+    reasoning TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(wish_id) REFERENCES wishes(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS wish_embeddings (
+    wish_id TEXT PRIMARY KEY,
+    embedding TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(wish_id) REFERENCES wishes(id) ON DELETE CASCADE
+  );
 `);
 
 // WAL is opt-in for single-node deployments (the Pi/kiosk, set via

@@ -211,6 +211,14 @@
           },
           "card_style": {
             "$ref": "#/components/schemas/CardStyle"
+          },
+          "has_ai_suggestions": {
+            "type": "boolean",
+            "example": false
+          },
+          "pending_suggestions_count": {
+            "type": "number",
+            "example": 0
           }
         },
         "required": [
@@ -440,6 +448,95 @@
               "wish_k9x2m",
               "wish_abc12"
             ]
+          }
+        }
+      },
+      "WishAiSuggestion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "sug_12345678"
+          },
+          "wish_id": {
+            "type": "string",
+            "example": "wish_k9x2m"
+          },
+          "suggested_creator_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "example": {
+              "genders": [
+                "woman"
+              ],
+              "roles": [
+                "switch"
+              ]
+            }
+          },
+          "suggested_desired_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            },
+            "example": {
+              "genders": [
+                "man"
+              ],
+              "roles": [
+                "top"
+              ]
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "rejected",
+              "modified"
+            ],
+            "example": "pending"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-10-13T20:00:00.000Z"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "id",
+          "wish_id",
+          "suggested_creator_attributes",
+          "suggested_desired_attributes",
+          "status",
+          "created_at"
+        ]
+      },
+      "WishAiSuggestionActionInput": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "example": "apple-river-forest"
+          },
+          "creator_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          },
+          "desired_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
           }
         }
       },
@@ -1227,6 +1324,19 @@
               "type": "string"
             },
             "description": "Include excluded wishes when set to 1 or true"
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "semantic"
+              ],
+              "default": "standard"
+            },
+            "description": "Search mode: standard SQL text filter or vector semantic similarity"
           }
         ],
         "responses": {
@@ -1562,6 +1672,101 @@
         "responses": {
           "200": {
             "description": "Report / flag an inappropriate wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/suggestions": {
+      "get": {
+        "tags": [
+          "Wishes"
+        ],
+        "summary": "Retrieve AI suggestions for a wish",
+        "description": "Fetches pending or generated AI attribute suggestions for the wish creator to review.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "secret",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Creator passphrase"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retrieve AI suggestions for a wish response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WishAiSuggestion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wishes/{id}/suggestions/{action}": {
+      "post": {
+        "tags": [
+          "Wishes"
+        ],
+        "summary": "Review AI suggestion for a wish",
+        "description": "Accepts, rejects, or modifies AI attribute suggestions.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "accept",
+                "reject",
+                "modify"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WishAiSuggestionActionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Review AI suggestion for a wish response",
             "content": {
               "application/json": {
                 "schema": {

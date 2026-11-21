@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import InfoToggle from '../components/InfoToggle';
 import WishPreview from '../components/WishPreview';
 import WishFormFields from '../components/WishFormFields';
 import { useAuth } from '../AuthContext';
 import PassphraseInput from '../components/PassphraseInput';
+import { apiClient, bearerHeader } from '../api/client';
+import AiSuggestionBadge from '../components/AiSuggestionBadge';
+import AiSuggestionModal from '../components/AiSuggestionModal';
 
 function parseInitialManageParams(): {
   initialError: string | null;
@@ -55,6 +58,30 @@ export default function ManageWishPage() {
   const [newPassphrase, setNewPassphrase] = useState(initialParams.secret);
   const [error, setError] = useState<string | null>(initialParams.initialError);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
+  const [showAiModal, setShowAiModal] = useState(false);
+
+  const checkAiSuggestions = useCallback(
+    async (id: string, currentSecret: string) => {
+      try {
+        const queryParams: { secret?: string } = {};
+        if (currentSecret) {
+          queryParams.secret = currentSecret;
+        }
+        const { data, response } = await apiClient.GET('/api/wishes/{id}/suggestions', {
+          params: { path: { id }, query: queryParams },
+          headers: bearerHeader(token),
+        });
+        if (response.ok && data) {
+          const pendingCount = data.filter((s) => s.status === 'pending').length;
+          setPendingSuggestionsCount(pendingCount);
+        }
+      } catch {
+        // Ignore
+      }
+    },
+    [token]
+  );
 
   useEffect(() => {
     if (!initialParams.wishId || initialParams.initialError) {
@@ -63,24 +90,31 @@ export default function ManageWishPage() {
 
     const controller = new AbortController();
 
-    fetch(`/api/wishes/${encodeURIComponent(initialParams.wishId)}`, {
+    const req = fetch(`/api/wishes/${encodeURIComponent(initialParams.wishId)}`, {
       signal: controller.signal,
-    })
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error('Wish not found');
-      })
-      .then((data) => {
-        setWish(data);
-        setContent(data.content);
-        setContacts(data.contacts || []);
-        setWishmailEnabled(data.wishmail_enabled || false);
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          setError(err.message);
-        }
-      });
+    });
+
+    if (req?.then) {
+      req
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error('Wish not found');
+        })
+        .then((data) => {
+          setWish(data);
+          setContent(data.content);
+          setContacts(data.contacts || []);
+          setWishmailEnabled(data.wishmail_enabled || false);
+          if (typeof data.pending_suggestions_count === 'number') {
+            setPendingSuggestionsCount(data.pending_suggestions_count);
+          }
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError') {
+            setError(err.message);
+          }
+        });
+    }
 
     return () => controller.abort();
   }, [initialParams.wishId, initialParams.initialError]);
@@ -232,19 +266,22 @@ export default function ManageWishPage() {
           </h1>
           <p style={{ marginTop: 0 }}>Edit the content of your wish or delete it permanently.</p>
         </div>
-        {wish.wishmail_enabled && (
-          <a
-            href={
-              '#wishmail-dashboard?id=' +
-              wish.id +
-              (secret ? '&secret=' + encodeURIComponent(secret) : '')
-            }
-            className="compact-btn"
-            style={{ background: '#1a73e8', textDecoration: 'none' }}
-          >
-            View Wishmail
-          </a>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AiSuggestionBadge count={pendingSuggestionsCount} onClick={() => setShowAiModal(true)} />
+          {wish.wishmail_enabled && (
+            <a
+              href={
+                '#wishmail-dashboard?id=' +
+                wish.id +
+                (secret ? '&secret=' + encodeURIComponent(secret) : '')
+              }
+              className="compact-btn"
+              style={{ background: '#1a73e8', textDecoration: 'none' }}
+            >
+              View Wishmail
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="wish-editor-layout">
@@ -312,6 +349,18 @@ export default function ManageWishPage() {
         <div className="message error" style={{ marginTop: '24px' }}>
           {error}
         </div>
+      )}
+
+      {showAiModal && wish && (
+        <AiSuggestionModal
+          wishId={wish.id}
+          secret={secret}
+          token={token}
+          onClose={() => setShowAiModal(false)}
+          onApplied={() => {
+            void checkAiSuggestions(wish.id, secret);
+          }}
+        />
       )}
     </section>
   );
