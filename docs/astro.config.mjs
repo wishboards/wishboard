@@ -49,6 +49,7 @@ export default defineConfig({
             { label: 'Hardware & Kiosk Validation Matrix', slug: 'hardware-validation-matrix' },
             { label: 'Event Profiles', slug: 'event-profiles' },
             { label: 'Matching Rules', slug: 'matching-rules' },
+            { label: 'Optional AI & Semantic Search', slug: 'ai-features' },
             { label: 'Mutation Testing', slug: 'mutation-testing' },
             { label: 'UI Component Catalog (Storybook)', slug: 'component-catalog' },
           ],
