@@ -105,6 +105,10 @@ If you need to inject special environment variables (like changing the default a
    # Add your custom overrides here:
    WISHBOARD_ADMIN_USERNAME=event_admin
    WISHBOARD_ADMIN_SECRET=SuperSecretPassword123
+
+   # Optional AI Features & Semantic Search (offline heuristics on Pi 4)
+   ENABLE_AI_FEATURES=true
+   AI_PROVIDER=local
    ```
 
 4. Restart the Docker container so it picks up the new environment variables:

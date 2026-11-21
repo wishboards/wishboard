@@ -14,6 +14,7 @@ Offline wish board for conventions, built to run on a Raspberry Pi or similar lo
 - Support admin review and removal of flagged content
 - Use a lightweight local database and open source stack
 - Support identity-aware search compatibility for wishes and users
+- Optional, privacy-preserving AI assistance (tag extraction & semantic search with $0 offline heuristics or free-tier cloud)
 
 ## Architecture
 
@@ -94,6 +95,7 @@ The documentation includes:
 - **Matching Rules** - Deep dive into the identity matchmaking engine.
 - **Event Profiles** - Guide for managing multiple event configurations.
 - **Architecture & Design** - Technical decisions (ADRs) and design documents.
+- **Optional AI & Semantic Search** - Guide for local/cloud AI assistance and review flows.
 - **Forking Guide** - Setup instructions for bootstrapping CI pipelines on a fork.
 
 The raw Markdown source files for the documentation are located in `docs/src/content/docs/`.
