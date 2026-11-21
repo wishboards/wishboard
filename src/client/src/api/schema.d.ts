@@ -73,6 +73,8 @@ export interface paths {
           ignore_attributes?: string;
           /** @description Include excluded wishes when set to 1 or true */
           include_excluded?: string;
+          /** @description Search mode: standard SQL text filter or vector semantic similarity */
+          mode?: 'standard' | 'semantic';
         };
         header?: never;
         path?: never;
@@ -435,6 +437,96 @@ export interface paths {
       };
       responses: {
         /** @description Report / flag an inappropriate wish response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SuccessResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/wishes/{id}/suggestions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Retrieve AI suggestions for a wish
+     * @description Fetches pending or generated AI attribute suggestions for the wish creator to review.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Creator passphrase */
+          secret?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Retrieve AI suggestions for a wish response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['WishAiSuggestion'][];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/wishes/{id}/suggestions/{action}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Review AI suggestion for a wish
+     * @description Accepts, rejects, or modifies AI attribute suggestions.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+          action: 'accept' | 'reject' | 'modify';
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['WishAiSuggestionActionInput'];
+        };
+      };
+      responses: {
+        /** @description Review AI suggestion for a wish response */
         200: {
           headers: {
             [name: string]: unknown;
@@ -3017,6 +3109,10 @@ export interface components {
       /** @example /images/card_123.jpg */
       image_url?: string | null;
       card_style?: components['schemas']['CardStyle'];
+      /** @example false */
+      has_ai_suggestions?: boolean;
+      /** @example 0 */
+      pending_suggestions_count?: number;
     };
     CreateWishInput: {
       /** @example Looking for board game buddies! */
@@ -3077,6 +3173,57 @@ export interface components {
        *     ]
        */
       exclusions?: string[];
+    };
+    WishAiSuggestion: {
+      /** @example sug_12345678 */
+      id: string;
+      /** @example wish_k9x2m */
+      wish_id: string;
+      /**
+       * @example {
+       *       "genders": [
+       *         "woman"
+       *       ],
+       *       "roles": [
+       *         "switch"
+       *       ]
+       *     }
+       */
+      suggested_creator_attributes: {
+        [key: string]: unknown;
+      };
+      /**
+       * @example {
+       *       "genders": [
+       *         "man"
+       *       ],
+       *       "roles": [
+       *         "top"
+       *       ]
+       *     }
+       */
+      suggested_desired_attributes: {
+        [key: string]: unknown;
+      };
+      /**
+       * @example pending
+       * @enum {string}
+       */
+      status: 'pending' | 'accepted' | 'rejected' | 'modified';
+      /** @example 2026-10-13T20:00:00.000Z */
+      created_at: string;
+      /** @example null */
+      reviewed_at?: string | null;
+    };
+    WishAiSuggestionActionInput: {
+      /** @example apple-river-forest */
+      secret?: string;
+      creator_attributes?: {
+        [key: string]: unknown;
+      };
+      desired_attributes?: {
+        [key: string]: unknown;
+      };
     };
     WishmailMessage: {
       /** @example mail_7z1q */

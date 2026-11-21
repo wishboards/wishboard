@@ -54,6 +54,7 @@ import {
   normalizeArrayInput,
   createSalt,
   requireAuth,
+  parseJsonObject,
 } from '../auth.js';
 import { generatePassphrase } from '../../client/src/passphrase.js';
 import logger from '../logger.js';
@@ -62,6 +63,8 @@ import { emitNewWish, emitWishFlagged, emitWishDeleted } from '../socket.js';
 import { ensureArray } from '../utils/arrays.js';
 import { validateBody } from '../utils/validation.js';
 import { CreateWishInputSchema } from '../docs/openapi.js';
+import { queueWishForTagging } from '../ai/taggingWorker.js';
+import { getEmbeddingProvider, rankWishesBySimilarity } from '../ai/index.js';
 
 export const CARD_PAPER_COLORS = ['ivory', 'canary', 'rose', 'sky', 'sage'];
 export const CARD_PIN_COLORS = ['ruby', 'amber', 'emerald', 'sapphire', 'violet'];
@@ -234,6 +237,13 @@ router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), as
   };
   emitNewWish(newWish);
 
+  queueWishForTagging({
+    wishId: id,
+    content: content.trim(),
+    creatorAttributes: creatorAttrs,
+    desiredAttributes: desiredAttrs,
+  });
+
   res.status(201).json({ id, secret });
 });
 
@@ -403,7 +413,30 @@ router.get('/', async (req, res) => {
     'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1)';
   let args = [];
 
-  if (query) {
+  let usedSemanticSearch = false;
+  if (query && req.query.mode === 'semantic') {
+    const embeddingProvider = getEmbeddingProvider();
+    if (embeddingProvider.isAvailable()) {
+      const queryEmb = await embeddingProvider.generateEmbedding(query);
+      if (Array.isArray(queryEmb) && queryEmb.length > 0) {
+        const candidateRows = await db
+          .prepare('SELECT wish_id, embedding FROM wish_embeddings')
+          .all();
+        const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
+          minScore: 0.15,
+          limit: 50,
+        });
+        if (ranked.length > 0) {
+          const rankedIds = ranked.map((r) => r.wish_id);
+          sql += ' AND w.id IN (SELECT value FROM json_each(?))';
+          args.push(JSON.stringify(rankedIds));
+          usedSemanticSearch = true;
+        }
+      }
+    }
+  }
+
+  if (query && !usedSemanticSearch) {
     sql += ' AND w.content LIKE ?';
     args.push(`%${query}%`);
   }
@@ -532,7 +565,7 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
   const row = await db
     .prepare(
-      'SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id, card_style FROM wishes WHERE id = ?'
+      "SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wish_ai_suggestions was WHERE was.wish_id = wishes.id AND was.status = 'pending') AS pending_suggestions_count FROM wishes WHERE id = ?"
     )
     .get(id);
   if (!row) {
@@ -542,15 +575,21 @@ router.get('/:id', async (req, res) => {
   row.wishmail_enabled = Boolean(row.wishmail_enabled);
   row.is_active = Boolean(row.is_active);
   row.card_style = parseCardStyle(row.card_style);
+  row.pending_suggestions_count = Number(row.pending_suggestions_count || 0);
+  row.has_ai_suggestions = row.pending_suggestions_count > 0;
   res.json(row);
 });
 
 const getAuthorizedWish = async (req, res) => {
   const { id } = req.params;
-  const secret = req.body?.secret;
+  const secret = req.body?.secret || req.query?.secret || req.headers['x-passphrase'];
   const user = await getRequestUser(req);
 
-  const row = await db.prepare('SELECT secret_hash, user_id FROM wishes WHERE id = ?').get(id);
+  const row = await db
+    .prepare(
+      'SELECT secret_hash, user_id, creator_attributes, desired_attributes FROM wishes WHERE id = ?'
+    )
+    .get(id);
   if (!row) {
     res.status(404).json({ error: 'Wish not found.' });
     return null;
@@ -584,6 +623,8 @@ router.post('/:id/manage', async (req, res) => {
   if (action === 'delete') {
     await db.prepare('DELETE FROM wishmails WHERE wish_id = ?').run(id);
     await db.prepare('DELETE FROM wish_exclusions WHERE wish_id = ?').run(id);
+    await db.prepare('DELETE FROM wish_ai_suggestions WHERE wish_id = ?').run(id);
+    await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(id);
     await db.prepare('DELETE FROM wishes WHERE id = ?').run(id);
     logger.info('Wish deleted by owner', { user_id: user?.id, wish_id: id });
     emitWishDeleted(id);
@@ -611,10 +652,131 @@ router.post('/:id/manage', async (req, res) => {
       )
       .run(content.trim(), JSON.stringify(parsedContacts), wme, secretHashToUpdate, now, id);
 
+    queueWishForTagging({
+      wishId: id,
+      content: content.trim(),
+      creatorAttributes: parseJsonSafe(row.creator_attributes),
+      desiredAttributes: parseJsonSafe(row.desired_attributes),
+    });
+
     return res.json({ success: true, newSecret });
   }
 
   res.status(400).json({ error: 'Invalid update payload.' });
+});
+
+router.get('/:id/suggestions', async (req, res) => {
+  const auth = await getAuthorizedWish(req, res);
+  if (!auth) return;
+  const { id } = auth;
+
+  const rows = await db
+    .prepare(
+      'SELECT id, wish_id, suggested_creator_attributes, suggested_desired_attributes, reasoning, status, created_at, updated_at FROM wish_ai_suggestions WHERE wish_id = ? ORDER BY created_at DESC'
+    )
+    .all(id);
+
+  res.json(
+    rows.map((row) => ({
+      id: row.id,
+      wish_id: row.wish_id,
+      suggested_creator_attributes: parseJsonObject(row.suggested_creator_attributes),
+      suggested_desired_attributes: parseJsonObject(row.suggested_desired_attributes),
+      reasoning: row.reasoning,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }))
+  );
+});
+
+router.post('/:id/suggestions/:action', async (req, res) => {
+  const { action, id } = req.params;
+  if (!['accept', 'reject', 'modify'].includes(action)) {
+    return res
+      .status(400)
+      .json({ error: 'Invalid suggestion action. Must be accept, reject, or modify.' });
+  }
+
+  const auth = await getAuthorizedWish(req, res);
+  if (!auth) return;
+  const { row: wishRow } = auth;
+
+  const suggestion = await db
+    .prepare(
+      'SELECT id, suggested_creator_attributes, suggested_desired_attributes, status FROM wish_ai_suggestions WHERE wish_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1'
+    )
+    .get(id, 'pending');
+
+  if (!suggestion) {
+    return res.status(404).json({ error: 'No pending AI suggestions found for this wish.' });
+  }
+
+  const now = new Date().toISOString();
+
+  if (action === 'reject') {
+    await db
+      .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
+      .run('rejected', now, suggestion.id);
+    return res.json({ success: true, message: 'Suggestion rejected.' });
+  }
+
+  let newCreatorAttrs = parseJsonObject(wishRow.creator_attributes);
+  let newDesiredAttrs = parseJsonObject(wishRow.desired_attributes);
+
+  if (action === 'accept') {
+    const suggCreator = parseJsonObject(suggestion.suggested_creator_attributes);
+    const suggDesired = parseJsonObject(suggestion.suggested_desired_attributes);
+
+    for (const [cat, vals] of Object.entries(suggCreator)) {
+      if (Array.isArray(vals) && vals.length > 0) {
+        newCreatorAttrs[cat] = Array.from(new Set([...(newCreatorAttrs[cat] || []), ...vals]));
+      }
+    }
+    for (const [cat, vals] of Object.entries(suggDesired)) {
+      if (Array.isArray(vals) && vals.length > 0) {
+        newDesiredAttrs[cat] = Array.from(new Set([...(newDesiredAttrs[cat] || []), ...vals]));
+      }
+    }
+
+    await db
+      .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
+      .run('accepted', now, suggestion.id);
+  } else if (action === 'modify') {
+    const { creator_attributes, desired_attributes } = req.body;
+    if (creator_attributes) {
+      newCreatorAttrs = parseAttributesInput(creator_attributes);
+    }
+    if (desired_attributes) {
+      newDesiredAttrs = parseAttributesInput(desired_attributes);
+    }
+    await db
+      .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
+      .run('modified', now, suggestion.id);
+  }
+
+  const rules = getRules();
+  const creatorConflicts = getExclusionConflicts(newCreatorAttrs, rules);
+  if (creatorConflicts.length > 0) {
+    return res.status(400).json({
+      error: `Validation failed: Creator attributes conflict. ${creatorConflicts.map((c) => c.message).join(' ')}`,
+    });
+  }
+  const desiredConflicts = getExclusionConflicts(newDesiredAttrs, rules);
+  if (desiredConflicts.length > 0) {
+    return res.status(400).json({
+      error: `Validation failed: Desired criteria conflict. ${desiredConflicts.map((c) => c.message).join(' ')}`,
+    });
+  }
+
+  await db
+    .prepare(
+      'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
+    )
+    .run(JSON.stringify(newCreatorAttrs), JSON.stringify(newDesiredAttrs), now, id);
+
+  logger.info('Wish updated from AI suggestion', { wish_id: id, action });
+  return res.json({ success: true, message: `Suggestion ${action}ed successfully.` });
 });
 
 router.post('/:id/deactivate', async (req, res) => {

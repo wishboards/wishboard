@@ -288,6 +288,16 @@ router.post('/me/delete', async (req, res) => {
   await db
     .prepare('DELETE FROM wishmails WHERE wish_id IN (SELECT id FROM wishes WHERE user_id = ?)')
     .run(user.id);
+  await db
+    .prepare(
+      'DELETE FROM wish_ai_suggestions WHERE wish_id IN (SELECT id FROM wishes WHERE user_id = ?)'
+    )
+    .run(user.id);
+  await db
+    .prepare(
+      'DELETE FROM wish_embeddings WHERE wish_id IN (SELECT id FROM wishes WHERE user_id = ?)'
+    )
+    .run(user.id);
   await db.prepare('DELETE FROM wishes WHERE user_id = ?').run(user.id);
   await db.prepare('DELETE FROM sessions WHERE user_id = ?').run(user.id);
   await db.prepare('DELETE FROM users WHERE id = ?').run(user.id);
@@ -343,7 +353,7 @@ router.get('/me/wishes', async (req, res) => {
 
   const rows = await db
     .prepare(
-      'SELECT id, content, contacts, wishmail_enabled, creator_attributes, desired_attributes, flagged, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wishmails wm WHERE wm.wish_id = wishes.id AND wm.read = 0) AS unread_wishmail_count FROM wishes WHERE user_id = ? ORDER BY created_at DESC'
+      "SELECT id, content, contacts, wishmail_enabled, creator_attributes, desired_attributes, flagged, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wishmails wm WHERE wm.wish_id = wishes.id AND wm.read = 0) AS unread_wishmail_count, (SELECT COUNT(*) FROM wish_ai_suggestions was WHERE was.wish_id = wishes.id AND was.status = 'pending') AS pending_suggestions_count FROM wishes WHERE user_id = ? ORDER BY created_at DESC"
     )
     .all(user.id);
 
@@ -357,6 +367,8 @@ router.get('/me/wishes', async (req, res) => {
     image_id: row.image_id,
     card_style: parseCardStyle(row.card_style),
     unread_wishmail_count: Number(row.unread_wishmail_count || 0),
+    pending_suggestions_count: Number(row.pending_suggestions_count || 0),
+    has_ai_suggestions: Number(row.pending_suggestions_count || 0) > 0,
   }));
 
   res.json(formattedRows);
