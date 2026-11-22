@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/wishboards/wishboard/compare/api-v1.5.0...api-v1.6.0) (2026-11-22)
+
+
+### Features
+
+* **ai:** async Lambda AI tagging, semantic search UX, AI status, and Manage Wish overrides ([#636](https://github.com/wishboards/wishboard/issues/636)) ([073dc86](https://github.com/wishboards/wishboard/commit/073dc860614d90b287106090209323f8d7fa2c9c))
+
 ## [1.5.0](https://github.com/wishboards/wishboard/compare/api-v1.4.0...api-v1.5.0) (2026-11-22)
 
 

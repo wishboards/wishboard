@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.43.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.42.0...wishboard-v1.43.0) (2026-11-22)
+
+
+### Features
+
+* **ai:** async Lambda AI tagging, semantic search UX, AI status, and Manage Wish overrides ([#636](https://github.com/wishboards/wishboard/issues/636)) ([073dc86](https://github.com/wishboards/wishboard/commit/073dc860614d90b287106090209323f8d7fa2c9c))
+* **ci:** support opt-in serverless targets in SERVERLESS_PROFILES and document defaults ([#634](https://github.com/wishboards/wishboard/issues/634)) ([7f9cc65](https://github.com/wishboards/wishboard/commit/7f9cc65410c9fa242d4098d63209ff16d7154b55))
+* **kiosk:** forward AI environment variables in Docker Compose and kiosk CLI ([#637](https://github.com/wishboards/wishboard/issues/637)) ([6d0e3b3](https://github.com/wishboards/wishboard/commit/6d0e3b35ce235a43cd27eb3ecfccd380343e5d77))
+
+
+### Bug Fixes
+
+* **cli:** stop creating unreferenced unprefixed GitHub repo variables in bootstrap and oidc ([#638](https://github.com/wishboards/wishboard/issues/638)) ([75b18fb](https://github.com/wishboards/wishboard/commit/75b18fb9e906007b37a09428a4f82a52213dcc37))
+
 ## [1.42.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.41.0...wishboard-v1.42.0) (2026-11-22)
 
 
