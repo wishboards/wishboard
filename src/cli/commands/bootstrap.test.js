@@ -438,5 +438,162 @@ describe('bootstrap command', () => {
       );
       expect(result.secrets).toContain('SONAR_TOKEN');
     });
+
+    it('configures AI API key in SSM and sets GitHub repo variables when aiApiKey is provided', async () => {
+      const setSsmTokenMock = vi.fn().mockResolvedValue(true);
+      const setGitHubRepoValueMock = vi.fn().mockReturnValue(true);
+
+      const result = await runBootstrap(
+        {
+          org: 'test-org',
+          repo: 'test-repo',
+          skipSecrets: true,
+          skipOidc: true,
+          skipDb: true,
+          aiApiKey: 'gemini-secret-key-123',
+        },
+        {
+          setSsmToken: setSsmTokenMock,
+          setGitHubRepoValue: setGitHubRepoValueMock,
+          hasCommand: vi.fn().mockReturnValue(true),
+          checkGitHubAuth: vi.fn().mockReturnValue(true),
+        }
+      );
+
+      expect(setSsmTokenMock).toHaveBeenCalledWith(
+        '/test-repo/ai/gemini-api-key',
+        'gemini-secret-key-123',
+        expect.objectContaining({ region: 'us-east-1', dryRun: false }),
+        expect.any(Function),
+        expect.any(Function)
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'AI_API_KEY_SSM',
+        '/test-repo/ai/gemini-api-key',
+        false
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'ENABLE_AI_FEATURES',
+        'true',
+        false
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'AI_PROVIDER',
+        'cloud',
+        false
+      );
+      expect(result.secrets).toContain('AI_API_KEY');
+      expect(result.variables).toContain('AI_API_KEY_SSM');
+      expect(result.variables).toContain('ENABLE_AI_FEATURES');
+      expect(result.variables).toContain('AI_PROVIDER');
+    });
+
+    it('supports custom aiApiKeySsm and profile prefixes in AI bootstrap', async () => {
+      const setSsmTokenMock = vi.fn().mockResolvedValue(true);
+      const setGitHubRepoValueMock = vi.fn().mockReturnValue(true);
+
+      const result = await runBootstrap(
+        {
+          org: 'test-org',
+          repo: 'test-repo',
+          eventProfile: 'lifestyle',
+          skipSecrets: true,
+          skipOidc: true,
+          skipDb: true,
+          aiApiKey: 'my-custom-key',
+          aiApiKeySsm: '/wishboard/ai/lifestyle-key',
+          enableAi: false,
+          aiProvider: 'noop',
+        },
+        {
+          setSsmToken: setSsmTokenMock,
+          setGitHubRepoValue: setGitHubRepoValueMock,
+          hasCommand: vi.fn().mockReturnValue(true),
+          checkGitHubAuth: vi.fn().mockReturnValue(true),
+        }
+      );
+
+      expect(setSsmTokenMock).toHaveBeenCalledWith(
+        '/wishboard/ai/lifestyle-key',
+        'my-custom-key',
+        expect.objectContaining({ region: 'us-east-1', dryRun: false }),
+        expect.any(Function),
+        expect.any(Function)
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'LIFESTYLE_AI_API_KEY_SSM',
+        '/wishboard/ai/lifestyle-key',
+        false
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'LIFESTYLE_ENABLE_AI_FEATURES',
+        'false',
+        false
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'LIFESTYLE_AI_PROVIDER',
+        'noop',
+        false
+      );
+      expect(result.variables).toContain('LIFESTYLE_AI_API_KEY_SSM');
+      expect(result.variables).toContain('LIFESTYLE_ENABLE_AI_FEATURES');
+      expect(result.variables).toContain('LIFESTYLE_AI_PROVIDER');
+    });
+
+    it('skips AI setup when skipAi is true', async () => {
+      const setSsmTokenMock = vi.fn().mockResolvedValue(true);
+      const setGitHubRepoValueMock = vi.fn().mockReturnValue(true);
+
+      const result = await runBootstrap(
+        {
+          org: 'test-org',
+          repo: 'test-repo',
+          skipSecrets: true,
+          skipOidc: true,
+          skipDb: true,
+          skipAi: true,
+          aiApiKey: 'gemini-key',
+        },
+        {
+          setSsmToken: setSsmTokenMock,
+          setGitHubRepoValue: setGitHubRepoValueMock,
+          hasCommand: vi.fn().mockReturnValue(true),
+          checkGitHubAuth: vi.fn().mockReturnValue(true),
+        }
+      );
+
+      expect(setSsmTokenMock).not.toHaveBeenCalled();
+      expect(result.secrets).not.toContain('AI_API_KEY');
+    });
+
+    it('gracefully skips AI setup when no AI key is provided', async () => {
+      const setSsmTokenMock = vi.fn().mockResolvedValue(true);
+      const setGitHubRepoValueMock = vi.fn().mockReturnValue(true);
+
+      const result = await runBootstrap(
+        {
+          org: 'test-org',
+          repo: 'test-repo',
+          skipSecrets: true,
+          skipOidc: true,
+          skipDb: true,
+        },
+        {
+          setSsmToken: setSsmTokenMock,
+          setGitHubRepoValue: setGitHubRepoValueMock,
+          hasCommand: vi.fn().mockReturnValue(true),
+          checkGitHubAuth: vi.fn().mockReturnValue(true),
+        }
+      );
+
+      expect(setSsmTokenMock).not.toHaveBeenCalled();
+      expect(result.secrets).not.toContain('AI_API_KEY');
+    });
   });
 });

@@ -56,8 +56,11 @@ AI_PROVIDER=local
 # -------------------------------------------------------------
 # Cloud Provider Configuration (Only required when AI_PROVIDER=cloud)
 # -------------------------------------------------------------
-# API Key for Google Gemini or OpenAI
+# API Key for Google Gemini or OpenAI (direct string or resolved from AWS SSM)
 AI_API_KEY=your_api_key_here
+
+# AWS SSM Parameter path for secure serverless API key storage (recommended for AWS)
+AI_API_KEY_SSM=/wishboard/ai/gemini-api-key
 
 # Model name (default: "gemini-2.0-flash")
 AI_MODEL=gemini-2.0-flash
@@ -65,6 +68,29 @@ AI_MODEL=gemini-2.0-flash
 # Custom API endpoint (optional; defaults to Google Generative Language API)
 # AI_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta
 ```
+
+### Turnkey Cloud Setup with `wishboard bootstrap`
+
+For AWS Serverless deployments, plaintext API keys in environment variables are discouraged. Wishboard supports resolving API keys lazily from AWS Systems Manager (SSM) Parameter Store:
+
+1. **Obtain a Free Gemini API Key**:
+   Visit [Google AI Studio](https://aistudio.google.com) and click **Get API key** (free tier: 15 RPM, 1M TPM, 1,500 RPD).
+2. **Run Turnkey Bootstrap**:
+   Pass the API key to `wishboard bootstrap` to automatically store it as an encrypted `SecureString` in AWS SSM and configure GitHub Actions deployment variables:
+   ```bash
+   npx wishboard bootstrap \
+     --ai-api-key "your_gemini_api_key" \
+     --enable-ai \
+     --ai-provider cloud
+   ```
+3. **Manual SSM Storage (Alternative)**:
+   Alternatively, store the key manually in your AWS account using the AWS CLI:
+   ```bash
+   aws ssm put-parameter \
+     --name "/wishboard/ai/gemini-api-key" \
+     --type "SecureString" \
+     --value "your_gemini_api_key"
+   ```
 
 ---
 
