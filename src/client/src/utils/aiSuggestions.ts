@@ -28,11 +28,12 @@ export function normalizeAttrMap(raw?: Record<string, unknown> | null): AttrMap 
 }
 
 function extractStringItems(val: unknown): string[] {
-  const rawList = Array.isArray(val)
-    ? val.map((v) => String(v))
-    : typeof val === 'string'
-      ? val.split(',')
-      : [];
+  let rawList: string[] = [];
+  if (Array.isArray(val)) {
+    rawList = val.map(String);
+  } else if (typeof val === 'string') {
+    rawList = val.split(',');
+  }
 
   const seen = new Set<string>();
   const deduped: string[] = [];

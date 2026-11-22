@@ -146,9 +146,9 @@ function ModalFooterActions({
   return (
     <div className="ai-modal-footer">
       {pendingSuggestion && hasConflicts && (
-        <p className="ai-footer-warning" role="status">
+        <output className="ai-footer-warning">
           Resolve the highlighted attribute conflicts above before applying.
-        </p>
+        </output>
       )}
       {pendingSuggestion && !hasConflicts && !hasChanges && (
         <p className="ai-footer-hint">
@@ -566,11 +566,7 @@ export default function AiSuggestionModal({
           {error}
         </div>
       )}
-      {message && (
-        <div className="message success" role="status">
-          {message}
-        </div>
-      )}
+      {message && <output className="message success">{message}</output>}
 
       {renderMainBody()}
 
@@ -606,16 +602,16 @@ export default function AiSuggestionModal({
       open
       className="kiosk-modal-backdrop ai-modal-backdrop"
       aria-labelledby="ai-suggestions-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !submitting) {
-          onClose();
-        }
-      }}
     >
-      <div
-        className={`ai-modal-surface ${previewWish ? 'ai-modal-surface--wide' : ''}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <button
+        type="button"
+        className="ai-modal-backdrop-dismiss"
+        aria-label="Close AI suggestions modal"
+        tabIndex={-1}
+        disabled={submitting}
+        onClick={onClose}
+      />
+      <div className={`ai-modal-surface ${previewWish ? 'ai-modal-surface--wide' : ''}`}>
         <div className="ai-modal-header">
           <h2 id="ai-suggestions-title" className="ai-modal-heading">
             {titleNode}

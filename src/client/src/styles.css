@@ -2437,7 +2437,19 @@ table.responsive-table td {
   -webkit-backdrop-filter: blur(8px);
 }
 
+.ai-modal-backdrop-dismiss {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: default;
+}
+
 .ai-modal-surface {
+  position: relative;
+  z-index: 1;
   background: var(--wb-bg-surface, #ffffff);
   color: var(--wb-text-primary, #0f172a);
   border: 1px solid var(--wb-border-subtle, rgba(255, 255, 255, 0.14));
@@ -2450,6 +2462,12 @@ table.responsive-table td {
   flex-direction: column;
   overflow: hidden;
   animation: kioskModalScale 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-modal-surface {
+    animation: none;
+  }
 }
 
 .ai-modal-surface--wide {

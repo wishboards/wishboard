@@ -389,6 +389,12 @@ export default function AiAttributeSection({
                         existingAttributes,
                         selectedAddedCombined
                       );
+                    let chipIcon = '+';
+                    if (hasConflict) {
+                      chipIcon = '⚠️';
+                    } else if (isSelected) {
+                      chipIcon = '✓';
+                    }
                     return (
                       <button
                         key={`sugg-${cat}-${val}`}
@@ -398,7 +404,7 @@ export default function AiAttributeSection({
                         onClick={() => onToggleSuggested(cat, val)}
                       >
                         <span className="ai-chip-icon" aria-hidden="true">
-                          {hasConflict ? '⚠️' : isSelected ? '✓' : '+'}
+                          {chipIcon}
                         </span>
                         <span>{val}</span>
                       </button>
@@ -440,13 +446,13 @@ export default function AiAttributeSection({
       )}
 
       {variant === 'desired' && activeDesiredSummary.length > 0 && (
-        <div className="ai-desired-impact" role="status">
+        <output className="ai-desired-impact">
           <span aria-hidden="true">ℹ️</span>
           <span>
             <strong>Strict filter active:</strong> This card will only match attendees matching{' '}
             <strong>{activeDesiredSummary.join(' • ')}</strong>.
           </span>
-        </div>
+        </output>
       )}
 
       {conflicts.map((conflict) => (
