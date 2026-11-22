@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.45.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.44.0...wishboard-v1.45.0) (2026-11-22)
+
+
+### Features
+
+* **ai:** deliver real-time creator-authorized WebSocket notifications when AI suggestions land ([#653](https://github.com/wishboards/wishboard/issues/653)) ([c90cdc7](https://github.com/wishboards/wishboard/commit/c90cdc7a8c6d2391db87b7ff01d11f2ed55e2238))
+
+
+### Bug Fixes
+
+* resolve 5 SonarQube issues introduced in [#655](https://github.com/wishboards/wishboard/issues/655) and [#656](https://github.com/wishboards/wishboard/issues/656) ([#657](https://github.com/wishboards/wishboard/issues/657)) ([fd0c72a](https://github.com/wishboards/wishboard/commit/fd0c72af9e834c6659b53136dd53756a980681a1))
+* resolve 69 zero-tradeoff SonarQube issues ([#655](https://github.com/wishboards/wishboard/issues/655)) ([fe39dac](https://github.com/wishboards/wishboard/commit/fe39dac05ee67be307c48956347c71badbdaed03))
+* resolve Rank 1 SonarQube issues (socket, dropzone, a11y, CSS) ([#658](https://github.com/wishboards/wishboard/issues/658)) ([aa12051](https://github.com/wishboards/wishboard/commit/aa120513dc99d6817eb714f8174d2c3a42ea8187))
+
 ## [1.44.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.43.0...wishboard-v1.44.0) (2026-11-22)
 
 
