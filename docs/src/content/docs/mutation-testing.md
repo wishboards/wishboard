@@ -56,7 +56,7 @@ Stryker is configured via `stryker.config.json` with dedicated Vitest settings i
 ### Key Configuration Practices:
 
 1. **Relocated Test Setup**: Test setup infrastructure and global mocks live in `tests/setupTests.ts` rather than the `src/` source tree. This ensures Stryker `mutate` patterns target pure application logic without generating noise for mock setups.
-2. **Boilerplate & Entry Point Exclusions**: Entry points and process bootstrap files without business logic (`src/server/index.js`, `src/client/src/main.tsx`) are excluded in `stryker.config.json`.
+2. **Boilerplate & Entry Point Exclusions**: Entry points and process bootstrap files without business logic (`src/server/index.js`, `src/client/src/main.tsx`) are excluded in `stryker.config.json`. The declarative OpenAPI registry (`src/server/docs/openapi.js`) is excluded for the same reason: it is a Zod schema/document definition whose string and object literals are documentation metadata (e.g. `.openapi({ example: … })`), not executable logic. Its correctness is verified by the generated-spec check (`npm run api:spec:check`), the OpenAPI unit tests, and the client↔server contract-guard integration test — not by mutation of its example strings. At the time of exclusion it contributed 1,120 mutants at a 4.7% score, almost entirely unkillable StringLiteral/ObjectLiteral mutants, which masked the score of the executable code around it.
 3. **Vite Sandbox Stability (`stryker.vite.config.ts`)**:
    - Excludes `src/server/index.test.js` to prevent Express server process listener sandbox collisions.
    - Forces `pool: 'forks'` to isolate test worker environments.
