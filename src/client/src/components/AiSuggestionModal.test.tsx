@@ -603,4 +603,164 @@ describe('AiSuggestionModal', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Validation failed on server.');
     });
   });
+
+  it('shows signed-in scope control defaulting to This Wish Only with missing-category nudge and profile sync', async () => {
+    const onProfileUpdated = vi.fn();
+    let submittedBody: unknown = null;
+
+    globalThis.fetch = createContractFetchMock([
+      {
+        method: 'GET',
+        path: '/api/wishes/{id}/suggestions',
+        response: () => [
+          {
+            id: 'sugg-scope',
+            wish_id: 'test-wish-id',
+            suggested_creator_attributes: { orientation: ['Queer'] },
+            suggested_desired_attributes: {},
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/api/wishes/{id}/suggestions/{action}',
+        response: ({ body }) => {
+          submittedBody = body;
+          return {
+            success: true,
+            message: 'Suggestion accepted successfully.',
+            profile_updated: true,
+            identity_attributes: { role: ['Switch'], orientation: ['Queer'] },
+          };
+        },
+      },
+    ]);
+
+    renderWithProfile(
+      <AiSuggestionModal
+        wishId="test-wish-id"
+        wish={{
+          id: 'test-wish-id',
+          content: 'Queer switch looking for coffee',
+          creator_attributes: {},
+        }}
+        token="valid-user-token"
+        userProfileAttributes={{ role: ['Switch'] }}
+        onClose={vi.fn()}
+        onProfileUpdated={onProfileUpdated}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('This Wish Only')).toBeInTheDocument();
+    });
+
+    // Missing category nudge appears because profile has no orientation set
+    expect(screen.getByText(/Your Account Profile doesn’t have/i)).toBeInTheDocument();
+    expect(screen.getByText(/Orientation/i, { selector: 'strong' })).toBeInTheDocument();
+
+    const checkbox = screen.getByRole('checkbox', { name: /Also update my Account Profile/i });
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(screen.getByText('Wish + Profile')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Selected (1)' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Account Profile updated too/i)).toBeInTheDocument();
+      expect(onProfileUpdated).toHaveBeenCalledWith({
+        role: ['Switch'],
+        orientation: ['Queer'],
+      });
+    });
+
+    expect(submittedBody).toEqual({
+      update_profile: true,
+      profile_attributes: { role: ['Switch'], orientation: ['Queer'] },
+    });
+  });
+
+  it('detects Account Profile-only conflicts and lets signed-in users resolve them inline', async () => {
+    let submittedBody: unknown = null;
+
+    globalThis.fetch = createContractFetchMock([
+      {
+        method: 'GET',
+        path: '/api/wishes/{id}/suggestions',
+        response: () => [
+          {
+            id: 'sugg-prof-conflict',
+            wish_id: 'test-wish-id',
+            suggested_creator_attributes: { orientation: ['Straight'] },
+            suggested_desired_attributes: {},
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/api/wishes/{id}/suggestions/{action}',
+        response: ({ body }) => {
+          submittedBody = body;
+          return {
+            success: true,
+            message: 'Suggestion accepted successfully.',
+            profile_updated: true,
+            identity_attributes: { orientation: ['Straight'] },
+          };
+        },
+      },
+    ]);
+
+    renderWithProfile(
+      <AiSuggestionModal
+        wishId="test-wish-id"
+        wish={{ id: 'test-wish-id', content: 'Testing profile conflict', creator_attributes: {} }}
+        token="valid-user-token"
+        userProfileAttributes={{ orientation: ['Gay'] }}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Apply Selected (1)' })).not.toBeDisabled();
+    });
+
+    // No wish-level conflict yet; enabling Account Profile update reveals profile conflict
+    const checkbox = screen.getByRole('checkbox', { name: /Also update my Account Profile/i });
+    fireEvent.click(checkbox);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Account Profile conflict:/i);
+    expect(screen.getByRole('button', { name: 'Apply Selected (1)' })).toBeDisabled();
+
+    // Clicking "Apply to this wish only" unchecks update_profile and clears conflict
+    fireEvent.click(screen.getByRole('button', { name: 'Apply to this wish only' }));
+    expect(checkbox).not.toBeChecked();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // Re-check and click "Replace Gay in Profile" -> clears conflict and allows undo
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole('button', { name: /Replace .*Gay.* in Profile/i }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // Undo replacing Gay brings conflict back, then replace again
+    fireEvent.click(screen.getByTitle('Undo replacing Gay in Account Profile'));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Account Profile conflict:/i);
+    fireEvent.click(screen.getByRole('button', { name: /Replace .*Gay.* in Profile/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Selected (1)' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Account Profile updated too/i)).toBeInTheDocument();
+    });
+    expect(submittedBody).toEqual({
+      update_profile: true,
+      profile_attributes: { orientation: ['Straight'] },
+    });
+  });
 });

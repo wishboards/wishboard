@@ -4,7 +4,7 @@ title: 0012 AI Suggestion Review UX, Scope Control & Sticker-Aware Streamlining
 
 # ADR 0012: AI Suggestion Review UX, Scope Control & Sticker-Aware Streamlining
 
-- **Status:** Accepted (Phase 1 implemented; Phases 2–3 planned)
+- **Status:** Accepted (Phases 1–2 implemented; Phase 3 planned)
 - **Date:** 2026-11
 - **Context Date:** 2026-11
 - **Extends:** [ADR 0007: Decomposable & Optional AI Integration](../0007-ai-integration/), [ADR 0011: Dual-Persona Skinning & Mobile Companion UX](../0011-theming-skinning-and-mobile-companion-ux/)

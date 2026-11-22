@@ -935,5 +935,121 @@ describe('Wish creation, claim, and management API edge cases', () => {
       });
       expect(afterModify.body.desired_attributes).toEqual({});
     });
+
+    it('supports signed-in Account Profile sync with auth and conflict validation on suggestion apply', async () => {
+      const regRes = await request(app)
+        .post('/api/users/register')
+        .send({
+          username: 'scope_tester',
+          passphrase: 'scope-tester-passphrase',
+          identity_attributes: { orientation: 'Gay' },
+        });
+      expect(regRes.status).toBe(200);
+      const token = regRes.body.token;
+
+      const otherReg = await request(app).post('/api/users/register').send({
+        username: 'other_scope_user',
+        passphrase: 'other-scope-passphrase',
+      });
+      const otherToken = otherReg.body.token;
+
+      // Create an anonymous wish and verify update_profile without auth fails with 401
+      const anonRes = await request(app).post('/api/wishes').send({
+        content: 'Anon wish for profile test',
+        passphrase: 'anon-profile-secret',
+      });
+      const now = new Date().toISOString();
+      await db
+        .prepare(
+          'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          'sugg-anon-prof',
+          anonRes.body.id,
+          JSON.stringify({ role: ['Switch'] }),
+          JSON.stringify({}),
+          'pending',
+          now,
+          now
+        );
+
+      const unauthProfRes = await request(app)
+        .post(`/api/wishes/${anonRes.body.id}/suggestions/accept`)
+        .send({ secret: 'anon-profile-secret', update_profile: true });
+      expect(unauthProfRes.status).toBe(401);
+
+      // Create a wish owned by scope_tester
+      const ownedRes = await request(app)
+        .post('/api/wishes')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          content: 'Owned wish for profile sync',
+          passphrase: 'owned-wish-secret',
+        });
+      expect(ownedRes.status).toBe(201);
+      const ownedWishId = ownedRes.body.id;
+
+      await db
+        .prepare(
+          'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          'sugg-owned-conflict',
+          ownedWishId,
+          JSON.stringify({ orientation: ['Straight'], role: ['Switch'] }),
+          JSON.stringify({}),
+          'pending',
+          now,
+          now
+        );
+
+      // Another logged-in user holding the wish secret cannot sync into their own profile on another owner's wish
+      const nonOwnerRes = await request(app)
+        .post(`/api/wishes/${ownedWishId}/suggestions/modify`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({
+          secret: 'owned-wish-secret',
+          creator_attributes: { role: ['Switch'] },
+          desired_attributes: {},
+          update_profile: true,
+        });
+      expect(nonOwnerRes.status).toBe(403);
+
+      // Profile conflict (Gay existing in profile + Straight incoming) fails with 400 before mutating
+      const conflictProfRes = await request(app)
+        .post(`/api/wishes/${ownedWishId}/suggestions/modify`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          creator_attributes: { orientation: ['Straight'], role: ['Switch'] },
+          desired_attributes: {},
+          update_profile: true,
+        });
+      expect(conflictProfRes.status).toBe(400);
+      expect(conflictProfRes.body.error).toContain('Account Profile attributes conflict');
+
+      // Explicit resolved profile_attributes replaces conflicting value and updates Account Profile
+      const resolvedRes = await request(app)
+        .post(`/api/wishes/${ownedWishId}/suggestions/modify`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          creator_attributes: { orientation: ['Straight'], role: ['Switch'] },
+          desired_attributes: {},
+          update_profile: true,
+          profile_attributes: { orientation: ['Straight'], role: ['Switch'] },
+        });
+      expect(resolvedRes.status).toBe(200);
+      expect(resolvedRes.body.profile_updated).toBe(true);
+      expect(resolvedRes.body.identity_attributes).toEqual({
+        orientation: ['Straight'],
+        role: ['Switch'],
+      });
+
+      const meRes = await request(app).get('/api/users/me').set('Authorization', `Bearer ${token}`);
+      expect(meRes.status).toBe(200);
+      expect(meRes.body.identity_attributes).toEqual({
+        orientation: ['Straight'],
+        role: ['Switch'],
+      });
+    });
   });
 });

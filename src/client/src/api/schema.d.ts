@@ -508,7 +508,7 @@ export interface paths {
     put?: never;
     /**
      * Review AI suggestion for a wish
-     * @description Accepts, rejects, or modifies AI attribute suggestions.
+     * @description Accepts, rejects, or modifies AI attribute suggestions, with optional Account Profile sync for signed-in owners.
      */
     post: {
       parameters: {
@@ -532,7 +532,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['SuccessResponse'];
+            'application/json': components['schemas']['WishAiSuggestionActionResponse'];
           };
         };
       };
@@ -3232,6 +3232,22 @@ export interface components {
         [key: string]: unknown;
       };
       desired_attributes?: {
+        [key: string]: unknown;
+      };
+      /** @example false */
+      update_profile?: boolean;
+      profile_attributes?: {
+        [key: string]: unknown;
+      };
+    };
+    WishAiSuggestionActionResponse: {
+      /** @example true */
+      success: boolean;
+      /** @example Suggestion accepted successfully. */
+      message?: string;
+      /** @example false */
+      profile_updated?: boolean;
+      identity_attributes?: {
         [key: string]: unknown;
       };
     };

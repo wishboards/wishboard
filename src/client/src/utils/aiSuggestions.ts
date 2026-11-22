@@ -194,3 +194,19 @@ export function isExactFullAccept(params: {
     areAttrMapsEqual(params.finalDesired, expectedDesired)
   );
 }
+
+export function findMissingProfileCategories(
+  profileAttrs: AttrMap,
+  selectedCreatorAttrs: AttrMap,
+  categories: Category[] = []
+): string[] {
+  const missingLabels: string[] = [];
+  for (const [cat, vals] of Object.entries(selectedCreatorAttrs)) {
+    if (vals.length === 0) continue;
+    const existingProfileVals = profileAttrs[cat] || [];
+    if (existingProfileVals.length === 0) {
+      missingLabels.push(formatCategoryLabel(cat, categories));
+    }
+  }
+  return missingLabels;
+}

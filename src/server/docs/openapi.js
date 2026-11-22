@@ -228,6 +228,18 @@ export const WishAiSuggestionActionInputSchema = registry.register(
     secret: z.string().optional().openapi({ example: 'apple-river-forest' }),
     creator_attributes: z.record(z.any()).optional(),
     desired_attributes: z.record(z.any()).optional(),
+    update_profile: z.boolean().optional().openapi({ example: false }),
+    profile_attributes: z.record(z.any()).optional(),
+  })
+);
+
+export const WishAiSuggestionActionResponseSchema = registry.register(
+  'WishAiSuggestionActionResponse',
+  z.object({
+    success: z.boolean().openapi({ example: true }),
+    message: z.string().optional().openapi({ example: 'Suggestion accepted successfully.' }),
+    profile_updated: z.boolean().optional().openapi({ example: false }),
+    identity_attributes: z.record(z.any()).optional(),
   })
 );
 
@@ -814,9 +826,10 @@ addWishRoute({
   method: 'post',
   path: '/api/wishes/{id}/suggestions/{action}',
   summary: 'Review AI suggestion for a wish',
-  description: 'Accepts, rejects, or modifies AI attribute suggestions.',
+  description:
+    'Accepts, rejects, or modifies AI attribute suggestions, with optional Account Profile sync for signed-in owners.',
   requestSchema: WishAiSuggestionActionInputSchema,
-  responseSchema: SuccessResponseSchema,
+  responseSchema: WishAiSuggestionActionResponseSchema,
   params: [
     { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
     {

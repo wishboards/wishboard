@@ -14,5 +14,4 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 ### AI Suggestion Review UX (ADR 0012)
 
 - **[#644](https://github.com/wishboards/wishboard/issues/644)** — Epic: AI Suggestion Review UX, Scope Control & Sticker-Aware Streamlining (ADR 0012).
-  - **[#642](https://github.com/wishboards/wishboard/issues/642)** — Phase 2: Signed-in scope control (This Wish vs. Account Profile) & profile conflict detection.
   - **[#643](https://github.com/wishboards/wishboard/issues/643)** — Phase 3: Sticker-aware & filler-trimming wish streamlining, Storybook, E2E & full documentation.

@@ -792,6 +792,46 @@ function validateAttributesConflicts(creatorAttrs, desiredAttrs) {
   return null;
 }
 
+function resolveProfileUpdate({ updateProfile, auth, wishRow, action, suggestion, creator, body }) {
+  if (!updateProfile) {
+    return { error: null, status: 200, profileAttrs: null };
+  }
+  if (!auth.user) {
+    return {
+      error: 'Sign in required to update your Account Profile.',
+      status: 401,
+      profileAttrs: null,
+    };
+  }
+  if (wishRow.user_id && wishRow.user_id !== auth.user.id) {
+    return {
+      error: 'Only the wish owner can sync attributes to their Account Profile.',
+      status: 403,
+      profileAttrs: null,
+    };
+  }
+
+  let profileAttrs;
+  if (body.profile_attributes !== undefined) {
+    profileAttrs = parseAttributesInput(body.profile_attributes);
+  } else {
+    const incoming =
+      action === 'accept' ? parseJsonObject(suggestion.suggested_creator_attributes) : creator;
+    profileAttrs = mergeSuggestionAttributes(auth.user.identity_attributes || {}, incoming);
+  }
+
+  const profileConflicts = getExclusionConflicts(profileAttrs, getRules());
+  if (profileConflicts.length > 0) {
+    return {
+      error: `Validation failed: Account Profile attributes conflict. ${profileConflicts.map((c) => c.message).join(' ')}`,
+      status: 400,
+      profileAttrs: null,
+    };
+  }
+
+  return { error: null, status: 200, profileAttrs };
+}
+
 router.post('/:id/suggestions/:action', async (req, res) => {
   const { action, id } = req.params;
   if (!['accept', 'reject', 'modify'].includes(action)) {
@@ -829,6 +869,20 @@ router.post('/:id/suggestions/:action', async (req, res) => {
     return res.status(400).json({ error: conflictError });
   }
 
+  const updateProfile = Boolean(req.body?.update_profile);
+  const profileResult = resolveProfileUpdate({
+    updateProfile,
+    auth,
+    wishRow,
+    action,
+    suggestion,
+    creator,
+    body: req.body || {},
+  });
+  if (profileResult.error) {
+    return res.status(profileResult.status).json({ error: profileResult.error });
+  }
+
   const statusVal = action === 'accept' ? 'accepted' : 'modified';
   await db
     .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
@@ -840,9 +894,24 @@ router.post('/:id/suggestions/:action', async (req, res) => {
     )
     .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
 
-  logger.info('Wish updated from AI suggestion', { wish_id: id, action });
+  if (updateProfile && profileResult.profileAttrs) {
+    await db
+      .prepare('UPDATE users SET identity_attributes = ? WHERE id = ?')
+      .run(JSON.stringify(profileResult.profileAttrs), auth.user.id);
+  }
+
+  logger.info('Wish updated from AI suggestion', {
+    wish_id: id,
+    action,
+    profile_updated: updateProfile,
+  });
   const actionPastTense = action === 'accept' ? 'accepted' : 'modified';
-  return res.json({ success: true, message: `Suggestion ${actionPastTense} successfully.` });
+  return res.json({
+    success: true,
+    message: `Suggestion ${actionPastTense} successfully.`,
+    profile_updated: updateProfile,
+    ...(updateProfile ? { identity_attributes: profileResult.profileAttrs } : {}),
+  });
 });
 
 router.post('/:id/deactivate', async (req, res) => {
