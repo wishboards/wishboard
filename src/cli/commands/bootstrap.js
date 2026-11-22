@@ -42,6 +42,34 @@ export function resolveRepoInfo(options = {}) {
   return { org, repo, region };
 }
 
+function resolveOrCreateTursoUrl(dbName, exec) {
+  const showRes = exec('turso', ['db', 'show', dbName, '--url'], { stdio: 'pipe' });
+  if (showRes.status === 0 && showRes.stdout.trim()) {
+    const existingUrl = showRes.stdout.trim();
+    logInfo(`Found existing Turso database: ${existingUrl}`);
+    return existingUrl;
+  }
+
+  logInfo(`Creating new Turso database '${dbName}'...`);
+  const createRes = exec('turso', ['db', 'create', dbName], { stdio: 'pipe' });
+  if (createRes.status !== 0) {
+    throw new Error(`Failed to create Turso database '${dbName}': ${createRes.stderr}`);
+  }
+  const newUrlRes = exec('turso', ['db', 'show', dbName, '--url'], { stdio: 'pipe' });
+  const createdUrl = newUrlRes.stdout.trim();
+  logInfo(`Created Turso database: ${createdUrl}`);
+  return createdUrl;
+}
+
+function createTursoAuthToken(dbName, exec) {
+  logInfo(`Creating auth token for Turso database '${dbName}'...`);
+  const tokenRes = exec('turso', ['db', 'tokens', 'create', dbName], { stdio: 'pipe' });
+  if (tokenRes.status !== 0) {
+    throw new Error(`Failed to generate Turso token for '${dbName}': ${tokenRes.stderr}`);
+  }
+  return tokenRes.stdout.trim();
+}
+
 /**
  * Provisions or retrieves a Turso database URL and authentication token.
  * If credentials are not explicitly supplied, attempts to use the `turso` CLI if available.
@@ -61,46 +89,204 @@ export function provisionTursoDatabase(
     return { url, token, provisioned: false };
   }
 
-  if (has('turso')) {
-    logInfo(`Turso CLI detected. Resolving database '${dbName}'...`);
-    if (dryRun) {
-      return {
-        url: url || 'libsql://dry-run-db.turso.io',
-        token: token || 'dry-run-turso-token',
-        provisioned: true,
-      };
-    }
-
-    if (!url) {
-      const showRes = exec('turso', ['db', 'show', dbName, '--url'], { stdio: 'pipe' });
-      if (showRes.status === 0 && showRes.stdout.trim()) {
-        url = showRes.stdout.trim();
-        logInfo(`Found existing Turso database: ${url}`);
-      } else {
-        logInfo(`Creating new Turso database '${dbName}'...`);
-        const createRes = exec('turso', ['db', 'create', dbName], { stdio: 'pipe' });
-        if (createRes.status !== 0) {
-          throw new Error(`Failed to create Turso database '${dbName}': ${createRes.stderr}`);
-        }
-        const newUrlRes = exec('turso', ['db', 'show', dbName, '--url'], { stdio: 'pipe' });
-        url = newUrlRes.stdout.trim();
-        logInfo(`Created Turso database: ${url}`);
-      }
-    }
-
-    if (!token) {
-      logInfo(`Creating auth token for Turso database '${dbName}'...`);
-      const tokenRes = exec('turso', ['db', 'tokens', 'create', dbName], { stdio: 'pipe' });
-      if (tokenRes.status !== 0) {
-        throw new Error(`Failed to generate Turso token for '${dbName}': ${tokenRes.stderr}`);
-      }
-      token = tokenRes.stdout.trim();
-    }
-
-    return { url, token, provisioned: true };
+  if (!has('turso')) {
+    return { url: url || '', token: token || '', provisioned: false };
   }
 
-  return { url: url || '', token: token || '', provisioned: false };
+  logInfo(`Turso CLI detected. Resolving database '${dbName}'...`);
+  if (dryRun) {
+    return {
+      url: url || 'libsql://dry-run-db.turso.io',
+      token: token || 'dry-run-turso-token',
+      provisioned: true,
+    };
+  }
+
+  if (!url) url = resolveOrCreateTursoUrl(dbName, exec);
+  if (!token) token = createTursoAuthToken(dbName, exec);
+  return { url, token, provisioned: true };
+}
+
+function registerOptionalGitHubSecret({ name, value, omittedMsg, dryRun, setGh, configured, app }) {
+  if (!value) {
+    logInfo(omittedMsg);
+    return;
+  }
+  if (setGh('secret', name, value, dryRun)) {
+    configured.secrets.push(name);
+  }
+  if (app) {
+    setGh('secret', name, value, dryRun, app);
+  }
+}
+
+function configureScannerSecretsStep({ options, dryRun, ghAuthed, setGh, configured }) {
+  if (options.skipSecrets) {
+    logStep('[1/4] Skipping CI/CD scanner secrets (--skip-secrets).');
+    return;
+  }
+  logStep('[1/4] Configuring CI/CD quality and security secrets...');
+  if (!ghAuthed) {
+    logInfo('Skipping GitHub secret registration (gh not authenticated).');
+    return;
+  }
+
+  registerOptionalGitHubSecret({
+    name: 'SONAR_TOKEN',
+    value: options.sonarToken || process.env.SONAR_TOKEN,
+    omittedMsg:
+      'SONAR_TOKEN omitted (pass --sonar-token or set $SONAR_TOKEN to configure SonarCloud).',
+    dryRun,
+    setGh,
+    configured,
+  });
+  registerOptionalGitHubSecret({
+    name: 'STRYKER_DASHBOARD_API_KEY',
+    value: options.strykerKey || process.env.STRYKER_DASHBOARD_API_KEY,
+    omittedMsg:
+      'STRYKER_DASHBOARD_API_KEY omitted (pass --stryker-key or set $STRYKER_DASHBOARD_API_KEY to configure Stryker).',
+    dryRun,
+    setGh,
+    configured,
+  });
+  registerOptionalGitHubSecret({
+    name: 'GITLEAKS_LICENSE',
+    value: options.gitleaksLicense || process.env.GITLEAKS_LICENSE,
+    omittedMsg:
+      'GITLEAKS_LICENSE omitted (pass --gitleaks-license or set $GITLEAKS_LICENSE if using an organization fork).',
+    dryRun,
+    setGh,
+    configured,
+    app: 'dependabot',
+  });
+}
+
+async function provisionOidcStep({ options, deps, org, repo, region, dryRun, configured }) {
+  if (options.skipOidc) {
+    logStep('[2/4] Skipping AWS OIDC role provisioning (--skip-oidc).');
+    return;
+  }
+  logStep('[2/4] Provisioning AWS GitHub Actions OIDC deployment role...');
+  try {
+    const oidcSetupFn = deps.setupOidc || setupOidc;
+    await oidcSetupFn({ org, repo, region, dryRun });
+    configured.secrets.push('AWS_ROLE_TO_ASSUME');
+    configured.variables.push('AWS_REGION');
+  } catch (err) {
+    logWarn(`AWS OIDC setup encountered an error: ${err.message}`);
+  }
+}
+
+async function provisionDatabaseStep({
+  options,
+  deps,
+  repo,
+  eventProfile,
+  profilePrefix,
+  region,
+  dryRun,
+  ghAuthed,
+  setGh,
+  configured,
+}) {
+  if (options.skipDb) {
+    logStep('[3/4] Skipping Turso database and SSM setup (--skip-db).');
+    return;
+  }
+  logStep('[3/4] Setting up Turso database and AWS SSM parameter store...');
+  const defaultDbName = `${repo}-${eventProfile}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const dbName = options.tursoDb || defaultDbName;
+  const ssmParamName =
+    options.databaseAuthTokenSsm || `/${repo}/${eventProfile}/database-auth-token`;
+
+  try {
+    const { url, token } = provisionTursoDatabase(
+      dbName,
+      {
+        databaseUrl: options.databaseUrl,
+        databaseAuthToken: options.databaseAuthToken,
+        dryRun,
+      },
+      deps
+    );
+
+    if (token) {
+      logInfo(`Storing database auth token in AWS SSM Parameter Store (${ssmParamName})...`);
+      const ssmFn = deps.setSsmToken || setSsmToken;
+      const ok = await ssmFn(ssmParamName, token, { region, dryRun }, logInfo, logError);
+      if (ok) logInfo(`SSM parameter '${ssmParamName}' configured successfully.`);
+    } else {
+      logWarn('No database auth token provided or generated. SSM token registration was skipped.');
+    }
+
+    if (url && ghAuthed) {
+      logInfo('Setting database variables in GitHub repository...');
+      if (setGh('variable', `${profilePrefix}_DATABASE_URL`, url, dryRun)) {
+        configured.variables.push(`${profilePrefix}_DATABASE_URL`);
+      }
+      if (setGh('variable', `${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`, ssmParamName, dryRun)) {
+        configured.variables.push(`${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`);
+      }
+    } else if (!url) {
+      logInfo(
+        'Database URL omitted (pass --database-url or install turso CLI to automatically provision a database).'
+      );
+    }
+  } catch (err) {
+    logWarn(`Database/SSM setup encountered an error: ${err.message}`);
+  }
+}
+
+async function provisionAiStep({
+  options,
+  deps,
+  repo,
+  profilePrefix,
+  region,
+  dryRun,
+  ghAuthed,
+  setGh,
+  configured,
+}) {
+  if (options.skipAi) {
+    logStep('[4/4] Skipping AI setup (--skip-ai).');
+    return;
+  }
+  const aiApiKey = options.aiApiKey || process.env.AI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!aiApiKey) {
+    logStep('[4/4] Skipping AI API key setup (no key provided).');
+    logInfo(
+      'AI API key omitted (pass --ai-api-key or set $AI_API_KEY / $GEMINI_API_KEY to configure serverless AI).'
+    );
+    return;
+  }
+
+  const aiApiKeySsm =
+    options.aiApiKeySsm || process.env.AI_API_KEY_SSM || `/${repo}/ai/gemini-api-key`;
+  const enableAi = options.enableAi !== undefined ? Boolean(options.enableAi) : true;
+  const aiProvider = options.aiProvider || 'cloud';
+
+  logStep('[4/4] Setting up AI API key in AWS SSM Parameter Store...');
+  logInfo(`Storing AI API key in AWS SSM Parameter Store (${aiApiKeySsm})...`);
+  const ssmFn = deps.setSsmToken || setSsmToken;
+  const ok = await ssmFn(aiApiKeySsm, aiApiKey, { region, dryRun }, logInfo, logError);
+  if (ok) {
+    logInfo(`SSM parameter '${aiApiKeySsm}' configured successfully.`);
+    configured.secrets.push('AI_API_KEY');
+  }
+
+  if (ghAuthed) {
+    logInfo('Setting AI configuration variables in GitHub repository...');
+    if (setGh('variable', `${profilePrefix}_AI_API_KEY_SSM`, aiApiKeySsm, dryRun)) {
+      configured.variables.push(`${profilePrefix}_AI_API_KEY_SSM`);
+    }
+    if (setGh('variable', `${profilePrefix}_ENABLE_AI_FEATURES`, String(enableAi), dryRun)) {
+      configured.variables.push(`${profilePrefix}_ENABLE_AI_FEATURES`);
+    }
+    if (setGh('variable', `${profilePrefix}_AI_PROVIDER`, aiProvider, dryRun)) {
+      configured.variables.push(`${profilePrefix}_AI_PROVIDER`);
+    }
+  }
 }
 
 /**
@@ -136,156 +322,31 @@ export async function runBootstrap(options = {}, deps = {}) {
   const setGh = deps.setGitHubRepoValue || setGitHubRepoValue;
   const configured = { secrets: [], variables: [] };
 
-  // 1. External Quality & Security Scanners
-  if (!options.skipSecrets) {
-    logStep('[1/4] Configuring CI/CD quality and security secrets...');
-    const sonarToken = options.sonarToken || process.env.SONAR_TOKEN;
-    const strykerKey = options.strykerKey || process.env.STRYKER_DASHBOARD_API_KEY;
-    const gitleaksLicense = options.gitleaksLicense || process.env.GITLEAKS_LICENSE;
-
-    if (ghAuthed) {
-      if (sonarToken) {
-        if (setGh('secret', 'SONAR_TOKEN', sonarToken, dryRun)) {
-          configured.secrets.push('SONAR_TOKEN');
-        }
-      } else {
-        logInfo(
-          'SONAR_TOKEN omitted (pass --sonar-token or set $SONAR_TOKEN to configure SonarCloud).'
-        );
-      }
-
-      if (strykerKey) {
-        if (setGh('secret', 'STRYKER_DASHBOARD_API_KEY', strykerKey, dryRun)) {
-          configured.secrets.push('STRYKER_DASHBOARD_API_KEY');
-        }
-      } else {
-        logInfo(
-          'STRYKER_DASHBOARD_API_KEY omitted (pass --stryker-key or set $STRYKER_DASHBOARD_API_KEY to configure Stryker).'
-        );
-      }
-
-      if (gitleaksLicense) {
-        if (setGh('secret', 'GITLEAKS_LICENSE', gitleaksLicense, dryRun)) {
-          configured.secrets.push('GITLEAKS_LICENSE');
-        }
-        // Share with Dependabot to avoid dependency scan PR failures
-        setGh('secret', 'GITLEAKS_LICENSE', gitleaksLicense, dryRun, 'dependabot');
-      } else {
-        logInfo(
-          'GITLEAKS_LICENSE omitted (pass --gitleaks-license or set $GITLEAKS_LICENSE if using an organization fork).'
-        );
-      }
-    } else {
-      logInfo('Skipping GitHub secret registration (gh not authenticated).');
-    }
-  } else {
-    logStep('[1/4] Skipping CI/CD scanner secrets (--skip-secrets).');
-  }
-
-  // 2. AWS OIDC Role Provisioning
-  if (!options.skipOidc) {
-    logStep('[2/4] Provisioning AWS GitHub Actions OIDC deployment role...');
-    try {
-      const oidcSetupFn = deps.setupOidc || setupOidc;
-      await oidcSetupFn({ org, repo, region, dryRun });
-      configured.secrets.push('AWS_ROLE_TO_ASSUME');
-      configured.variables.push('AWS_REGION');
-    } catch (err) {
-      logWarn(`AWS OIDC setup encountered an error: ${err.message}`);
-    }
-  } else {
-    logStep('[2/4] Skipping AWS OIDC role provisioning (--skip-oidc).');
-  }
-
-  // 3. Turso Database & SSM SecureString Setup
-  if (!options.skipDb) {
-    logStep('[3/4] Setting up Turso database and AWS SSM parameter store...');
-    const defaultDbName = `${repo}-${eventProfile}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-    const dbName = options.tursoDb || defaultDbName;
-    const ssmParamName =
-      options.databaseAuthTokenSsm || `/${repo}/${eventProfile}/database-auth-token`;
-
-    try {
-      const { url, token } = provisionTursoDatabase(
-        dbName,
-        {
-          databaseUrl: options.databaseUrl,
-          databaseAuthToken: options.databaseAuthToken,
-          dryRun,
-        },
-        deps
-      );
-
-      if (token) {
-        logInfo(`Storing database auth token in AWS SSM Parameter Store (${ssmParamName})...`);
-        const ssmFn = deps.setSsmToken || setSsmToken;
-        const ok = await ssmFn(ssmParamName, token, { region, dryRun }, logInfo, logError);
-        if (ok) logInfo(`SSM parameter '${ssmParamName}' configured successfully.`);
-      } else {
-        logWarn(
-          'No database auth token provided or generated. SSM token registration was skipped.'
-        );
-      }
-
-      if (url && ghAuthed) {
-        logInfo('Setting database variables in GitHub repository...');
-        if (setGh('variable', `${profilePrefix}_DATABASE_URL`, url, dryRun)) {
-          configured.variables.push(`${profilePrefix}_DATABASE_URL`);
-        }
-        if (setGh('variable', `${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`, ssmParamName, dryRun)) {
-          configured.variables.push(`${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`);
-        }
-      } else if (!url) {
-        logInfo(
-          'Database URL omitted (pass --database-url or install turso CLI to automatically provision a database).'
-        );
-      }
-    } catch (err) {
-      logWarn(`Database/SSM setup encountered an error: ${err.message}`);
-    }
-  } else {
-    logStep('[3/4] Skipping Turso database and SSM setup (--skip-db).');
-  }
-
-  // 4. AI Features & SSM SecureString Setup
-  if (!options.skipAi) {
-    const aiApiKey = options.aiApiKey || process.env.AI_API_KEY || process.env.GEMINI_API_KEY;
-    const aiApiKeySsm =
-      options.aiApiKeySsm || process.env.AI_API_KEY_SSM || `/${repo}/ai/gemini-api-key`;
-    const enableAi = options.enableAi !== undefined ? Boolean(options.enableAi) : Boolean(aiApiKey);
-    const aiProvider = options.aiProvider || (aiApiKey ? 'cloud' : 'noop');
-
-    if (aiApiKey) {
-      logStep('[4/4] Setting up AI API key in AWS SSM Parameter Store...');
-      logInfo(`Storing AI API key in AWS SSM Parameter Store (${aiApiKeySsm})...`);
-      const ssmFn = deps.setSsmToken || setSsmToken;
-      const ok = await ssmFn(aiApiKeySsm, aiApiKey, { region, dryRun }, logInfo, logError);
-      if (ok) {
-        logInfo(`SSM parameter '${aiApiKeySsm}' configured successfully.`);
-        configured.secrets.push('AI_API_KEY');
-      }
-
-      if (ghAuthed) {
-        logInfo('Setting AI configuration variables in GitHub repository...');
-        if (setGh('variable', `${profilePrefix}_AI_API_KEY_SSM`, aiApiKeySsm, dryRun)) {
-          configured.variables.push(`${profilePrefix}_AI_API_KEY_SSM`);
-        }
-        if (setGh('variable', `${profilePrefix}_ENABLE_AI_FEATURES`, String(enableAi), dryRun)) {
-          configured.variables.push(`${profilePrefix}_ENABLE_AI_FEATURES`);
-        }
-        if (setGh('variable', `${profilePrefix}_AI_PROVIDER`, aiProvider, dryRun)) {
-          configured.variables.push(`${profilePrefix}_AI_PROVIDER`);
-        }
-      }
-    } else {
-      logStep('[4/4] Skipping AI API key setup (no key provided).');
-      logInfo(
-        'AI API key omitted (pass --ai-api-key or set $AI_API_KEY / $GEMINI_API_KEY to configure serverless AI).'
-      );
-    }
-  } else {
-    logStep('[4/4] Skipping AI setup (--skip-ai).');
-  }
+  configureScannerSecretsStep({ options, dryRun, ghAuthed, setGh, configured });
+  await provisionOidcStep({ options, deps, org, repo, region, dryRun, configured });
+  await provisionDatabaseStep({
+    options,
+    deps,
+    repo,
+    eventProfile,
+    profilePrefix,
+    region,
+    dryRun,
+    ghAuthed,
+    setGh,
+    configured,
+  });
+  await provisionAiStep({
+    options,
+    deps,
+    repo,
+    profilePrefix,
+    region,
+    dryRun,
+    ghAuthed,
+    setGh,
+    configured,
+  });
 
   console.log('\n\x1b[32m=== Bootstrap Summary ===\x1b[0m');
   logInfo(

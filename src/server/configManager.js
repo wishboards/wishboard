@@ -27,6 +27,9 @@ const VALID_THEME_PRESETS = new Set([
 ]);
 const VALID_BOARD_TEXTURES = new Set(['cork', 'slate', 'linen', 'custom', 'none']);
 
+const nonEmptyTrimmed = (val, fallback) =>
+  typeof val === 'string' && val.trim() ? val.trim() : fallback;
+
 export const validateBranding = (rawBranding) => {
   if (!rawBranding || typeof rawBranding !== 'object') {
     return { ...DEFAULT_BRANDING };
@@ -34,37 +37,19 @@ export const validateBranding = (rawBranding) => {
   const themePreset = VALID_THEME_PRESETS.has(rawBranding.themePreset)
     ? rawBranding.themePreset
     : DEFAULT_BRANDING.themePreset;
-  const accentColor =
-    typeof rawBranding.accentColor === 'string' && rawBranding.accentColor.trim()
-      ? rawBranding.accentColor.trim()
-      : DEFAULT_BRANDING.accentColor;
-  const primaryColor =
-    typeof rawBranding.primaryColor === 'string' && rawBranding.primaryColor.trim()
-      ? rawBranding.primaryColor.trim()
-      : accentColor || DEFAULT_BRANDING.primaryColor;
-  const surfaceColor =
-    typeof rawBranding.surfaceColor === 'string' && rawBranding.surfaceColor.trim()
-      ? rawBranding.surfaceColor.trim()
-      : DEFAULT_BRANDING.surfaceColor;
-  const boardTitle =
-    typeof rawBranding.boardTitle === 'string' && rawBranding.boardTitle.trim()
-      ? rawBranding.boardTitle.trim()
-      : DEFAULT_BRANDING.boardTitle;
-  const tagline =
-    typeof rawBranding.tagline === 'string' && rawBranding.tagline.trim()
-      ? rawBranding.tagline.trim()
-      : DEFAULT_BRANDING.tagline;
+  const accentColor = nonEmptyTrimmed(rawBranding.accentColor, DEFAULT_BRANDING.accentColor);
+  const primaryColor = nonEmptyTrimmed(
+    rawBranding.primaryColor,
+    accentColor || DEFAULT_BRANDING.primaryColor
+  );
+  const surfaceColor = nonEmptyTrimmed(rawBranding.surfaceColor, DEFAULT_BRANDING.surfaceColor);
+  const boardTitle = nonEmptyTrimmed(rawBranding.boardTitle, DEFAULT_BRANDING.boardTitle);
+  const tagline = nonEmptyTrimmed(rawBranding.tagline, DEFAULT_BRANDING.tagline);
   const boardTexture = VALID_BOARD_TEXTURES.has(rawBranding.boardTexture)
     ? rawBranding.boardTexture
     : DEFAULT_BRANDING.boardTexture;
-  const logoUrl =
-    typeof rawBranding.logoUrl === 'string' && rawBranding.logoUrl.trim()
-      ? rawBranding.logoUrl.trim()
-      : null;
-  const boardBgUrl =
-    typeof rawBranding.boardBgUrl === 'string' && rawBranding.boardBgUrl.trim()
-      ? rawBranding.boardBgUrl.trim()
-      : null;
+  const logoUrl = nonEmptyTrimmed(rawBranding.logoUrl, null);
+  const boardBgUrl = nonEmptyTrimmed(rawBranding.boardBgUrl, null);
 
   return {
     themePreset,

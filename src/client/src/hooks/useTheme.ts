@@ -89,58 +89,37 @@ export function useTheme() {
   const effectiveTheme: ThemePreset =
     themeMode === 'host-default' ? hostPreset : (themeMode as ThemePreset);
 
+  function setOrRemoveCssVar(name: string, value?: string | null) {
+    if (value) {
+      document.documentElement.style.setProperty(name, value);
+    } else {
+      document.documentElement.style.removeProperty(name);
+    }
+  }
+
   useEffect(() => {
     if (typeof document === 'undefined') return;
     document.documentElement.dataset.theme = effectiveTheme;
     document.documentElement.dataset.boardTexture = branding.boardTexture || 'cork';
 
-    if (themeMode === 'host-default') {
-      if (branding.accentColor) {
-        document.documentElement.style.setProperty('--wb-accent-primary', branding.accentColor);
-      } else {
-        document.documentElement.style.removeProperty('--wb-accent-primary');
-      }
-
-      if (branding.primaryColor || branding.accentColor) {
-        document.documentElement.style.setProperty(
-          '--wb-accent-hover',
-          branding.primaryColor || branding.accentColor || ''
-        );
-      } else {
-        document.documentElement.style.removeProperty('--wb-accent-hover');
-      }
-
-      if (branding.surfaceColor) {
-        document.documentElement.style.setProperty('--wb-bg-surface', branding.surfaceColor);
-      } else {
-        document.documentElement.style.removeProperty('--wb-bg-surface');
-      }
-    } else {
-      document.documentElement.style.removeProperty('--wb-accent-primary');
-      document.documentElement.style.removeProperty('--wb-accent-hover');
-      document.documentElement.style.removeProperty('--wb-bg-surface');
-    }
-
-    if (branding.logoUrl) {
-      document.documentElement.style.setProperty(
-        '--wb-brand-logo-url',
-        `url('${branding.logoUrl}')`
-      );
-    } else {
-      document.documentElement.style.removeProperty('--wb-brand-logo-url');
-    }
+    const isHostDefault = themeMode === 'host-default';
+    setOrRemoveCssVar('--wb-accent-primary', isHostDefault ? branding.accentColor : null);
+    setOrRemoveCssVar(
+      '--wb-accent-hover',
+      isHostDefault ? branding.primaryColor || branding.accentColor : null
+    );
+    setOrRemoveCssVar('--wb-bg-surface', isHostDefault ? branding.surfaceColor : null);
+    setOrRemoveCssVar(
+      '--wb-brand-logo-url',
+      branding.logoUrl ? `url('${branding.logoUrl}')` : null
+    );
 
     const textureCss = resolveBoardTextureCss(branding.boardTexture, branding.boardBgUrl);
     document.documentElement.style.setProperty('--wb-board-texture', textureCss);
-
-    if (branding.boardBgUrl) {
-      document.documentElement.style.setProperty(
-        '--wb-board-bg-url',
-        `url('${branding.boardBgUrl}')`
-      );
-    } else {
-      document.documentElement.style.removeProperty('--wb-board-bg-url');
-    }
+    setOrRemoveCssVar(
+      '--wb-board-bg-url',
+      branding.boardBgUrl ? `url('${branding.boardBgUrl}')` : null
+    );
   }, [
     effectiveTheme,
     branding.accentColor,

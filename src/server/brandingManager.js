@@ -1,10 +1,36 @@
 import db from './db.js';
 import { getEventProfile, validateBranding } from './configManager.js';
 
+const BRANDING_NULLABLE_KEY_MAP = {
+  'branding:logo_url': 'logoUrl',
+  'branding:board_bg_url': 'boardBgUrl',
+  'branding:board_texture': 'boardTexture',
+  'branding:board_title': 'boardTitle',
+  'branding:tagline': 'tagline',
+};
+
+const BRANDING_STRING_UPDATES = [
+  ['boardTexture', 'branding:board_texture'],
+  ['boardTitle', 'branding:board_title'],
+  ['tagline', 'branding:tagline'],
+];
+
 function toTrimmedString(val) {
   if (typeof val === 'string') return val.trim();
   if (typeof val === 'number' || typeof val === 'boolean') return String(val).trim();
   return '';
+}
+
+function applyBrandingColors(rawValue, overrides) {
+  try {
+    const colors = JSON.parse(rawValue);
+    if (!colors || typeof colors !== 'object') return;
+    if (colors.primary) overrides.primaryColor = colors.primary;
+    if (colors.accent) overrides.accentColor = colors.accent;
+    if (colors.surface) overrides.surfaceColor = colors.surface;
+  } catch {
+    // Ignore invalid JSON colors in DB
+  }
 }
 
 /**
@@ -31,26 +57,9 @@ export async function getMergedBranding() {
       if (row.key === 'branding:preset' && row.value) {
         overrides.themePreset = row.value;
       } else if (row.key === 'branding:colors' && row.value) {
-        try {
-          const colors = JSON.parse(row.value);
-          if (colors && typeof colors === 'object') {
-            if (colors.primary) overrides.primaryColor = colors.primary;
-            if (colors.accent) overrides.accentColor = colors.accent;
-            if (colors.surface) overrides.surfaceColor = colors.surface;
-          }
-        } catch {
-          // Ignore invalid JSON colors in DB
-        }
-      } else if (row.key === 'branding:logo_url') {
-        overrides.logoUrl = row.value || null;
-      } else if (row.key === 'branding:board_bg_url') {
-        overrides.boardBgUrl = row.value || null;
-      } else if (row.key === 'branding:board_texture') {
-        overrides.boardTexture = row.value || null;
-      } else if (row.key === 'branding:board_title') {
-        overrides.boardTitle = row.value || null;
-      } else if (row.key === 'branding:tagline') {
-        overrides.tagline = row.value || null;
+        applyBrandingColors(row.value, overrides);
+      } else if (row.key in BRANDING_NULLABLE_KEY_MAP) {
+        overrides[BRANDING_NULLABLE_KEY_MAP[row.key]] = row.value || null;
       }
     }
 
@@ -65,6 +74,38 @@ export async function getMergedBranding() {
     );
     return validateBranding(baseBranding);
   }
+}
+
+async function persistBrandingColors(updates, upsertSetting) {
+  if (
+    updates.primaryColor === undefined &&
+    updates.accentColor === undefined &&
+    updates.surfaceColor === undefined
+  ) {
+    return;
+  }
+
+  let existingColors = {};
+  try {
+    const row = await db.prepare('SELECT value FROM settings WHERE key = ?').get('branding:colors');
+    if (row?.value) {
+      existingColors = JSON.parse(row.value);
+    }
+  } catch {
+    existingColors = {};
+  }
+
+  const mergedColors = {
+    ...existingColors,
+    ...(updates.primaryColor !== undefined
+      ? { primary: toTrimmedString(updates.primaryColor) }
+      : {}),
+    ...(updates.accentColor !== undefined ? { accent: toTrimmedString(updates.accentColor) } : {}),
+    ...(updates.surfaceColor !== undefined
+      ? { surface: toTrimmedString(updates.surfaceColor) }
+      : {}),
+  };
+  await upsertSetting('branding:colors', JSON.stringify(mergedColors));
 }
 
 /**
@@ -92,38 +133,7 @@ export async function updateBranding(updates) {
     await upsertSetting('branding:preset', updates.themePreset.trim());
   }
 
-  // Handle color updates: read existing or create fresh
-  if (
-    updates.primaryColor !== undefined ||
-    updates.accentColor !== undefined ||
-    updates.surfaceColor !== undefined
-  ) {
-    let existingColors = {};
-    try {
-      const row = await db
-        .prepare('SELECT value FROM settings WHERE key = ?')
-        .get('branding:colors');
-      if (row?.value) {
-        existingColors = JSON.parse(row.value);
-      }
-    } catch {
-      existingColors = {};
-    }
-
-    const mergedColors = {
-      ...existingColors,
-      ...(updates.primaryColor !== undefined
-        ? { primary: toTrimmedString(updates.primaryColor) }
-        : {}),
-      ...(updates.accentColor !== undefined
-        ? { accent: toTrimmedString(updates.accentColor) }
-        : {}),
-      ...(updates.surfaceColor !== undefined
-        ? { surface: toTrimmedString(updates.surfaceColor) }
-        : {}),
-    };
-    await upsertSetting('branding:colors', JSON.stringify(mergedColors));
-  }
+  await persistBrandingColors(updates, upsertSetting);
 
   if (updates.logoUrl !== undefined) {
     await upsertSetting(
@@ -139,16 +149,10 @@ export async function updateBranding(updates) {
     );
   }
 
-  if (typeof updates.boardTexture === 'string') {
-    await upsertSetting('branding:board_texture', updates.boardTexture.trim());
-  }
-
-  if (typeof updates.boardTitle === 'string') {
-    await upsertSetting('branding:board_title', updates.boardTitle.trim());
-  }
-
-  if (typeof updates.tagline === 'string') {
-    await upsertSetting('branding:tagline', updates.tagline.trim());
+  for (const [field, settingKey] of BRANDING_STRING_UPDATES) {
+    if (typeof updates[field] === 'string') {
+      await upsertSetting(settingKey, updates[field].trim());
+    }
   }
 
   return getMergedBranding();
