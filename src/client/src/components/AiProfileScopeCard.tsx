@@ -38,23 +38,26 @@ export default function AiProfileScopeCard({
         <span className="ai-scope-pill">{updateProfile ? 'Wish + Profile' : 'This Wish Only'}</span>
       </div>
 
-      <label htmlFor="ai-scope-update-profile" className="ai-scope-checkbox-label">
+      <div className="ai-scope-checkbox-label">
         <input
           id="ai-scope-update-profile"
           type="checkbox"
           className="ai-scope-checkbox"
           checked={updateProfile}
+          aria-describedby="ai-scope-update-profile-sub"
           onChange={(e) => onToggleUpdateProfile(e.target.checked)}
         />
         <span className="ai-scope-checkbox-copy">
-          <strong>Also update my Account Profile</strong>
-          <span className="ai-scope-checkbox-sub">
+          <label htmlFor="ai-scope-update-profile" style={{ fontWeight: 700, cursor: 'pointer' }}>
+            Also update my Account Profile
+          </label>
+          <span id="ai-scope-update-profile-sub" className="ai-scope-checkbox-sub">
             {updateProfile
               ? 'Selected creator attributes will be saved to this wish and your Account Profile for future wishes.'
               : 'By default, changes apply only to this wish (ideal for situational wishes).'}
           </span>
         </span>
-      </label>
+      </div>
 
       {!updateProfile && missingCategoryLabels.length > 0 && (
         <div className="ai-scope-nudge" role="note">

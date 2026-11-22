@@ -667,6 +667,8 @@ button:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .flag-wish-btn,
+  .exclude-wish-btn,
+  .admin-delete-wish-btn,
   .owner-edit-wish-btn,
   .owner-delete-wish-btn {
     transition: none;
@@ -1196,7 +1198,7 @@ button:hover {
 }
 
 .kiosk-sidebar-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: #334155;
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.3);
 }
