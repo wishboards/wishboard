@@ -1,8 +1,8 @@
 ---
-title: 0004 Client-Server Contract Audit & Seam Guard
+title: 'Design Document 0004: Client↔Server Contract Audit & Seam Guard Architecture'
+sidebar:
+  label: 0004 Client-Server Contract Audit & Seam Guard
 ---
-
-# Design Document 0004: Client↔Server Contract Audit & Seam Guard Architecture
 
 - **Status:** Implemented
 - **Context Date:** November 2026

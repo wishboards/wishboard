@@ -49,3 +49,57 @@ describe('integration: package.json dependency-placement contract', () => {
     expect(devDeps).toHaveProperty(name);
   });
 });
+
+describe('integration: Starlight documentation frontmatter & single-H1 contract', () => {
+  const docsRoot = path.resolve(process.cwd(), 'docs/src/content/docs');
+
+  function collectMarkdownFiles(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const files = [];
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...collectMarkdownFiles(fullPath));
+      } else if (/\.mdx?$/.test(entry.name)) {
+        files.push(fullPath);
+      }
+    }
+    return files;
+  }
+
+  // Astro Starlight automatically renders the frontmatter `title` field as the
+  // page's primary `<h1 id="_top">` element. Any additional `# Heading` in the
+  // Markdown body emits a duplicate stacked `<h1>` on the published docs site.
+  it('ensures every docs page defines a frontmatter title and has no duplicate body H1 headings', () => {
+    const mdFiles = collectMarkdownFiles(docsRoot);
+    expect(mdFiles.length).toBeGreaterThan(0);
+
+    const missingTitle = [];
+    const duplicateBodyH1 = [];
+
+    for (const file of mdFiles) {
+      const rel = path.relative(docsRoot, file).replace(/\\/g, '/');
+      const raw = fs.readFileSync(file, 'utf8');
+      const fmMatch = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(raw);
+      if (!fmMatch || !/^title:\s*\S+/m.test(fmMatch[1])) {
+        missingTitle.push(rel);
+        continue;
+      }
+
+      const bodyLines = raw.slice(fmMatch[0].length).split(/\r?\n/);
+      let inCodeFence = false;
+      bodyLines.forEach((line, idx) => {
+        if (/^```/.test(line.trim())) {
+          inCodeFence = !inCodeFence;
+          return;
+        }
+        if (!inCodeFence && /^#\s+\S/.test(line)) {
+          duplicateBodyH1.push(`${rel}:${idx + 1}: ${line}`);
+        }
+      });
+    }
+
+    expect(missingTitle).toEqual([]);
+    expect(duplicateBodyH1).toEqual([]);
+  });
+});

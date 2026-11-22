@@ -1,8 +1,8 @@
 ---
-title: 0007 Ai Integration
+title: 'ADR 0007: Decomposable & Optional AI Integration'
+sidebar:
+  label: 0007 AI Integration
 ---
-
-# ADR 0007: Decomposable & Optional AI Integration
 
 - **Status:** Accepted (Implemented)
 - **Date:** 2026-08

@@ -1,10 +1,10 @@
 ---
-title: '0009: Reject Fine-Grained Turso Permissions (Table-Level Only)'
+title: 'ADR 0009: Reject Fine-Grained Turso Permissions (Table-Level Only)'
+sidebar:
+  label: 0009 Fine-Grained Turso Permissions
 date: 2026-08-14
 status: rejected
 ---
-
-# ADR 0009: Reject Fine-Grained Turso Permissions (Table-Level Only)
 
 - **Status:** Rejected
 - **Date:** 2026-08-14

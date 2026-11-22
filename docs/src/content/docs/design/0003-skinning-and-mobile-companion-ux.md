@@ -1,8 +1,8 @@
 ---
-title: 0003 Skinning and Mobile Companion UX
+title: 'Design Document 0003: Skinning Architecture, Tactile Card Personalization, & Mobile Companion UX'
+sidebar:
+  label: 0003 Skinning & Mobile Companion UX
 ---
-
-# Design Document 0003: Skinning Architecture, Tactile Card Personalization, & Mobile Companion UX
 
 - **Status:** Implemented
 - **Context Date:** October 2026

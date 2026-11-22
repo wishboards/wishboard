@@ -1,8 +1,8 @@
 ---
-title: 0010 Independent API Versioning Lifecycle
+title: 'ADR 0010: Independent API Versioning Lifecycle'
+sidebar:
+  label: 0010 Independent API Versioning Lifecycle
 ---
-
-# ADR 0010: Independent API Versioning Lifecycle
 
 - **Status:** Implemented
 - **Context date:** October 2026

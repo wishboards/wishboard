@@ -1,8 +1,8 @@
 ---
-title: 0001 Exclude Wishes
+title: 'Design 0001: Let a user exclude ("not interested" / hide) a wish'
+sidebar:
+  label: 0001 Exclude Wishes
 ---
-
-# Design 0001: Let a user exclude ("not interested" / hide) a wish
 
 - **Status:** Implemented. Tracks [#200](https://github.com/wishboards/wishboard/issues/200).
 - **Date:** 2026-07
