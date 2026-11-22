@@ -522,6 +522,11 @@
               ]
             }
           },
+          "suggested_content": {
+            "type": "string",
+            "nullable": true,
+            "example": "30yo switch looking for another switch for drinks and indie tabletop games!"
+          },
           "reasoning": {
             "type": "string",
             "nullable": true,
@@ -579,6 +584,11 @@
               "nullable": true
             }
           },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
           "update_profile": {
             "type": "boolean",
             "example": false
@@ -603,6 +613,10 @@
             "example": "Suggestion accepted successfully."
           },
           "profile_updated": {
+            "type": "boolean",
+            "example": false
+          },
+          "content_updated": {
             "type": "boolean",
             "example": false
           },

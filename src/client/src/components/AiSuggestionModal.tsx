@@ -7,6 +7,7 @@ import BottomSheet from './common/BottomSheet';
 import WishCard, { type CardStyle, type Wish } from './WishCard';
 import AiAttributeSection from './AiAttributeSection';
 import AiProfileScopeCard from './AiProfileScopeCard';
+import AiStreamlineCard from './AiStreamlineCard';
 import { countMatchingStickers } from '../utils/stickers';
 import {
   type AttrMap,
@@ -14,6 +15,7 @@ import {
   areAttrMapsEqual,
   countAttrValues,
   detectAttributeConflicts,
+  findDeselectedStickeredTags,
   findMissingProfileCategories,
   isExactFullAccept,
   mergeAttributeMaps,
@@ -75,7 +77,8 @@ interface PreviewPanelProps {
   stickerCount: number;
   isMobile: boolean;
   mobilePreviewOpen: boolean;
-  onToggleMobilePreview: () => void;
+  onToggleMobilePreview?: () => void;
+  onOverflowChange: (isOverflowing: boolean) => void;
 }
 
 function LiveCardPreviewPanel({
@@ -84,6 +87,7 @@ function LiveCardPreviewPanel({
   isMobile,
   mobilePreviewOpen,
   onToggleMobilePreview,
+  onOverflowChange,
 }: Readonly<PreviewPanelProps>) {
   const stickerLabel = `${stickerCount} ${stickerCount === 1 ? 'sticker' : 'stickers'}`;
 
@@ -101,7 +105,12 @@ function LiveCardPreviewPanel({
         </button>
         {mobilePreviewOpen && (
           <div className="ai-preview-card-wrap">
-            <WishCard wish={previewWish} showFlag={false} isEditorPreview={true} />
+            <WishCard
+              wish={previewWish}
+              showFlag={false}
+              isEditorPreview={true}
+              onOverflowChange={onOverflowChange}
+            />
           </div>
         )}
       </div>
@@ -115,11 +124,16 @@ function LiveCardPreviewPanel({
         <span className="ai-preview-badge">{stickerLabel}</span>
       </div>
       <div className="ai-preview-card-wrap">
-        <WishCard wish={previewWish} showFlag={false} isEditorPreview={true} />
+        <WishCard
+          wish={previewWish}
+          showFlag={false}
+          isEditorPreview={true}
+          onOverflowChange={onOverflowChange}
+        />
       </div>
       <p className="ai-preview-caption">
-        Updates in real time as you toggle attributes. Stickers reflect your creator attributes on
-        this card.
+        Updates in real time as you toggle attributes or card wording. Stickers reflect your creator
+        attributes on this card.
       </p>
     </aside>
   );
@@ -129,6 +143,7 @@ interface ModalFooterActionsProps {
   pendingSuggestion: WishAiSuggestion | undefined;
   submitting: boolean;
   hasConflicts: boolean;
+  hasInvalidDraft: boolean;
   hasChanges: boolean;
   selectedCount: number;
   onClose: () => void;
@@ -140,6 +155,7 @@ function ModalFooterActions({
   pendingSuggestion,
   submitting,
   hasConflicts,
+  hasInvalidDraft,
   hasChanges,
   selectedCount,
   onClose,
@@ -147,6 +163,7 @@ function ModalFooterActions({
   onApply,
 }: Readonly<ModalFooterActionsProps>) {
   const applyLabel = selectedCount > 0 ? `Apply Selected (${selectedCount})` : 'Apply Changes';
+  const isBlocked = hasConflicts || hasInvalidDraft;
 
   return (
     <div className="ai-modal-footer">
@@ -155,7 +172,7 @@ function ModalFooterActions({
           Resolve the highlighted attribute conflicts above before applying.
         </output>
       )}
-      {pendingSuggestion && !hasConflicts && !hasChanges && (
+      {pendingSuggestion && !isBlocked && !hasChanges && (
         <p className="ai-footer-hint">
           Select at least one attribute chip above, or tap Reject to dismiss this suggestion.
         </p>
@@ -179,7 +196,7 @@ function ModalFooterActions({
               type="button"
               className="primary-button ai-apply-btn"
               onClick={onApply}
-              disabled={submitting || hasConflicts || !hasChanges}
+              disabled={submitting || isBlocked || !hasChanges}
             >
               {submitting ? 'Applying...' : applyLabel}
             </button>
@@ -219,6 +236,9 @@ export default function AiSuggestionModal({
   const [removedDesired, setRemovedDesired] = useState<AttrMap>({});
   const [updateProfile, setUpdateProfile] = useState(false);
   const [removedProfileAttrs, setRemovedProfileAttrs] = useState<AttrMap>({});
+  const [useStreamlined, setUseStreamlined] = useState(false);
+  const [streamlinedDraft, setStreamlinedDraft] = useState('');
+  const [isPreviewOverflowing, setIsPreviewOverflowing] = useState(false);
 
   const isSignedIn = Boolean(token && (auth?.user || userProfileAttributes !== undefined));
 
@@ -274,6 +294,10 @@ export default function AiSuggestionModal({
         setRemovedDesired({});
         setUpdateProfile(false);
         setRemovedProfileAttrs({});
+        setUseStreamlined(false);
+        setStreamlinedDraft(
+          typeof pending.suggested_content === 'string' ? pending.suggested_content : ''
+        );
       }
     } catch (err) {
       console.error('Failed to load suggestions:', err);
@@ -316,6 +340,13 @@ export default function AiSuggestionModal({
     [pendingSuggestion]
   );
 
+  const suggestedContent =
+    typeof pendingSuggestion?.suggested_content === 'string'
+      ? pendingSuggestion.suggested_content.trim()
+      : '';
+  const originalContent = (wish?.content || '').trim();
+  const hasStreamlineSuggestion = Boolean(suggestedContent) && suggestedContent !== originalContent;
+
   const allAddedCreator = useMemo(
     () => mergeAttributeMaps(selectedCreator, customCreator),
     [selectedCreator, customCreator]
@@ -356,22 +387,38 @@ export default function AiSuggestionModal({
     [profileAttributes, allAddedCreator, categories]
   );
 
+  const deselectedStickeredTags = useMemo(
+    () => findDeselectedStickeredTags(suggestedCreator, selectedCreator, stickers),
+    [suggestedCreator, selectedCreator, stickers]
+  );
+
+  const applyingStreamlinedContent =
+    hasStreamlineSuggestion &&
+    useStreamlined &&
+    Boolean(streamlinedDraft.trim()) &&
+    streamlinedDraft.trim() !== originalContent;
+
+  const hasInvalidDraft = hasStreamlineSuggestion && useStreamlined && !streamlinedDraft.trim();
+
   const hasConflicts =
     creatorConflicts.length > 0 || desiredConflicts.length > 0 || profileConflicts.length > 0;
   const selectedCount = countAttrValues(allAddedCreator) + countAttrValues(allAddedDesired);
   const hasChanges =
     !areAttrMapsEqual(finalCreator, existingCreator) ||
     !areAttrMapsEqual(finalDesired, existingDesired) ||
-    (updateProfile && !areAttrMapsEqual(finalProfile, profileAttributes));
+    (updateProfile && !areAttrMapsEqual(finalProfile, profileAttributes)) ||
+    applyingStreamlinedContent;
 
   const previewWish: Wish | null = useMemo(() => {
     if (!wish) return null;
     const normalizedContacts = (wish.contacts || [])
       .filter((c): c is { type: string; value: string } => Boolean(c.type && c.value))
       .map((c) => ({ type: c.type, value: c.value }));
+    const activePreviewContent =
+      hasStreamlineSuggestion && useStreamlined ? streamlinedDraft : wish.content;
     return {
       id: wish.id,
-      content: wish.content,
+      content: activePreviewContent,
       creator_attributes: finalCreator,
       contacts: normalizedContacts,
       wishmail_enabled: wish.wishmail_enabled,
@@ -379,7 +426,7 @@ export default function AiSuggestionModal({
       image_url: wish.image_url,
       card_style: wish.card_style,
     };
-  }, [wish, finalCreator]);
+  }, [wish, finalCreator, hasStreamlineSuggestion, useStreamlined, streamlinedDraft]);
 
   const stickerCount = useMemo(
     () => (previewWish ? countMatchingStickers(previewWish.creator_attributes, stickers) : 0),
@@ -396,6 +443,7 @@ export default function AiSuggestionModal({
         secret?: string;
         creator_attributes?: Record<string, string[]>;
         desired_attributes?: Record<string, string[]>;
+        content?: string;
         update_profile?: boolean;
         profile_attributes?: Record<string, string[]>;
       } = {};
@@ -407,6 +455,10 @@ export default function AiSuggestionModal({
       if (action === 'modify') {
         bodyPayload.creator_attributes = finalCreator;
         bodyPayload.desired_attributes = finalDesired;
+      }
+
+      if (action !== 'reject' && applyingStreamlinedContent) {
+        bodyPayload.content = streamlinedDraft.trim();
       }
 
       if (action !== 'reject' && isSignedIn && updateProfile) {
@@ -438,8 +490,11 @@ export default function AiSuggestionModal({
         reject: 'rejected',
         modify: 'modified',
       }[action];
-      const profileSuffix = data?.profile_updated ? ' Account Profile updated too.' : '';
-      setMessage(`Suggestion ${actionPastTense} successfully.${profileSuffix}`);
+      const extras: string[] = [];
+      if (data?.content_updated) extras.push('Card text updated.');
+      if (data?.profile_updated) extras.push('Account Profile updated too.');
+      const suffix = extras.length > 0 ? ` ${extras.join(' ')}` : '';
+      setMessage(`Suggestion ${actionPastTense} successfully.${suffix}`);
 
       if (data?.profile_updated) {
         void auth?.refreshUser();
@@ -462,15 +517,17 @@ export default function AiSuggestionModal({
   };
 
   const handleApply = () => {
-    if (hasConflicts || !hasChanges) return;
-    const exactAccept = isExactFullAccept({
-      existingCreator,
-      existingDesired,
-      suggestedCreator,
-      suggestedDesired,
-      finalCreator,
-      finalDesired,
-    });
+    if (hasConflicts || hasInvalidDraft || !hasChanges) return;
+    const exactAccept =
+      !applyingStreamlinedContent &&
+      isExactFullAccept({
+        existingCreator,
+        existingDesired,
+        suggestedCreator,
+        suggestedDesired,
+        finalCreator,
+        finalDesired,
+      });
     void submitReview(exactAccept ? 'accept' : 'modify');
   };
 
@@ -514,6 +571,7 @@ export default function AiSuggestionModal({
             isMobile={true}
             mobilePreviewOpen={mobilePreviewOpen}
             onToggleMobilePreview={() => setMobilePreviewOpen((prev) => !prev)}
+            onOverflowChange={setIsPreviewOverflowing}
           />
         )}
 
@@ -610,6 +668,20 @@ export default function AiSuggestionModal({
               resolveReplaceExisting(setRemovedDesired, targets)
             }
           />
+
+          {hasStreamlineSuggestion && (
+            <AiStreamlineCard
+              originalContent={originalContent}
+              suggestedContent={suggestedContent}
+              useStreamlined={useStreamlined}
+              draftContent={streamlinedDraft}
+              isPreviewOverflowing={isPreviewOverflowing}
+              deselectedStickeredTags={deselectedStickeredTags}
+              onToggleUseStreamlined={setUseStreamlined}
+              onChangeDraft={setStreamlinedDraft}
+              onResetDraft={() => setStreamlinedDraft(suggestedContent)}
+            />
+          )}
         </div>
 
         {previewWish && !isMobile && (
@@ -618,7 +690,7 @@ export default function AiSuggestionModal({
             stickerCount={stickerCount}
             isMobile={false}
             mobilePreviewOpen={false}
-            onToggleMobilePreview={() => {}}
+            onOverflowChange={setIsPreviewOverflowing}
           />
         )}
       </div>
@@ -651,6 +723,7 @@ export default function AiSuggestionModal({
         pendingSuggestion={pendingSuggestion}
         submitting={submitting}
         hasConflicts={hasConflicts}
+        hasInvalidDraft={hasInvalidDraft}
         hasChanges={hasChanges}
         selectedCount={selectedCount}
         onClose={onClose}

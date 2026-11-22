@@ -3211,6 +3211,8 @@ export interface components {
       suggested_desired_attributes: {
         [key: string]: unknown;
       };
+      /** @example 30yo switch looking for another switch for drinks and indie tabletop games! */
+      suggested_content?: string | null;
       /** @example Extracted self-described role from wish text. */
       reasoning?: string | null;
       /**
@@ -3234,6 +3236,7 @@ export interface components {
       desired_attributes?: {
         [key: string]: unknown;
       };
+      content?: string;
       /** @example false */
       update_profile?: boolean;
       profile_attributes?: {
@@ -3247,6 +3250,8 @@ export interface components {
       message?: string;
       /** @example false */
       profile_updated?: boolean;
+      /** @example false */
+      content_updated?: boolean;
       identity_attributes?: {
         [key: string]: unknown;
       };

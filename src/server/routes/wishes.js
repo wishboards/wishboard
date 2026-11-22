@@ -717,7 +717,7 @@ router.get('/:id/suggestions', async (req, res) => {
 
   const rows = await db
     .prepare(
-      'SELECT id, wish_id, suggested_creator_attributes, suggested_desired_attributes, reasoning, status, created_at, updated_at FROM wish_ai_suggestions WHERE wish_id = ? ORDER BY created_at DESC'
+      'SELECT id, wish_id, suggested_creator_attributes, suggested_desired_attributes, suggested_content, reasoning, status, created_at, updated_at FROM wish_ai_suggestions WHERE wish_id = ? ORDER BY created_at DESC'
     )
     .all(id);
 
@@ -727,6 +727,7 @@ router.get('/:id/suggestions', async (req, res) => {
       wish_id: row.wish_id,
       suggested_creator_attributes: parseJsonObject(row.suggested_creator_attributes),
       suggested_desired_attributes: parseJsonObject(row.suggested_desired_attributes),
+      suggested_content: row.suggested_content || null,
       reasoning: row.reasoning,
       status: row.status,
       created_at: row.created_at,
@@ -883,16 +884,40 @@ router.post('/:id/suggestions/:action', async (req, res) => {
     return res.status(profileResult.status).json({ error: profileResult.error });
   }
 
+  let updatedContent = null;
+  if (req.body?.content !== undefined) {
+    const trimmedContent = typeof req.body.content === 'string' ? req.body.content.trim() : '';
+    if (!trimmedContent || trimmedContent.length > 500) {
+      return res.status(400).json({ error: 'Wish content must be between 1 and 500 characters.' });
+    }
+    updatedContent = trimmedContent;
+  }
+
   const statusVal = action === 'accept' ? 'accepted' : 'modified';
   await db
     .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
     .run(statusVal, now, suggestion.id);
 
-  await db
-    .prepare(
-      'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
-    )
-    .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
+  if (updatedContent !== null) {
+    await db
+      .prepare(
+        'UPDATE wishes SET content = ?, creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
+      )
+      .run(updatedContent, JSON.stringify(creator), JSON.stringify(desired), now, id);
+    queueWishForTagging({
+      wishId: id,
+      content: updatedContent,
+      creatorAttributes: creator,
+      desiredAttributes: desired,
+      skipInference: true,
+    });
+  } else {
+    await db
+      .prepare(
+        'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
+      )
+      .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
+  }
 
   if (updateProfile && profileResult.profileAttrs) {
     await db
@@ -900,16 +925,19 @@ router.post('/:id/suggestions/:action', async (req, res) => {
       .run(JSON.stringify(profileResult.profileAttrs), auth.user.id);
   }
 
+  const contentUpdated = updatedContent !== null;
   logger.info('Wish updated from AI suggestion', {
     wish_id: id,
     action,
     profile_updated: updateProfile,
+    content_updated: contentUpdated,
   });
   const actionPastTense = action === 'accept' ? 'accepted' : 'modified';
   return res.json({
     success: true,
     message: `Suggestion ${actionPastTense} successfully.`,
     profile_updated: updateProfile,
+    content_updated: contentUpdated,
     ...(updateProfile ? { identity_attributes: profileResult.profileAttrs } : {}),
   });
 });

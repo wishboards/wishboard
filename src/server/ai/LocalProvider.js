@@ -68,6 +68,25 @@ function processCategoryTerms(category, text, context, state) {
   }
 }
 
+const LEADING_FILLER_REGEX =
+  /^(?:(?:hey|hi|hello)\s+(?:all|everyone|everybody|folks|y'all|yall|there|wishboard)|greetings\s+(?:all|everyone|everybody|folks|wishboard))[,!.:;\-\s]+/i;
+
+/**
+ * Strips demonstrable card-redundant greeting filler (e.g., "Hey all,") while strictly
+ * preserving unstructured details (such as age) and non-stickered attributes.
+ */
+export function streamlineWishText(content = '') {
+  const trimmed = String(content || '').trim();
+  if (!trimmed) return null;
+
+  const stripped = trimmed.replace(LEADING_FILLER_REGEX, '').trim();
+  if (!stripped || stripped.length === trimmed.length) {
+    return null;
+  }
+
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1);
+}
+
 /**
  * Lightweight, zero-dependency local inference provider suitable for edge
  * hardware (Raspberry Pi 4) and offline convention environments.
@@ -94,6 +113,7 @@ export class LocalInferenceProvider extends InferenceProvider {
    * @param {Record<string, string[]>} [params.existingCreatorAttributes]
    * @param {Record<string, string[]>} [params.existingDesiredAttributes]
    * @param {Array<{ id: string, label: string, suggestions: string[] }>} [params.taxonomy]
+   * @param {Record<string, Record<string, unknown>>} [params.stickers]
    */
   async suggestAttributes({
     content = '',
@@ -123,13 +143,21 @@ export class LocalInferenceProvider extends InferenceProvider {
       processCategoryTerms(category, text, context, state);
     }
 
+    const suggestedContent = streamlineWishText(content);
+    const reasons = [];
+    if (state.matchedTerms.length > 0) {
+      reasons.push(`Local inference matched taxonomy keywords: ${state.matchedTerms.join(', ')}`);
+    }
+    if (suggestedContent) {
+      reasons.push('Removed redundant greeting filler for card conciseness');
+    }
+
     return {
       suggestedCreatorAttributes: state.suggestedCreator,
       suggestedDesiredAttributes: state.suggestedDesired,
+      suggestedContent,
       reasoning:
-        state.matchedTerms.length > 0
-          ? `Local inference matched taxonomy keywords: ${state.matchedTerms.join(', ')}`
-          : 'No taxonomy terms identified in wish text',
+        reasons.length > 0 ? reasons.join('. ') : 'No taxonomy terms identified in wish text',
     };
   }
 }

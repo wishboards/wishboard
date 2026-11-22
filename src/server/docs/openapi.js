@@ -210,6 +210,9 @@ export const WishAiSuggestionSchema = registry.register(
     suggested_desired_attributes: z
       .record(z.any())
       .openapi({ example: { gender: ['man'], role: ['top'] } }),
+    suggested_content: z.string().nullable().optional().openapi({
+      example: '30yo switch looking for another switch for drinks and indie tabletop games!',
+    }),
     reasoning: z
       .string()
       .nullable()
@@ -228,6 +231,7 @@ export const WishAiSuggestionActionInputSchema = registry.register(
     secret: z.string().optional().openapi({ example: 'apple-river-forest' }),
     creator_attributes: z.record(z.any()).optional(),
     desired_attributes: z.record(z.any()).optional(),
+    content: z.string().trim().min(1).max(500).optional(),
     update_profile: z.boolean().optional().openapi({ example: false }),
     profile_attributes: z.record(z.any()).optional(),
   })
@@ -239,6 +243,7 @@ export const WishAiSuggestionActionResponseSchema = registry.register(
     success: z.boolean().openapi({ example: true }),
     message: z.string().optional().openapi({ example: 'Suggestion accepted successfully.' }),
     profile_updated: z.boolean().optional().openapi({ example: false }),
+    content_updated: z.boolean().optional().openapi({ example: false }),
     identity_attributes: z.record(z.any()).optional(),
   })
 );

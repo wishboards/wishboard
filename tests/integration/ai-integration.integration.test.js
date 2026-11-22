@@ -205,4 +205,53 @@ describe('integration: AI suggestion review and semantic search', () => {
       .get(wishId);
     expect(remainingEmbeddings.count).toBe(0);
   });
+
+  it('stages non-lossy streamlined text and avoids recursive suggestions when streamlined text is applied', async () => {
+    const createRes = await request(app).post('/api/wishes').send({
+      content: 'Hey all, 30yo switch looking for indie tabletop games tonight!',
+      passphrase: 'streamline-itest-secret',
+    });
+    expect(createRes.status).toBe(201);
+    const wishId = createRes.body.id;
+
+    await drainQueue();
+
+    const suggRes = await request(app)
+      .get(`/api/wishes/${wishId}/suggestions`)
+      .query({ secret: 'streamline-itest-secret' });
+    expect(suggRes.status).toBe(200);
+    expect(suggRes.body).toHaveLength(1);
+    expect(suggRes.body[0].suggested_content).toBe(
+      '30yo switch looking for indie tabletop games tonight!'
+    );
+
+    const modifyRes = await request(app)
+      .post(`/api/wishes/${wishId}/suggestions/modify`)
+      .send({
+        secret: 'streamline-itest-secret',
+        creator_attributes: { role: ['Switch'] },
+        desired_attributes: {},
+        content: suggRes.body[0].suggested_content,
+      });
+    expect(modifyRes.status).toBe(200);
+    expect(modifyRes.body.content_updated).toBe(true);
+
+    // Wait for embedding-only refresh (skipInference: true)
+    await drainQueue();
+
+    const afterSuggRes = await request(app)
+      .get(`/api/wishes/${wishId}/suggestions`)
+      .query({ secret: 'streamline-itest-secret' });
+    expect(afterSuggRes.status).toBe(200);
+    expect(afterSuggRes.body.filter((s) => s.status === 'pending')).toHaveLength(0);
+
+    const wishRes = await request(app).get(`/api/wishes/${wishId}`);
+    expect(wishRes.status).toBe(200);
+    expect(wishRes.body.content).toBe('30yo switch looking for indie tabletop games tonight!');
+
+    const embRow = await db
+      .prepare('SELECT embedding FROM wish_embeddings WHERE wish_id = ?')
+      .get(wishId);
+    expect(embRow?.embedding).toBeTruthy();
+  });
 });

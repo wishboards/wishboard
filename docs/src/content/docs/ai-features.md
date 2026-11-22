@@ -29,6 +29,18 @@ AI functionality is **completely optional and disabled by default** (`ENABLE_AI_
 
 ---
 
+## 1b. The Suggestion Review Experience (ADR 0012)
+
+Tap **✨ AI Suggestions** on a wish to open the review dialog. It adapts to the device: a bottom sheet on phones (&lt; 640px, with a collapsible live card preview), a centered modal on tablets/kiosks, and a two-column modal with a sticky live card preview on desktop.
+
+- **Tap-to-toggle chips.** Suggested "About You" tags start **selected**; tap to deselect. Use **+ Add tag** for taxonomy-assisted additions. Nothing changes until you tap **Apply**.
+- **"Looking For" is opt-in.** Suggested desired attributes start **unselected**. Explicit desired attributes act as a strict filter and override the matching engine's implicit rules (see [Matching Rules](../matching-rules/#6-application-of-rules-in-search)), so choosing them is a deliberate step, with a live notice when active.
+- **Conflicts are caught before you submit.** Exclusion rules are evaluated in the browser against the live rules; conflicts show inline with one-tap **Keep** / **Replace** actions.
+- **Signed-in scope control.** Signed-in users default to **This Wish Only**, with an opt-in **Also update my Account Profile** checkbox, a nudge for categories missing from the profile, and profile-level conflict resolution.
+- **Optional card-text streamlining.** When the AI finds a safe trim, you can compare **Keep Original** (default) with **Use Streamlined**, edit the draft, reset it, and watch the live card preview. Streamlining is strictly non-lossy: it only removes card-redundant greetings (e.g. "Hey all,") and self-labels that render as visual stickers in the active profile. Age, location, times, non-sticker roles and what you're looking for are never removed. The offline `local` provider (Raspberry Pi) supports greeting trimming; the `cloud` provider also uses the profile's sticker map. Applying streamlined text refreshes the search embedding without generating a new suggestion.
+
+---
+
 ## 2. Supported Providers
 
 Wishboard supports three inference and embedding providers via the `AI_PROVIDER` environment variable:

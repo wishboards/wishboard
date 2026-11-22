@@ -150,6 +150,7 @@ await db.executeMultiple(`
     wish_id TEXT NOT NULL,
     suggested_creator_attributes TEXT,
     suggested_desired_attributes TEXT,
+    suggested_content TEXT,
     reasoning TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL,
@@ -201,6 +202,7 @@ await ensureColumn('wishes', 'wishmail_enabled', 'INTEGER DEFAULT 0');
 await ensureColumn('wishes', 'is_active', 'INTEGER DEFAULT 1');
 await ensureColumn('wishes', 'image_id', 'TEXT');
 await ensureColumn('wishes', 'card_style', 'TEXT');
+await ensureColumn('wish_ai_suggestions', 'suggested_content', 'TEXT');
 
 // WebSocket subscription state (serverless API Gateway target). Board events
 // (wish:*) broadcast to connections that explicitly subscribed, sys:log is an admin-only, opt-in channel:

@@ -5,6 +5,7 @@ import {
   type Rule,
 } from '@wishboards/matching-engine';
 import type { Category } from '../EventProfileContext';
+import { findMatchingStickerKey } from './stickers';
 
 export type AttrMap = Record<string, string[]>;
 
@@ -209,4 +210,23 @@ export function findMissingProfileCategories(
     }
   }
   return missingLabels;
+}
+
+export function findDeselectedStickeredTags(
+  suggestedCreator: AttrMap,
+  selectedCreator: AttrMap,
+  stickers?: Record<string, Record<string, unknown>>
+): string[] {
+  if (!stickers) return [];
+  const deselected: string[] = [];
+  for (const [cat, vals] of Object.entries(suggestedCreator)) {
+    const catStickers = stickers[cat];
+    if (!catStickers) continue;
+    for (const val of vals) {
+      if (!hasAttrValue(selectedCreator, cat, val) && findMatchingStickerKey(catStickers, val)) {
+        deselected.push(val);
+      }
+    }
+  }
+  return deselected;
 }

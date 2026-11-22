@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import type { Rule } from '@wishboards/matching-engine';
 import AiSuggestionModal from './AiSuggestionModal';
+import AiStreamlineCard from './AiStreamlineCard';
 import { useEventProfile, type EventProfile } from '../EventProfileContext';
 import { createContractFetchMock } from '../utils/contractFetch';
 
@@ -762,5 +763,195 @@ describe('AiSuggestionModal', () => {
       update_profile: true,
       profile_attributes: { orientation: ['Straight'] },
     });
+  });
+
+  it('supports optional non-lossy streamlined card text comparison, inline editing, sticker reminder, and submission', async () => {
+    const onApplied = vi.fn();
+    let capturedAction = '';
+    let capturedBody: unknown = null;
+
+    globalThis.fetch = createContractFetchMock([
+      {
+        method: 'GET',
+        path: '/api/wishes/{id}/suggestions',
+        response: () => [
+          {
+            id: 'sugg-streamline',
+            wish_id: 'test-wish-id',
+            suggested_creator_attributes: { orientation: ['Queer'], role: ['Switch'] },
+            suggested_desired_attributes: {},
+            suggested_content: '30yo switch looking for board games at the hotel lounge!',
+            reasoning: 'Trimmed greeting filler and stickered orientation label.',
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/api/wishes/{id}/suggestions/{action}',
+        response: ({ url, body }) => {
+          capturedAction = url.split('?')[0].split('/').pop() || '';
+          capturedBody = body;
+          return {
+            success: true,
+            message: 'Suggestion modified successfully.',
+            content_updated: true,
+          };
+        },
+      },
+    ]);
+
+    renderWithProfile(
+      <AiSuggestionModal
+        wishId="test-wish-id"
+        wish={{
+          id: 'test-wish-id',
+          content: 'Hey all, 30yo queer switch looking for board games at the hotel lounge!',
+          creator_attributes: {},
+        }}
+        secret="test-secret"
+        onClose={vi.fn()}
+        onApplied={onApplied}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Polish & Streamline Card Text/i)).toBeInTheDocument();
+    });
+
+    // Defaults to Keep Original with savings indicator
+    const keepBtn = screen.getByRole('button', { name: 'Keep Original' });
+    const useBtn = screen.getByRole('button', { name: 'Use Streamlined' });
+    expect(keepBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(useBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/−15 chars/)).toBeInTheDocument();
+
+    // Switch to Use Streamlined -> shows editable textarea and updates live preview
+    fireEvent.click(useBtn);
+    expect(useBtn).toHaveAttribute('aria-pressed', 'true');
+    const textarea = screen.getByLabelText('Streamlined Text (Editable)');
+    expect(textarea).toHaveValue('30yo switch looking for board games at the hotel lounge!');
+
+    // Deselect stickered tag (Queer) -> shows deselected-sticker reminder
+    fireEvent.click(screen.getByRole('button', { name: /Queer/i }));
+    expect(screen.getByText(/You deselected stickered tag\(s\)/i)).toBeInTheDocument();
+    expect(screen.getByText('Queer', { selector: 'strong' })).toBeInTheDocument();
+
+    // Deselecting non-stickered Switch does not add Switch to the sticker reminder
+    fireEvent.click(screen.getByRole('button', { name: /Switch/i }));
+    expect(screen.queryByText(/Queer, Switch/)).not.toBeInTheDocument();
+
+    // Re-select both creator tags -> reminder clears
+    fireEvent.click(screen.getByRole('button', { name: /Queer/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Switch/i }));
+    expect(screen.queryByText(/You deselected stickered tag\(s\)/i)).not.toBeInTheDocument();
+
+    // Edit streamlined text -> shows Reset to AI draft button
+    fireEvent.change(textarea, {
+      target: { value: '30yo switch looking for tabletop games tonight!' },
+    });
+    const resetBtn = screen.getByRole('button', { name: /Reset to AI draft/i });
+    expect(resetBtn).toBeInTheDocument();
+
+    // Blank text disables Apply and shows empty-draft warning
+    fireEvent.change(textarea, { target: { value: '   ' } });
+    expect(screen.getByText(/Card text cannot be empty/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply Selected (2)' })).toBeDisabled();
+
+    // Reset restores AI draft and re-enables Apply
+    fireEvent.click(resetBtn);
+    expect(textarea).toHaveValue('30yo switch looking for board games at the hotel lounge!');
+    const applyBtn = screen.getByRole('button', { name: 'Apply Selected (2)' });
+    expect(applyBtn).not.toBeDisabled();
+
+    // Submit -> sends modify with content
+    fireEvent.click(applyBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Card text updated\./i)).toBeInTheDocument();
+      expect(onApplied).toHaveBeenCalledTimes(1);
+    });
+    expect(capturedAction).toBe('modify');
+    expect(capturedBody).toEqual({
+      secret: 'test-secret',
+      creator_attributes: { orientation: ['Queer'], role: ['Switch'] },
+      desired_attributes: {},
+      content: '30yo switch looking for board games at the hotel lounge!',
+    });
+  });
+
+  it('can toggle back to Keep Original and omits content from payload', async () => {
+    let capturedBody: unknown = null;
+
+    globalThis.fetch = createContractFetchMock([
+      {
+        method: 'GET',
+        path: '/api/wishes/{id}/suggestions',
+        response: () => [
+          {
+            id: 'sugg-keep-orig',
+            wish_id: 'test-wish-id',
+            suggested_creator_attributes: { role: ['Switch'] },
+            suggested_desired_attributes: {},
+            suggested_content: '30yo switch looking for coffee',
+            status: 'pending',
+            created_at: new Date().toISOString(),
+          },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/api/wishes/{id}/suggestions/{action}',
+        response: ({ body }) => {
+          capturedBody = body;
+          return { success: true, message: 'Suggestion accepted successfully.' };
+        },
+      },
+    ]);
+
+    renderWithProfile(
+      <AiSuggestionModal
+        wishId="test-wish-id"
+        wish={{
+          id: 'test-wish-id',
+          content: 'Hey all, 30yo switch looking for coffee',
+          creator_attributes: {},
+        }}
+        secret="test-secret"
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Use Streamlined' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use Streamlined' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Original' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Selected (1)' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Suggestion accepted successfully.')).toBeInTheDocument();
+    });
+    expect(capturedBody).toEqual({ secret: 'test-secret' });
+  });
+
+  it('displays 3x5 overflow nudge on AiStreamlineCard when original text overflows', () => {
+    render(
+      <AiStreamlineCard
+        originalContent="Hey all, this is a very long wish card that overflows a standard 3x5 index card."
+        suggestedContent="This is a streamlined version that fits cleanly on the card."
+        useStreamlined={false}
+        draftContent="This is a streamlined version that fits cleanly on the card."
+        isPreviewOverflowing={true}
+        deselectedStickeredTags={[]}
+        onToggleUseStreamlined={vi.fn()}
+        onChangeDraft={vi.fn()}
+        onResetDraft={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Your original text overflows a 3×5 card/i)).toBeInTheDocument();
   });
 });

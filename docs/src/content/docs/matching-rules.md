@@ -207,7 +207,10 @@ The matching rules outlined above are applied within the Wishboard application a
 - **Explicit Match Overrides**: If a wish creator specifies a explicit desired trait (e.g. they only want a specific gender), that explicit requirement strictly overrides any implicit rules.
 - **Implicit Rules**: If a wish creator leaves desired traits blank, the matching engine relies on the creator's orientation to determine compatibility (e.g., a straight user implicitly matches only with binary opposite genders).
 - **Broad Search**: Logged-in users can temporarily disable profile-based matching in the UI to perform broad, unrestricted keyword searches.
+
 - **Anonymous Search**: Users who are not logged in can provide temporary gender, orientation, and role values in the search UI to perform a one-off compatibility query.
+
+> **AI suggestions and desired attributes.** Because explicit desired attributes override implicit rules, the [AI review dialog](../ai-features/#1b-the-suggestion-review-experience-adr-0012) leaves suggested desired attributes **unselected** by default and warns when you opt in, so AI suggestions can't silently narrow your matches (see [ADR 0012](../adr/0012-ai-suggestion-review-ux-and-streamlining/)).
 
 ## 7. Matching is bidirectional (and a few deliberate edge cases)
 
