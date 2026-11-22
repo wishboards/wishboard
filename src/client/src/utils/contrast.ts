@@ -19,12 +19,12 @@ export function colorToRgb(color: string): RGB | null {
   if (clean.startsWith('#')) {
     return hexToRgb(clean);
   }
-  const rgbaMatch = clean.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  const rgbaMatch = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i.exec(clean);
   if (rgbaMatch) {
-    const r = parseInt(rgbaMatch[1], 10);
-    const g = parseInt(rgbaMatch[2], 10);
-    const b = parseInt(rgbaMatch[3], 10);
-    return isNaN(r) || isNaN(g) || isNaN(b) ? null : { r, g, b };
+    const r = Number.parseInt(rgbaMatch[1], 10);
+    const g = Number.parseInt(rgbaMatch[2], 10);
+    const b = Number.parseInt(rgbaMatch[3], 10);
+    return Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b) ? null : { r, g, b };
   }
   return null;
 }
@@ -35,16 +35,16 @@ export function colorToRgb(color: string): RGB | null {
 export function hexToRgb(hex: string): RGB | null {
   const clean = hex.trim().replace(/^#/, '');
   if (clean.length === 3) {
-    const r = parseInt(clean[0] + clean[0], 16);
-    const g = parseInt(clean[1] + clean[1], 16);
-    const b = parseInt(clean[2] + clean[2], 16);
-    return isNaN(r) || isNaN(g) || isNaN(b) ? null : { r, g, b };
+    const r = Number.parseInt(clean[0] + clean[0], 16);
+    const g = Number.parseInt(clean[1] + clean[1], 16);
+    const b = Number.parseInt(clean[2] + clean[2], 16);
+    return Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b) ? null : { r, g, b };
   }
   if (clean.length === 6 || clean.length === 8) {
-    const r = parseInt(clean.substring(0, 2), 16);
-    const g = parseInt(clean.substring(2, 4), 16);
-    const b = parseInt(clean.substring(4, 6), 16);
-    return isNaN(r) || isNaN(g) || isNaN(b) ? null : { r, g, b };
+    const r = Number.parseInt(clean.substring(0, 2), 16);
+    const g = Number.parseInt(clean.substring(2, 4), 16);
+    const b = Number.parseInt(clean.substring(4, 6), 16);
+    return Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b) ? null : { r, g, b };
   }
   return null;
 }

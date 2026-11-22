@@ -586,7 +586,7 @@ function AuthenticatedAccountPage() {
   const [passphraseError, setPassphraseError] = useState<string | null>(null);
   const [isChangingPassphrase, setIsChangingPassphrase] = useState(false);
 
-  const handlePassphraseChange = async (e: React.FormEvent) => {
+  const handlePassphraseChange = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPassphraseMessage(null);
     setPassphraseError(null);
@@ -1153,10 +1153,10 @@ function AuthenticatedAccountPage() {
           </div>
 
           {passphraseMessage && (
-            <div
-              role="status"
+            <output
               className="success-banner"
               style={{
+                display: 'block',
                 padding: '12px 16px',
                 background: '#dcfce7',
                 color: '#166534',
@@ -1165,7 +1165,7 @@ function AuthenticatedAccountPage() {
               }}
             >
               {passphraseMessage}
-            </div>
+            </output>
           )}
 
           {passphraseError && (

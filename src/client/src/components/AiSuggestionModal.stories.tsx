@@ -21,10 +21,16 @@ interface DemoSuggestion {
 
 let activeSuggestion: DemoSuggestion | null = null;
 
+function resolveRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
 /** One-time fetch stub: only intercepts the demo wish's suggestion endpoints. */
 const baseFetch = globalThis.fetch?.bind(globalThis);
 globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const url = resolveRequestUrl(input);
   if (activeSuggestion && url.includes('/api/wishes/story-wish/suggestions')) {
     const method = (init?.method || 'GET').toUpperCase();
     const body =

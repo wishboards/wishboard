@@ -38,8 +38,9 @@ export default function AiProfileScopeCard({
         <span className="ai-scope-pill">{updateProfile ? 'Wish + Profile' : 'This Wish Only'}</span>
       </div>
 
-      <label className="ai-scope-checkbox-label">
+      <label htmlFor="ai-scope-update-profile" className="ai-scope-checkbox-label">
         <input
+          id="ai-scope-update-profile"
           type="checkbox"
           className="ai-scope-checkbox"
           checked={updateProfile}

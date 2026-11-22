@@ -227,12 +227,13 @@ export function setGitHubRepoValue(type, name, value, dryRun, app = '') {
   if (app) {
     args.push('--app', app);
   }
+  const appSuffix = app ? ` (app: ${app})` : '';
   const res = execCommand('gh', args, { dryRun });
   if (res.status === 0) {
-    logInfo(`Set ${type}: ${name}${app ? ` (app: ${app})` : ''}`);
+    logInfo(`Set ${type}: ${name}${appSuffix}`);
     return true;
   }
-  logWarn(`Failed to set ${type} ${name}${app ? ` (app: ${app})` : ''} via GitHub CLI.`);
+  logWarn(`Failed to set ${type} ${name}${appSuffix} via GitHub CLI.`);
   return false;
 }
 

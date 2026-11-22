@@ -351,10 +351,11 @@ export async function createBackup(
   const keep = parseKeepCount(opts.keep);
   const out = path.resolve(opts.out || 'backups');
   if (opts.dryRun) {
-    log(
-      `[DRY RUN] Would back up ${opts.databaseUrl || process.env.DATABASE_URL || '(no database url)'} ` +
-        `and images from ${opts.s3Bucket ? `s3://${opts.s3Bucket}/${S3_IMAGES_PREFIX}` : opts.imagesDir || '(no images dir)'} into ${out}.`
-    );
+    const dbTarget = opts.databaseUrl || process.env.DATABASE_URL || '(no database url)';
+    const imagesTarget = opts.s3Bucket
+      ? `s3://${opts.s3Bucket}/${S3_IMAGES_PREFIX}`
+      : opts.imagesDir || '(no images dir)';
+    log(`[DRY RUN] Would back up ${dbTarget} and images from ${imagesTarget} into ${out}.`);
     return { dir: out, manifest: null };
   }
 
@@ -491,8 +492,11 @@ export async function verifyBackup(dir, opts = {}, log = console.log, deps = {})
       }
     }
     const integrity = await client.execute('PRAGMA integrity_check');
-    if (String(integrity.rows[0][0]) !== 'ok') {
-      errors.push(`SQLite integrity_check failed: ${String(integrity.rows[0][0])}`);
+    const integrityVal = integrity.rows[0][0];
+    const integrityText =
+      typeof integrityVal === 'string' ? integrityVal : JSON.stringify(integrityVal);
+    if (integrityText !== 'ok') {
+      errors.push(`SQLite integrity_check failed: ${integrityText}`);
     }
     const fk = await client.execute('PRAGMA foreign_key_check');
     if (fk.rows.length > 0) {
@@ -503,9 +507,11 @@ export async function verifyBackup(dir, opts = {}, log = console.log, deps = {})
         "SELECT id, image_id FROM wishes WHERE image_id IS NOT NULL AND image_id != ''"
       );
       for (const row of refs.rows) {
-        const name = path.basename(String(row.image_id));
+        const rawImageId = typeof row.image_id === 'string' ? row.image_id : '';
+        const name = path.basename(rawImageId);
         if (!(name in manifest.images)) {
-          warnings.push(`Wish ${row.id} references image '${name}' that is not in the backup.`);
+          const wishId = typeof row.id === 'string' || typeof row.id === 'number' ? row.id : '?';
+          warnings.push(`Wish ${wishId} references image '${name}' that is not in the backup.`);
         }
       }
     }

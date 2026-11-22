@@ -48,17 +48,21 @@ function createGlobalFetchClient(): Client<paths> {
   });
 }
 
-function normalizeFetchResponse(rawRes: Response): Response {
-  const headers =
-    rawRes.headers instanceof Headers
-      ? rawRes.headers
-      : new Headers(
-          rawRes.headers && typeof rawRes.headers === 'object'
-            ? (rawRes.headers as Record<string, string>)
-            : {}
-        );
+function resolveHeaders(rawHeaders: Response['headers'] | unknown): Headers {
+  if (rawHeaders instanceof Headers) return rawHeaders;
+  const init =
+    rawHeaders && typeof rawHeaders === 'object' ? (rawHeaders as Record<string, string>) : {};
+  return new Headers(init);
+}
 
-  const status = typeof rawRes.status === 'number' ? rawRes.status : rawRes.ok ? 200 : 500;
+function resolveStatus(rawRes: Response): number {
+  if (typeof rawRes.status === 'number') return rawRes.status;
+  return rawRes.ok ? 200 : 500;
+}
+
+function normalizeFetchResponse(rawRes: Response): Response {
+  const headers = resolveHeaders(rawRes.headers);
+  const status = resolveStatus(rawRes);
 
   return {
     ok: Boolean(rawRes.ok),

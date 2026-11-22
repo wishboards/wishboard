@@ -138,7 +138,7 @@ export const CreateWishInputSchema = registry.register(
             return JSON.parse(val);
           } catch {
             ctx.addIssue({
-              code: z.ZodIssueCode.custom,
+              code: 'custom',
               message: 'Invalid card_style payload: must be valid JSON.',
             });
             return z.NEVER;
@@ -146,7 +146,7 @@ export const CreateWishInputSchema = registry.register(
         }
         if (typeof val !== 'object') {
           ctx.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: 'custom',
             message: 'Invalid card_style payload.',
           });
           return z.NEVER;

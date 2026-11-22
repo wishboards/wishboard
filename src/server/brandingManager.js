@@ -1,6 +1,12 @@
 import db from './db.js';
 import { getEventProfile, validateBranding } from './configManager.js';
 
+function toTrimmedString(val) {
+  if (typeof val === 'string') return val.trim();
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val).trim();
+  return '';
+}
+
 /**
  * Retrieve the active branding configuration, merging the event profile defaults
  * with any host overrides persisted in the `settings` database table.
@@ -107,24 +113,29 @@ export async function updateBranding(updates) {
     const mergedColors = {
       ...existingColors,
       ...(updates.primaryColor !== undefined
-        ? { primary: String(updates.primaryColor).trim() }
+        ? { primary: toTrimmedString(updates.primaryColor) }
         : {}),
-      ...(updates.accentColor !== undefined ? { accent: String(updates.accentColor).trim() } : {}),
+      ...(updates.accentColor !== undefined
+        ? { accent: toTrimmedString(updates.accentColor) }
+        : {}),
       ...(updates.surfaceColor !== undefined
-        ? { surface: String(updates.surfaceColor).trim() }
+        ? { surface: toTrimmedString(updates.surfaceColor) }
         : {}),
     };
     await upsertSetting('branding:colors', JSON.stringify(mergedColors));
   }
 
   if (updates.logoUrl !== undefined) {
-    await upsertSetting('branding:logo_url', updates.logoUrl ? String(updates.logoUrl).trim() : '');
+    await upsertSetting(
+      'branding:logo_url',
+      updates.logoUrl ? toTrimmedString(updates.logoUrl) : ''
+    );
   }
 
   if (updates.boardBgUrl !== undefined) {
     await upsertSetting(
       'branding:board_bg_url',
-      updates.boardBgUrl ? String(updates.boardBgUrl).trim() : ''
+      updates.boardBgUrl ? toTrimmedString(updates.boardBgUrl) : ''
     );
   }
 

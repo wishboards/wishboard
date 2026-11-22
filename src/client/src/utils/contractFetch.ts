@@ -58,6 +58,18 @@ export function resolveSchemaRef(schema?: OpenApiSchemaObject): OpenApiSchemaObj
   return schema;
 }
 
+function matchesPathTemplate(template: string, concretePath: string): boolean {
+  const templateParts = template.split('/');
+  const pathParts = concretePath.split('/');
+  if (templateParts.length !== pathParts.length) return false;
+  return templateParts.every((part, idx) => {
+    if (part.startsWith('{') && part.endsWith('}') && part.length > 2) {
+      return pathParts[idx].length > 0;
+    }
+    return part === pathParts[idx];
+  });
+}
+
 /**
  * Matches a concrete request URL (such as `/api/admin/users/alice/reset-password?foo=1`)
  * against the OpenAPI specification's `paths` map for the given HTTP method.
@@ -79,13 +91,79 @@ export function matchOpenApiOperation(
   for (const [pathTemplate, pathItem] of Object.entries(spec.paths)) {
     const operation = pathItem?.[lowerMethod];
     if (!operation) continue;
-    const regexStr = '^' + pathTemplate.replaceAll(/\{[^}]+\}/g, '[^/]+') + '$';
-    if (new RegExp(regexStr).test(cleanPath)) {
+    if (matchesPathTemplate(pathTemplate, cleanPath)) {
       return { pathTemplate, operation };
     }
   }
 
   return null;
+}
+
+function formatEnumValue(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return String(value);
+  }
+  return JSON.stringify(value);
+}
+
+function validateArrayValue(
+  value: unknown,
+  schema: OpenApiSchemaObject,
+  pathPrefix: string
+): string[] {
+  if (!Array.isArray(value)) {
+    return [`${pathPrefix}: expected array, got ${typeof value}`];
+  }
+  const errors: string[] = [];
+  for (let i = 0; i < value.length; i++) {
+    errors.push(...validateAgainstOpenApiSchema(value[i], schema.items, `${pathPrefix}[${i}]`));
+  }
+  return errors;
+}
+
+function validateObjectValue(
+  value: unknown,
+  schema: OpenApiSchemaObject,
+  pathPrefix: string
+): string[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return [`${pathPrefix}: expected object, got ${Array.isArray(value) ? 'array' : typeof value}`];
+  }
+  const record = value as Record<string, unknown>;
+  const errors: string[] = [];
+
+  for (const reqKey of schema.required ?? []) {
+    if (!(reqKey in record) || record[reqKey] === undefined) {
+      errors.push(`${pathPrefix}.${reqKey}: required property is missing`);
+    }
+  }
+
+  for (const [propKey, propSchema] of Object.entries(schema.properties ?? {})) {
+    if (propKey in record && record[propKey] !== undefined) {
+      errors.push(
+        ...validateAgainstOpenApiSchema(record[propKey], propSchema, `${pathPrefix}.${propKey}`)
+      );
+    }
+  }
+
+  return errors;
+}
+
+function validatePrimitiveValue(
+  value: unknown,
+  schema: OpenApiSchemaObject,
+  pathPrefix: string
+): string[] {
+  if (schema.type === 'string' && typeof value !== 'string') {
+    return [`${pathPrefix}: expected string, got ${typeof value}`];
+  }
+  if ((schema.type === 'number' || schema.type === 'integer') && typeof value !== 'number') {
+    return [`${pathPrefix}: expected ${schema.type}, got ${typeof value}`];
+  }
+  if (schema.type === 'boolean' && typeof value !== 'boolean') {
+    return [`${pathPrefix}: expected boolean, got ${typeof value}`];
+  }
+  return [];
 }
 
 /**
@@ -113,57 +191,18 @@ export function validateAgainstOpenApiSchema(
   }
 
   if (schema.enum && !schema.enum.includes(value)) {
-    return [`${pathPrefix}: "${String(value)}" is not one of [${schema.enum.join(', ')}]`];
+    return [`${pathPrefix}: "${formatEnumValue(value)}" is not one of [${schema.enum.join(', ')}]`];
   }
 
   if (schema.type === 'array') {
-    if (!Array.isArray(value)) {
-      return [`${pathPrefix}: expected array, got ${typeof value}`];
-    }
-    const errors: string[] = [];
-    for (let i = 0; i < value.length; i++) {
-      errors.push(...validateAgainstOpenApiSchema(value[i], schema.items, `${pathPrefix}[${i}]`));
-    }
-    return errors;
+    return validateArrayValue(value, schema, pathPrefix);
   }
 
   if (schema.type === 'object' || schema.properties) {
-    if (typeof value !== 'object' || Array.isArray(value)) {
-      return [
-        `${pathPrefix}: expected object, got ${Array.isArray(value) ? 'array' : typeof value}`,
-      ];
-    }
-    const record = value as Record<string, unknown>;
-    const errors: string[] = [];
-
-    for (const reqKey of schema.required ?? []) {
-      if (!(reqKey in record) || record[reqKey] === undefined) {
-        errors.push(`${pathPrefix}.${reqKey}: required property is missing`);
-      }
-    }
-
-    for (const [propKey, propSchema] of Object.entries(schema.properties ?? {})) {
-      if (propKey in record && record[propKey] !== undefined) {
-        errors.push(
-          ...validateAgainstOpenApiSchema(record[propKey], propSchema, `${pathPrefix}.${propKey}`)
-        );
-      }
-    }
-
-    return errors;
+    return validateObjectValue(value, schema, pathPrefix);
   }
 
-  if (schema.type === 'string' && typeof value !== 'string') {
-    return [`${pathPrefix}: expected string, got ${typeof value}`];
-  }
-  if ((schema.type === 'number' || schema.type === 'integer') && typeof value !== 'number') {
-    return [`${pathPrefix}: expected ${schema.type}, got ${typeof value}`];
-  }
-  if (schema.type === 'boolean' && typeof value !== 'boolean') {
-    return [`${pathPrefix}: expected boolean, got ${typeof value}`];
-  }
-
-  return [];
+  return validatePrimitiveValue(value, schema, pathPrefix);
 }
 
 export interface ContractMockRoute {
@@ -171,7 +210,19 @@ export interface ContractMockRoute {
   /** OpenAPI path template (e.g. `/api/admin/users/{username}/reset-password`) or concrete URL */
   path: string;
   status?: number;
-  response: unknown | ((req: { url: string; method: HttpMethod; body: unknown }) => unknown);
+  /** Static payload or handler `(req) => payload`. */
+  response: unknown;
+}
+
+function resolveRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
+function resolveRequestMethod(input: RequestInfo | URL, init?: RequestInit): HttpMethod {
+  const inputMethod = typeof input === 'object' && 'method' in input ? input.method : 'GET';
+  return (init?.method || inputMethod || 'GET').toUpperCase() as HttpMethod;
 }
 
 /**
@@ -184,17 +235,8 @@ export interface ContractMockRoute {
  */
 export function createContractFetchMock(routes: ContractMockRoute[]): typeof globalThis.fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url =
-      typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.href
-          : (input as Request).url;
-    const method = (
-      init?.method ||
-      (typeof input === 'object' && 'method' in input ? input.method : 'GET') ||
-      'GET'
-    ).toUpperCase() as HttpMethod;
+    const url = resolveRequestUrl(input);
+    const method = resolveRequestMethod(input, init);
 
     const matchedOp = matchOpenApiOperation(method, url);
     if (!matchedOp) {
@@ -222,8 +264,7 @@ export function createContractFetchMock(routes: ContractMockRoute[]): typeof glo
       const rMethod = (r.method ?? 'GET').toUpperCase();
       if (rMethod !== method) return false;
       if (r.path === cleanPath || r.path === matchedOp.pathTemplate) return true;
-      const regexStr = '^' + r.path.replaceAll(/\{[^}]+\}/g, '[^/]+') + '$';
-      return new RegExp(regexStr).test(cleanPath);
+      return matchesPathTemplate(r.path, cleanPath);
     });
 
     if (!mockRoute) {
