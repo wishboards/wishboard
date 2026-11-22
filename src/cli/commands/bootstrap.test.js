@@ -276,21 +276,27 @@ describe('bootstrap command', () => {
       );
       expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
         'variable',
-        'DATABASE_URL',
-        'libsql://test.turso.io',
-        false
-      );
-      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
-        'variable',
-        'DATABASE_AUTH_TOKEN_SSM',
-        '/test-repo/lifestyle/database-auth-token',
-        false
-      );
-      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
-        'variable',
         'LIFESTYLE_DATABASE_URL',
         'libsql://test.turso.io',
         false
+      );
+      expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
+        'variable',
+        'LIFESTYLE_DATABASE_AUTH_TOKEN_SSM',
+        '/test-repo/lifestyle/database-auth-token',
+        false
+      );
+      expect(setGitHubRepoValueMock).not.toHaveBeenCalledWith(
+        'variable',
+        'DATABASE_URL',
+        expect.anything(),
+        expect.anything()
+      );
+      expect(setGitHubRepoValueMock).not.toHaveBeenCalledWith(
+        'variable',
+        'DATABASE_AUTH_TOKEN_SSM',
+        expect.anything(),
+        expect.anything()
       );
 
       expect(result.secrets).toEqual(
@@ -304,12 +310,13 @@ describe('bootstrap command', () => {
       expect(result.variables).toEqual(
         expect.arrayContaining([
           'AWS_REGION',
-          'AWS_STACK_NAME',
-          'DATABASE_URL',
-          'DATABASE_AUTH_TOKEN_SSM',
           'LIFESTYLE_DATABASE_URL',
+          'LIFESTYLE_DATABASE_AUTH_TOKEN_SSM',
         ])
       );
+      expect(result.variables).not.toContain('AWS_STACK_NAME');
+      expect(result.variables).not.toContain('DATABASE_URL');
+      expect(result.variables).not.toContain('DATABASE_AUTH_TOKEN_SSM');
     });
 
     it('respects --skip-secrets, --skip-oidc, and --skip-db', async () => {
@@ -369,7 +376,7 @@ describe('bootstrap command', () => {
       expect(setupOidcMock).toHaveBeenCalled();
       expect(setSsmTokenMock).toHaveBeenCalled();
       expect(result.secrets).toEqual(['AWS_ROLE_TO_ASSUME']);
-      expect(result.variables).toEqual(['AWS_REGION', 'AWS_STACK_NAME']);
+      expect(result.variables).toEqual(['AWS_REGION']);
     });
 
     it('catches and warns on OIDC and DB errors without aborting entire flow', async () => {
@@ -469,26 +476,47 @@ describe('bootstrap command', () => {
       );
       expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
         'variable',
-        'AI_API_KEY_SSM',
+        'LIFESTYLE_AI_API_KEY_SSM',
         '/test-repo/ai/gemini-api-key',
         false
       );
       expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
         'variable',
-        'ENABLE_AI_FEATURES',
+        'LIFESTYLE_ENABLE_AI_FEATURES',
         'true',
         false
       );
       expect(setGitHubRepoValueMock).toHaveBeenCalledWith(
         'variable',
-        'AI_PROVIDER',
+        'LIFESTYLE_AI_PROVIDER',
         'cloud',
         false
       );
+      expect(setGitHubRepoValueMock).not.toHaveBeenCalledWith(
+        'variable',
+        'AI_API_KEY_SSM',
+        expect.anything(),
+        expect.anything()
+      );
+      expect(setGitHubRepoValueMock).not.toHaveBeenCalledWith(
+        'variable',
+        'ENABLE_AI_FEATURES',
+        expect.anything(),
+        expect.anything()
+      );
+      expect(setGitHubRepoValueMock).not.toHaveBeenCalledWith(
+        'variable',
+        'AI_PROVIDER',
+        expect.anything(),
+        expect.anything()
+      );
       expect(result.secrets).toContain('AI_API_KEY');
-      expect(result.variables).toContain('AI_API_KEY_SSM');
-      expect(result.variables).toContain('ENABLE_AI_FEATURES');
-      expect(result.variables).toContain('AI_PROVIDER');
+      expect(result.variables).toContain('LIFESTYLE_AI_API_KEY_SSM');
+      expect(result.variables).toContain('LIFESTYLE_ENABLE_AI_FEATURES');
+      expect(result.variables).toContain('LIFESTYLE_AI_PROVIDER');
+      expect(result.variables).not.toContain('AI_API_KEY_SSM');
+      expect(result.variables).not.toContain('ENABLE_AI_FEATURES');
+      expect(result.variables).not.toContain('AI_PROVIDER');
     });
 
     it('supports custom aiApiKeySsm and profile prefixes in AI bootstrap', async () => {

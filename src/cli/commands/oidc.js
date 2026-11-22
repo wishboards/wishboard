@@ -196,7 +196,7 @@ function getDeployRoleArn(stackName, region, accountId, repo, dryRun) {
 /**
  * Prints instructions to configure repository settings manually on GitHub.
  */
-function printManualInstructions(roleArn, region, repo) {
+function printManualInstructions(roleArn, region) {
   console.log(
     '\x1b[33mPlease manually set the following in your GitHub Repository settings (Settings -> Secrets and variables -> Actions):\x1b[0m\n'
   );
@@ -205,9 +205,7 @@ function printManualInstructions(roleArn, region, repo) {
   console.log(`    Value: ${roleArn}\n`);
   console.log('  \x1b[32mRepository Variables:\x1b[0m');
   console.log(`    Name:  \x1b[36mAWS_REGION\x1b[0m`);
-  console.log(`    Value: ${region}`);
-  console.log(`    Name:  \x1b[36mAWS_STACK_NAME\x1b[0m`);
-  console.log(`    Value: ${repo}-serverless-dev\n`);
+  console.log(`    Value: ${region}\n`);
 }
 
 /**
@@ -241,12 +239,12 @@ export function setGitHubRepoValue(type, name, value, dryRun, app = '') {
 /**
  * Populates GitHub Repository variables and secrets via GitHub CLI (gh).
  */
-function configureGitHubSecrets(roleArn, region, repo, dryRun) {
+function configureGitHubSecrets(roleArn, region, dryRun) {
   logStep('Configuring GitHub Repository settings...');
 
   if (!hasCommand('gh')) {
     logInfo('GitHub CLI (gh) not detected.');
-    printManualInstructions(roleArn, region, repo);
+    printManualInstructions(roleArn, region);
     return;
   }
 
@@ -254,7 +252,7 @@ function configureGitHubSecrets(roleArn, region, repo, dryRun) {
     logWarn(
       "GitHub CLI (gh) is installed but not authenticated. Run 'gh auth login' to authenticate."
     );
-    printManualInstructions(roleArn, region, repo);
+    printManualInstructions(roleArn, region);
     return;
   }
 
@@ -262,10 +260,9 @@ function configureGitHubSecrets(roleArn, region, repo, dryRun) {
 
   const s1 = setGitHubRepoValue('secret', 'AWS_ROLE_TO_ASSUME', roleArn, dryRun);
   const s2 = setGitHubRepoValue('variable', 'AWS_REGION', region, dryRun);
-  const s3 = setGitHubRepoValue('variable', 'AWS_STACK_NAME', `${repo}-serverless-dev`, dryRun);
 
-  if (!s1 || !s2 || !s3) {
-    printManualInstructions(roleArn, region, repo);
+  if (!s1 || !s2) {
+    printManualInstructions(roleArn, region);
   }
 }
 
@@ -289,7 +286,7 @@ export function setupOidc(options) {
   logInfo('Deployment Role Created Successfully!');
   console.log(`\x1b[32mRole ARN: ${roleArn}\x1b[0m\n`);
 
-  configureGitHubSecrets(roleArn, region, repo, dryRun);
+  configureGitHubSecrets(roleArn, region, dryRun);
 
   console.log('\x1b[32mOIDC Setup Complete!\x1b[0m');
 }
@@ -334,9 +331,6 @@ export function destroyOidc(options) {
 
       execCommand('gh', ['variable', 'delete', 'AWS_REGION'], { dryRun, stdio: 'ignore' });
       logInfo('Deleted variable: AWS_REGION');
-
-      execCommand('gh', ['variable', 'delete', 'AWS_STACK_NAME'], { dryRun, stdio: 'ignore' });
-      logInfo('Deleted variable: AWS_STACK_NAME');
     } else {
       logWarn('GitHub CLI (gh) is installed but not authenticated. Skipping secrets cleanup.');
     }

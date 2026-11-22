@@ -63,7 +63,7 @@ The serverless stack uses a hosted **[Turso](https://turso.tech)** (libSQL) data
    # aws ssm put-parameter --name /wishboard/dev/turso-auth-token --type SecureString --value "<token>" --overwrite --region us-east-1
    ```
 
-3. Pass the **URL** and the **SSM parameter name** to the deploy as the `DatabaseUrl` and `DatabaseAuthTokenSsm` parameters — via `sam --guided`, `samconfig.toml` (local; gitignored), or the `DATABASE_URL` / `DATABASE_AUTH_TOKEN_SSM` repository **Variables** (CI).
+3. Pass the **URL** and the **SSM parameter name** to the deploy as the `DatabaseUrl` and `DatabaseAuthTokenSsm` parameters — via `sam --guided`, `samconfig.toml` (local; gitignored), or the `<TARGET>_DATABASE_URL` / `<TARGET>_DATABASE_AUTH_TOKEN_SSM` repository **Variables** (CI).
 
 ### Rotating the token
 
@@ -90,7 +90,7 @@ If enabling AI tag suggestions and semantic search (`EnableAiFeatures=true`), th
        --value "<your-gemini-key>" \
        --region us-east-1
      ```
-3. Set `AI_API_KEY_SSM=/wishboard/ai/gemini-api-key`, `ENABLE_AI_FEATURES=true`, and `AI_PROVIDER=cloud` in your repository variables or SAM parameter overrides.
+3. Set `<TARGET>_AI_API_KEY_SSM=/wishboard/ai/gemini-api-key`, `<TARGET>_ENABLE_AI_FEATURES=true`, and `<TARGET>_AI_PROVIDER=cloud` in your repository variables (or pass `EnableAiFeatures=true`, `AiProvider=cloud`, and `AiApiKeySsm=/wishboard/ai/gemini-api-key` as SAM parameter overrides).
 
 ---
 

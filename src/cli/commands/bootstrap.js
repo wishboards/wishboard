@@ -189,7 +189,7 @@ export async function runBootstrap(options = {}, deps = {}) {
       const oidcSetupFn = deps.setupOidc || setupOidc;
       await oidcSetupFn({ org, repo, region, dryRun });
       configured.secrets.push('AWS_ROLE_TO_ASSUME');
-      configured.variables.push('AWS_REGION', 'AWS_STACK_NAME');
+      configured.variables.push('AWS_REGION');
     } catch (err) {
       logWarn(`AWS OIDC setup encountered an error: ${err.message}`);
     }
@@ -229,19 +229,11 @@ export async function runBootstrap(options = {}, deps = {}) {
 
       if (url && ghAuthed) {
         logInfo('Setting database variables in GitHub repository...');
-        if (setGh('variable', 'DATABASE_URL', url, dryRun)) {
-          configured.variables.push('DATABASE_URL');
+        if (setGh('variable', `${profilePrefix}_DATABASE_URL`, url, dryRun)) {
+          configured.variables.push(`${profilePrefix}_DATABASE_URL`);
         }
-        if (setGh('variable', 'DATABASE_AUTH_TOKEN_SSM', ssmParamName, dryRun)) {
-          configured.variables.push('DATABASE_AUTH_TOKEN_SSM');
-        }
-        if (eventProfile) {
-          setGh('variable', `${profilePrefix}_DATABASE_URL`, url, dryRun);
-          setGh('variable', `${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`, ssmParamName, dryRun);
-          configured.variables.push(
-            `${profilePrefix}_DATABASE_URL`,
-            `${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`
-          );
+        if (setGh('variable', `${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`, ssmParamName, dryRun)) {
+          configured.variables.push(`${profilePrefix}_DATABASE_AUTH_TOKEN_SSM`);
         }
       } else if (!url) {
         logInfo(
@@ -275,24 +267,14 @@ export async function runBootstrap(options = {}, deps = {}) {
 
       if (ghAuthed) {
         logInfo('Setting AI configuration variables in GitHub repository...');
-        if (setGh('variable', 'AI_API_KEY_SSM', aiApiKeySsm, dryRun)) {
-          configured.variables.push('AI_API_KEY_SSM');
+        if (setGh('variable', `${profilePrefix}_AI_API_KEY_SSM`, aiApiKeySsm, dryRun)) {
+          configured.variables.push(`${profilePrefix}_AI_API_KEY_SSM`);
         }
-        if (setGh('variable', 'ENABLE_AI_FEATURES', String(enableAi), dryRun)) {
-          configured.variables.push('ENABLE_AI_FEATURES');
+        if (setGh('variable', `${profilePrefix}_ENABLE_AI_FEATURES`, String(enableAi), dryRun)) {
+          configured.variables.push(`${profilePrefix}_ENABLE_AI_FEATURES`);
         }
-        if (setGh('variable', 'AI_PROVIDER', aiProvider, dryRun)) {
-          configured.variables.push('AI_PROVIDER');
-        }
-        if (eventProfile) {
-          setGh('variable', `${profilePrefix}_AI_API_KEY_SSM`, aiApiKeySsm, dryRun);
-          setGh('variable', `${profilePrefix}_ENABLE_AI_FEATURES`, String(enableAi), dryRun);
-          setGh('variable', `${profilePrefix}_AI_PROVIDER`, aiProvider, dryRun);
-          configured.variables.push(
-            `${profilePrefix}_AI_API_KEY_SSM`,
-            `${profilePrefix}_ENABLE_AI_FEATURES`,
-            `${profilePrefix}_AI_PROVIDER`
-          );
+        if (setGh('variable', `${profilePrefix}_AI_PROVIDER`, aiProvider, dryRun)) {
+          configured.variables.push(`${profilePrefix}_AI_PROVIDER`);
         }
       }
     } else {
