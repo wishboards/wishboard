@@ -31,6 +31,7 @@ import {
   GEMINI_OPENAI_BASE_URL,
   OPENAI_BASE_URL,
   DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_FALLBACK_MODEL,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_OPENAI_EMBEDDING_MODEL,
   isGeminiModel,
@@ -390,6 +391,85 @@ describe('AI Module', () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network timeout'));
       const resErr = await provider.suggestAttributes({ content: 'Hello' });
       expect(resErr.reasoning).toContain('Inference failed: Network timeout');
+    });
+
+    it('CloudInferenceProvider retries Gemini 503 with fallback model and falls back to local heuristics if both fail', async () => {
+      const sampleTaxonomy = [
+        { id: 'gender', label: 'Gender', suggestions: ['Woman', 'Man'] },
+        { id: 'role', label: 'Role', suggestions: ['Dominant', 'Switch'] },
+      ];
+
+      // 1. Primary 503 -> succeeds on gemini-flash-lite-latest
+      const retryFetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          text: async () => 'Model experiencing high demand',
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    suggestedCreatorAttributes: { gender: ['Woman'] },
+                    suggestedDesiredAttributes: { role: ['Dominant'] },
+                    reasoning: 'Extracted by fallback lite model',
+                  }),
+                },
+              },
+            ],
+          }),
+        });
+      globalThis.fetch = retryFetch;
+
+      const provider = new CloudInferenceProvider({ apiKey: 'test-key' });
+      const retryRes = await provider.suggestAttributes({
+        content: 'Woman looking for a dominant partner',
+        taxonomy: sampleTaxonomy,
+      });
+
+      expect(retryFetch).toHaveBeenCalledTimes(2);
+      const firstSent = JSON.parse(retryFetch.mock.calls[0][1].body);
+      const secondSent = JSON.parse(retryFetch.mock.calls[1][1].body);
+      expect(firstSent.model).toBe(DEFAULT_GEMINI_MODEL);
+      expect(secondSent.model).toBe(DEFAULT_GEMINI_FALLBACK_MODEL);
+      expect(retryRes.suggestedCreatorAttributes).toEqual({ gender: ['Woman'] });
+      expect(retryRes.suggestedDesiredAttributes).toEqual({ role: ['Dominant'] });
+
+      // 2. Both cloud models 503 -> falls back to LocalInferenceProvider heuristics
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: async () => 'Unavailable',
+      });
+      const localFallbackRes = await provider.suggestAttributes({
+        content: 'I am a woman looking for a dominant switch partner',
+        taxonomy: sampleTaxonomy,
+      });
+      expect(localFallbackRes.suggestedCreatorAttributes.gender).toContain('Woman');
+      expect(localFallbackRes.suggestedDesiredAttributes.role).toEqual(
+        expect.arrayContaining(['Dominant', 'Switch'])
+      );
+      expect(localFallbackRes.reasoning).toContain('local fallback after Cloud AI error: HTTP 503');
+
+      // 3. Non-retryable 401 does NOT retry fallback model or run local heuristics
+      const authFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: async () => 'Invalid API key',
+      });
+      globalThis.fetch = authFetch;
+      const authRes = await provider.suggestAttributes({
+        content: 'I am a woman looking for a dominant partner',
+        taxonomy: sampleTaxonomy,
+      });
+      expect(authFetch).toHaveBeenCalledOnce();
+      expect(authRes.suggestedCreatorAttributes).toEqual({});
+      expect(authRes.suggestedDesiredAttributes).toEqual({});
+      expect(authRes.reasoning).toContain('HTTP 401');
     });
 
     it('CloudEmbeddingProvider calls embeddings endpoint and handles failures', async () => {
