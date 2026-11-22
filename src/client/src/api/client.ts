@@ -48,7 +48,7 @@ function createGlobalFetchClient(): Client<paths> {
   });
 }
 
-function resolveHeaders(rawHeaders: Response['headers'] | unknown): Headers {
+function resolveHeaders(rawHeaders: unknown): Headers {
   if (rawHeaders instanceof Headers) return rawHeaders;
   const init =
     rawHeaders && typeof rawHeaders === 'object' ? (rawHeaders as Record<string, string>) : {};

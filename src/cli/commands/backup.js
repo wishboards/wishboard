@@ -355,10 +355,11 @@ export async function createBackup(
   const keep = parseKeepCount(opts.keep);
   const out = path.resolve(opts.out || 'backups');
   if (opts.dryRun) {
-    log(
-      `[DRY RUN] Would back up ${opts.databaseUrl || process.env.DATABASE_URL || '(no database url)'} ` +
-        `and images from ${opts.s3Bucket ? `s3://${opts.s3Bucket}/${S3_IMAGES_PREFIX}` : opts.imagesDir || '(no images dir)'} into ${out}.`
-    );
+    const dbTarget = opts.databaseUrl || process.env.DATABASE_URL || '(no database url)';
+    const imagesTarget = opts.s3Bucket
+      ? `s3://${opts.s3Bucket}/${S3_IMAGES_PREFIX}`
+      : opts.imagesDir || '(no images dir)';
+    log(`[DRY RUN] Would back up ${dbTarget} and images from ${imagesTarget} into ${out}.`);
     return { dir: out, manifest: null };
   }
 
@@ -470,8 +471,7 @@ function verifyBackupChecksums(targetDir, manifest, databaseJson, errors) {
   }
 }
 
-async function verifyRestoredDatabase({ client, manifest, dump, tables, errors, warnings }) {
-  await loadDatabase(client, dump);
+async function verifyRestoredRowCounts(client, manifest, tables, errors) {
   for (const [name, expected] of Object.entries(manifest.tables)) {
     const rs = await client.execute(`SELECT COUNT(*) AS n FROM ${quoteIdent(name)}`);
     tables[name] = Number(rs.rows[0].n);
@@ -481,6 +481,9 @@ async function verifyRestoredDatabase({ client, manifest, dump, tables, errors, 
       );
     }
   }
+}
+
+async function verifySqlitePragmas(client, errors) {
   const integrity = await client.execute('PRAGMA integrity_check');
   const integrityVal = integrity.rows[0][0];
   const integrityText =
@@ -492,19 +495,28 @@ async function verifyRestoredDatabase({ client, manifest, dump, tables, errors, 
   if (fk.rows.length > 0) {
     errors.push(`${fk.rows.length} foreign key violation(s) after restore.`);
   }
-  if (manifest.tables.wishes !== undefined) {
-    const refs = await client.execute(
-      "SELECT id, image_id FROM wishes WHERE image_id IS NOT NULL AND image_id != ''"
-    );
-    for (const row of refs.rows) {
-      const rawImageId = typeof row.image_id === 'string' ? row.image_id : '';
-      const name = path.basename(rawImageId);
-      if (!(name in manifest.images)) {
-        const wishId = typeof row.id === 'string' || typeof row.id === 'number' ? row.id : '?';
-        warnings.push(`Wish ${wishId} references image '${name}' that is not in the backup.`);
-      }
+}
+
+async function verifyWishImageReferences(client, manifest, warnings) {
+  if (manifest.tables.wishes === undefined) return;
+  const refs = await client.execute(
+    "SELECT id, image_id FROM wishes WHERE image_id IS NOT NULL AND image_id != ''"
+  );
+  for (const row of refs.rows) {
+    const rawImageId = typeof row.image_id === 'string' ? row.image_id : '';
+    const name = path.basename(rawImageId);
+    if (!(name in manifest.images)) {
+      const wishId = typeof row.id === 'string' || typeof row.id === 'number' ? row.id : '?';
+      warnings.push(`Wish ${wishId} references image '${name}' that is not in the backup.`);
     }
   }
+}
+
+async function verifyRestoredDatabase({ client, manifest, dump, tables, errors, warnings }) {
+  await loadDatabase(client, dump);
+  await verifyRestoredRowCounts(client, manifest, tables, errors);
+  await verifySqlitePragmas(client, errors);
+  await verifyWishImageReferences(client, manifest, warnings);
 }
 
 /**

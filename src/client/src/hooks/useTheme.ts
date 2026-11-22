@@ -56,6 +56,14 @@ export const setStoredPreferences = (prefs: UIPreferences): void => {
   }
 };
 
+function setOrRemoveCssVar(name: string, value?: string | null) {
+  if (value) {
+    document.documentElement.style.setProperty(name, value);
+  } else {
+    document.documentElement.style.removeProperty(name);
+  }
+}
+
 export function useTheme() {
   const { user, token, refreshUser } = useAuth();
   const { branding: profileBranding } = useEventProfile();
@@ -88,14 +96,6 @@ export function useTheme() {
   const hostPreset: ThemePreset = branding.themePreset || 'midnight';
   const effectiveTheme: ThemePreset =
     themeMode === 'host-default' ? hostPreset : (themeMode as ThemePreset);
-
-  function setOrRemoveCssVar(name: string, value?: string | null) {
-    if (value) {
-      document.documentElement.style.setProperty(name, value);
-    } else {
-      document.documentElement.style.removeProperty(name);
-    }
-  }
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

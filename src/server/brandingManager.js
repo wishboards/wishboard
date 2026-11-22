@@ -149,11 +149,11 @@ export async function updateBranding(updates) {
     );
   }
 
-  for (const [field, settingKey] of BRANDING_STRING_UPDATES) {
-    if (typeof updates[field] === 'string') {
-      await upsertSetting(settingKey, updates[field].trim());
-    }
-  }
+  await Promise.all(
+    BRANDING_STRING_UPDATES.filter(([field]) => typeof updates[field] === 'string').map(
+      ([field, settingKey]) => upsertSetting(settingKey, updates[field].trim())
+    )
+  );
 
   return getMergedBranding();
 }
