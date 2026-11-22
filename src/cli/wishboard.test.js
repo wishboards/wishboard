@@ -23,10 +23,13 @@ vi.mock('./commands/auth.js', () => ({
 
 vi.mock('./commands/db.js', () => ({
   resetPassword: vi.fn().mockResolvedValue(true),
+  resetRules: vi.fn().mockResolvedValue(true),
+  setSsmToken: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('./commands/build.js', () => ({
   downloadFonts: vi.fn().mockResolvedValue(),
+  prepareProfile: vi.fn(),
 }));
 
 vi.mock('./commands/backup.js', () => ({
@@ -421,6 +424,112 @@ describe('wishboard CLI entrypoint', () => {
     const output = writeSpy.mock.calls.map((call) => call[0]).join('');
     expect(output).toContain('Global Options:');
     expect(output).toContain('--dry-run');
+    writeSpy.mockRestore();
+  });
+
+  it('routes db reset-rules with globals and the force flag', async () => {
+    const mod = await import('./commands/db.js');
+    await runCLI(['--event-profile', 'pro', 'db', 'reset-rules', '--force', '--dry-run']);
+    expect(mod.resetRules).toHaveBeenCalledWith(
+      expect.objectContaining({ force: true, dryRun: true, eventProfile: 'pro' })
+    );
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
+  });
+
+  it('db reset-rules exits 1 without an error message when resetRules returns false', async () => {
+    const mod = await import('./commands/db.js');
+    vi.mocked(mod.resetRules).mockResolvedValueOnce(false);
+    await runCLI(['db', 'reset-rules']);
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('db reset-rules reports the exact error and exits 1 on failure', async () => {
+    const mod = await import('./commands/db.js');
+    vi.mocked(mod.resetRules).mockRejectedValueOnce(new Error('rules boom'));
+    await runCLI(['db', 'reset-rules']);
+    expect(errorSpy).toHaveBeenCalledWith('\x1b[31mError resetting rules: rules boom\x1b[0m');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('routes db set-ssm-token positionals with the default region', async () => {
+    const mod = await import('./commands/db.js');
+    await runCLI(['db', 'set-ssm-token', '/my/param', 'tok123']);
+    expect(mod.setSsmToken).toHaveBeenCalledWith(
+      '/my/param',
+      'tok123',
+      expect.objectContaining({ region: 'us-east-1' })
+    );
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
+  });
+
+  it('routes db set-ssm-token with an explicit region', async () => {
+    const mod = await import('./commands/db.js');
+    await runCLI(['db', 'set-ssm-token', '/p', 't', '--region', 'eu-west-1']);
+    expect(mod.setSsmToken).toHaveBeenCalledWith(
+      '/p',
+      't',
+      expect.objectContaining({ region: 'eu-west-1' })
+    );
+  });
+
+  it('db set-ssm-token reports the exact error and exits 1 on failure', async () => {
+    const mod = await import('./commands/db.js');
+    vi.mocked(mod.setSsmToken).mockRejectedValueOnce(new Error('ssm boom'));
+    await runCLI(['db', 'set-ssm-token', '/p', 't']);
+    expect(errorSpy).toHaveBeenCalledWith('\x1b[31mError setting SSM parameter: ssm boom\x1b[0m');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('propagates global dry-run and event-profile into oidc setup opts', async () => {
+    const mod = await import('./commands/oidc.js');
+    await runCLI(['--dry-run', '--event-profile', 'pro', 'oidc', 'setup']);
+    expect(mod.setupOidc).toHaveBeenCalledWith(
+      expect.objectContaining({ dryRun: true, eventProfile: 'pro', region: 'us-east-1' })
+    );
+  });
+
+  it('routes build prepare-profile with the event profile as first arg', async () => {
+    const mod = await import('./commands/build.js');
+    await runCLI(['--event-profile', 'dev', 'build', 'prepare-profile']);
+    expect(mod.prepareProfile).toHaveBeenCalledWith(
+      'dev',
+      expect.objectContaining({ eventProfile: 'dev' })
+    );
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
+  });
+
+  it('build prepare-profile reports the exact error and exits 1 on failure', async () => {
+    const mod = await import('./commands/build.js');
+    vi.mocked(mod.prepareProfile).mockImplementationOnce(() => {
+      throw new Error('profile boom');
+    });
+    await runCLI(['build', 'prepare-profile']);
+    expect(errorSpy).toHaveBeenCalledWith('\x1b[31mError preparing profile: profile boom\x1b[0m');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('help output for db reset-rules lists its exact options and defaults', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    await runCLI(['db', 'reset-rules', '--help']);
+    expect(exitSpy).toHaveBeenCalledWith(0);
+    const output = writeSpy.mock.calls.map((call) => call[0]).join('');
+    expect(output).toContain('Reset matching rules to bundled defaults (local or remote)');
+    expect(output).toContain('--url <url>');
+    expect(output).toContain('--admin <username>');
+    expect(output).toContain('(default: "admin")');
+    expect(output).toContain('--force');
+    writeSpy.mockRestore();
+  });
+
+  it('help output for the root command lists every command group', async () => {
+    const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    await runCLI(['--help']);
+    const output = writeSpy.mock.calls.map((call) => call[0]).join('');
+    expect(output).toContain('Unified deployment and administration CLI for Wishboard');
+    for (const group of ['oidc', 'bootstrap', 'serverless', 'kiosk', 'db', 'build', 'auth']) {
+      expect(output).toContain(group);
+    }
     writeSpy.mockRestore();
   });
 });
