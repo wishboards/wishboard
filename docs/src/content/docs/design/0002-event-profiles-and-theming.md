@@ -1,8 +1,8 @@
 ---
-title: 0002 Event Profiles And Theming
+title: 'Design Document 0002: Event Profiles and Decoupled Theming (Issue #263)'
+sidebar:
+  label: 0002 Event Profiles & Theming
 ---
-
-# Design Document 0002: Event Profiles and Decoupled Theming (Issue #263)
 
 - **Status:** Implemented
 - **Date:** 2026-08

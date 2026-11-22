@@ -1,8 +1,6 @@
 ---
-title: Serverless Deployment Guide
+title: Deploying Wishboard to AWS Serverless
 ---
-
-# Deploying Wishboard to AWS Serverless
 
 This guide details how to build, deploy, maintain, and estimate the monthly costs of running Wishboard as a serverless application on AWS.
 

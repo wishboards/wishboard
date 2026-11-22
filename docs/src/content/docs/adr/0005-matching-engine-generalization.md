@@ -1,8 +1,8 @@
 ---
-title: 0005 Matching Engine Generalization
+title: 'ADR 0005: Matching Engine Generalization and Context-Aware Rules'
+sidebar:
+  label: 0005 Matching Engine Generalization
 ---
-
-# ADR 0005: Matching Engine Generalization and Context-Aware Rules
 
 - **Status:** Implemented
 - **Date:** 2026-07

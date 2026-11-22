@@ -1,8 +1,8 @@
 ---
-title: 0011 Theming Skinning and Mobile Companion UX
+title: 'ADR 0011: Dual-Persona Skinning Architecture, Tactile Card Styling, and Mobile Companion UX'
+sidebar:
+  label: 0011 Theming, Skinning & Mobile Companion UX
 ---
-
-# ADR 0011: Dual-Persona Skinning Architecture, Tactile Card Styling, and Mobile Companion UX
 
 - **Status:** Implemented
 - **Context date:** October 2026

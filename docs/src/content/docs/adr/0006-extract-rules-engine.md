@@ -1,8 +1,8 @@
 ---
-title: 0006 Extract Rules Engine
+title: 'ADR 0006: Decoupling and Extracting the Rules Engine'
+sidebar:
+  label: 0006 Extract Rules Engine
 ---
-
-# ADR 0006: Decoupling and Extracting the Rules Engine
 
 - **Status:** Implemented (via `@wishboards/matching-engine` v1.x)
 - **Date:** 2026-08

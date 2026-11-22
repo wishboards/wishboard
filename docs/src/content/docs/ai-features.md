@@ -2,8 +2,6 @@
 title: Optional AI Features & Semantic Search
 ---
 
-# Optional AI Features & Semantic Search
-
 Wishboard includes an optional, privacy-first AI integration designed for convention deployments. It assists attendees by extracting taxonomy tags from freeform wish text and providing semantic vector search, while preserving complete privacy and offline operation.
 
 :::tip[Zero-Cost & Offline by Default]

@@ -1,8 +1,8 @@
 ---
-title: 0012 AI Suggestion Review UX, Scope Control & Sticker-Aware Streamlining
+title: 'ADR 0012: AI Suggestion Review UX, Scope Control & Sticker-Aware Streamlining'
+sidebar:
+  label: 0012 AI Suggestion Review UX & Streamlining
 ---
-
-# ADR 0012: AI Suggestion Review UX, Scope Control & Sticker-Aware Streamlining
 
 - **Status:** Accepted (Phases 1–2 implemented; Phase 3 planned)
 - **Date:** 2026-11
