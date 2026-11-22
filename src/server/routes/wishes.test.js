@@ -864,5 +864,76 @@ describe('Wish creation, claim, and management API edge cases', () => {
       expect(conflictRes.status).toBe(400);
       expect(conflictRes.body.error).toContain('conflict');
     });
+
+    it('deduplicates merged suggestion attributes case-insensitively on accept and allows explicit replacement on modify', async () => {
+      const createRes = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Looking for tabletop games',
+          creator_attributes: { orientation: 'Gay', role: 'Switch' },
+        });
+      expect(createRes.status).toBe(201);
+      const { id, secret } = createRes.body;
+
+      const now = new Date().toISOString();
+      await db
+        .prepare(
+          'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, reasoning, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          'sugg-dedup-1',
+          id,
+          JSON.stringify({ role: ['switch', 'Top'] }),
+          JSON.stringify({}),
+          'Detected role terms',
+          'pending',
+          now,
+          now
+        );
+
+      const acceptRes = await request(app)
+        .post(`/api/wishes/${id}/suggestions/accept`)
+        .send({ secret });
+      expect(acceptRes.status).toBe(200);
+
+      const afterAccept = await request(app).get(`/api/wishes/${id}`);
+      expect(afterAccept.body.creator_attributes).toEqual({
+        orientation: ['Gay'],
+        role: ['Switch', 'Top'],
+      });
+
+      // Stage a second suggestion that conflicts with existing orientation ('Straight' vs 'Gay')
+      await db
+        .prepare(
+          'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, reasoning, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          'sugg-replace-2',
+          id,
+          JSON.stringify({ orientation: ['Straight'] }),
+          JSON.stringify({ role: ['Bottom'] }),
+          'Detected straight orientation',
+          'pending',
+          now,
+          now
+        );
+
+      // Replacing conflicting existing orientation and leaving desired explicitly empty succeeds via modify
+      const modifyRes = await request(app)
+        .post(`/api/wishes/${id}/suggestions/modify`)
+        .send({
+          secret,
+          creator_attributes: { orientation: ['Straight'], role: ['Switch', 'Top'] },
+          desired_attributes: {},
+        });
+      expect(modifyRes.status).toBe(200);
+
+      const afterModify = await request(app).get(`/api/wishes/${id}`);
+      expect(afterModify.body.creator_attributes).toEqual({
+        orientation: ['Straight'],
+        role: ['Switch', 'Top'],
+      });
+      expect(afterModify.body.desired_attributes).toEqual({});
+    });
   });
 });

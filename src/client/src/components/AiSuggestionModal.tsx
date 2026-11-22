@@ -1,44 +1,61 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiClient, bearerHeader } from '../api/client';
 import type { components } from '../api/schema';
+import { useEventProfile } from '../EventProfileContext';
+import BottomSheet from './common/BottomSheet';
+import WishCard, { type CardStyle, type Wish } from './WishCard';
+import AiAttributeSection from './AiAttributeSection';
+import { countMatchingStickers } from '../utils/stickers';
+import {
+  type AttrMap,
+  addAttrValue,
+  areAttrMapsEqual,
+  countAttrValues,
+  detectAttributeConflicts,
+  isExactFullAccept,
+  mergeAttributeMaps,
+  normalizeAttrMap,
+  removeAttrValue,
+  toggleAttrValue,
+} from '../utils/aiSuggestions';
 
 type WishAiSuggestion = components['schemas']['WishAiSuggestion'];
 
+export interface AiSuggestionWishContext {
+  id: string;
+  content: string;
+  creator_attributes?: Record<string, string[]>;
+  desired_attributes?: Record<string, string[]>;
+  contacts?: { type?: string; value?: string }[];
+  wishmail_enabled?: boolean;
+  image_id?: string | null;
+  image_url?: string;
+  card_style?: CardStyle | string | null;
+}
+
 export interface AiSuggestionModalProps {
   wishId: string;
+  wish?: AiSuggestionWishContext;
   secret?: string;
   token?: string | null;
   onClose: () => void;
   onApplied?: () => void;
 }
 
-function formatAttributesForEdit(
-  attrs: Record<string, unknown> | undefined
-): Record<string, string> {
-  const result: Record<string, string> = {};
-  if (!attrs) return result;
-  for (const [key, val] of Object.entries(attrs)) {
-    if (Array.isArray(val)) {
-      result[key] = val.join(', ');
-    } else if (typeof val === 'string') {
-      result[key] = val;
-    }
-  }
-  return result;
-}
+function useIsMobileViewport(): boolean {
+  const [isMobile, setIsMobile] = useState(() =>
+    Boolean(globalThis.matchMedia?.('(max-width: 639px)').matches)
+  );
 
-function parseAttributesFromEdit(attrs: Record<string, string>): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  for (const [key, val] of Object.entries(attrs)) {
-    const items = val
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean);
-    if (items.length > 0) {
-      result[key] = items;
-    }
-  }
-  return result;
+  useEffect(() => {
+    const mql = globalThis.matchMedia?.('(max-width: 639px)');
+    if (!mql) return;
+    const handleChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener?.('change', handleChange);
+    return () => mql.removeEventListener?.('change', handleChange);
+  }, []);
+
+  return isMobile;
 }
 
 function getEmptySuggestionMessage(suggestions: WishAiSuggestion[]): string {
@@ -48,266 +65,159 @@ function getEmptySuggestionMessage(suggestions: WishAiSuggestion[]): string {
   return 'No AI suggestions found for this wish.';
 }
 
-interface AttributeFieldInputsProps {
-  title: string;
-  emptyLabel: string;
-  values: Record<string, string>;
-  onChange: (category: string, value: string) => void;
+interface PreviewPanelProps {
+  previewWish: Wish;
+  stickerCount: number;
+  isMobile: boolean;
+  mobilePreviewOpen: boolean;
+  onToggleMobilePreview: () => void;
 }
 
-function AttributeFieldInputs({
-  title,
-  emptyLabel,
-  values,
-  onChange,
-}: Readonly<AttributeFieldInputsProps>) {
-  const entries = Object.entries(values);
-  return (
-    <div>
-      <h3 style={{ fontSize: '0.95rem', margin: '0 0 6px 0', color: '#1e293b' }}>{title}</h3>
-      {entries.length === 0 ? (
-        <div style={{ fontStyle: 'italic', fontSize: '0.85rem', color: '#64748b' }}>
-          {emptyLabel}
-        </div>
-      ) : (
-        entries.map(([category, val]) => (
-          <div key={category} style={{ marginBottom: '8px' }}>
-            <label style={{ fontSize: '0.85rem', textTransform: 'capitalize', fontWeight: 600 }}>
-              {category}
-              <input
-                type="text"
-                value={val}
-                onChange={(e) => onChange(category, e.target.value)}
-                style={{ marginTop: '4px', width: '100%', boxSizing: 'border-box' }}
-              />
-            </label>
+function LiveCardPreviewPanel({
+  previewWish,
+  stickerCount,
+  isMobile,
+  mobilePreviewOpen,
+  onToggleMobilePreview,
+}: Readonly<PreviewPanelProps>) {
+  const stickerLabel = `${stickerCount} ${stickerCount === 1 ? 'sticker' : 'stickers'}`;
+
+  if (isMobile) {
+    return (
+      <div className="ai-mobile-preview-accordion">
+        <button
+          type="button"
+          className="ai-mobile-preview-toggle"
+          onClick={onToggleMobilePreview}
+          aria-expanded={mobilePreviewOpen}
+        >
+          <span>Live Card Preview ({stickerLabel})</span>
+          <span aria-hidden="true">{mobilePreviewOpen ? '▴' : '▾'}</span>
+        </button>
+        {mobilePreviewOpen && (
+          <div className="ai-preview-card-wrap">
+            <WishCard wish={previewWish} showFlag={false} isEditorPreview={true} />
           </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-interface EditAttributesFormProps {
-  modifiedCreator: Record<string, string>;
-  setModifiedCreator: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  modifiedDesired: Record<string, string>;
-  setModifiedDesired: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-}
-
-function EditAttributesForm({
-  modifiedCreator,
-  setModifiedCreator,
-  modifiedDesired,
-  setModifiedDesired,
-}: Readonly<EditAttributesFormProps>) {
-  return (
-    <div style={{ display: 'grid', gap: '14px', marginTop: '12px' }}>
-      <AttributeFieldInputs
-        title="Your Attributes (Comma-separated)"
-        emptyLabel="No creator attributes suggested."
-        values={modifiedCreator}
-        onChange={(cat, val) => setModifiedCreator((prev) => ({ ...prev, [cat]: val }))}
-      />
-      <AttributeFieldInputs
-        title="Looking For / Desired Attributes (Comma-separated)"
-        emptyLabel="No desired attributes suggested."
-        values={modifiedDesired}
-        onChange={(cat, val) => setModifiedDesired((prev) => ({ ...prev, [cat]: val }))}
-      />
-    </div>
-  );
-}
-
-interface SuggestionCardSectionProps {
-  title: string;
-  titleColor: string;
-  bgColor: string;
-  borderColor: string;
-  badgeBg: string;
-  badgeColor: string;
-  attributes: Record<string, unknown> | undefined;
-}
-
-function SuggestionCardSection({
-  title,
-  titleColor,
-  bgColor,
-  borderColor,
-  badgeBg,
-  badgeColor,
-  attributes,
-}: Readonly<SuggestionCardSectionProps>) {
-  const entries = Object.entries((attributes as Record<string, string[]>) || {});
-  const hasItems = entries.some(([, items]) => Array.isArray(items) && items.length > 0);
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        backgroundColor: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: '10px',
-        padding: '12px 16px',
-      }}
-    >
-      <h3 style={{ fontSize: '0.9rem', margin: '0 0 8px 0', color: titleColor }}>{title}</h3>
-      {!hasItems ? (
-        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>None</span>
-      ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {entries.flatMap(([cat, items]) =>
-            (Array.isArray(items) ? items : []).map((item) => (
-              <span
-                key={`${cat}-${item}`}
-                style={{
-                  padding: '3px 8px',
-                  backgroundColor: badgeBg,
-                  color: badgeColor,
-                  borderRadius: '9999px',
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                }}
-              >
-                {item}
-              </span>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+    <aside className="ai-modal-preview-column" aria-label="Live card preview">
+      <div className="ai-preview-header">
+        <span className="ai-preview-title">Live Card Preview</span>
+        <span className="ai-preview-badge">{stickerLabel}</span>
+      </div>
+      <div className="ai-preview-card-wrap">
+        <WishCard wish={previewWish} showFlag={false} isEditorPreview={true} />
+      </div>
+      <p className="ai-preview-caption">
+        Updates in real time as you toggle attributes. Stickers reflect your creator attributes on
+        this card.
+      </p>
+    </aside>
   );
 }
 
-interface ReviewAttributesDisplayProps {
-  suggestion: WishAiSuggestion;
-}
-
-function ReviewAttributesDisplay({ suggestion }: Readonly<ReviewAttributesDisplayProps>) {
-  return (
-    <div style={{ display: 'grid', gap: '16px', marginTop: '8px' }}>
-      <SuggestionCardSection
-        title="Suggested Attributes For You"
-        titleColor="#5b21b6"
-        bgColor="rgba(139, 92, 246, 0.05)"
-        borderColor="rgba(139, 92, 246, 0.2)"
-        badgeBg="#ede9fe"
-        badgeColor="#6d28d9"
-        attributes={suggestion.suggested_creator_attributes as Record<string, unknown> | undefined}
-      />
-      <SuggestionCardSection
-        title="Suggested Matches You Are Seeking"
-        titleColor="#1d4ed8"
-        bgColor="rgba(59, 130, 246, 0.05)"
-        borderColor="rgba(59, 130, 246, 0.2)"
-        badgeBg="#dbeafe"
-        badgeColor="#1e40af"
-        attributes={suggestion.suggested_desired_attributes as Record<string, unknown> | undefined}
-      />
-    </div>
-  );
-}
-
-interface ModalActionsProps {
+interface ModalFooterActionsProps {
   pendingSuggestion: WishAiSuggestion | undefined;
-  isModifying: boolean;
   submitting: boolean;
+  hasConflicts: boolean;
+  hasChanges: boolean;
+  selectedCount: number;
   onClose: () => void;
   onReject: () => void;
-  onModifyStart: () => void;
-  onCancelEdit: () => void;
-  onAccept: () => void;
-  onSaveModify: () => void;
+  onApply: () => void;
 }
 
-function ModalActions({
+function ModalFooterActions({
   pendingSuggestion,
-  isModifying,
   submitting,
+  hasConflicts,
+  hasChanges,
+  selectedCount,
   onClose,
   onReject,
-  onModifyStart,
-  onCancelEdit,
-  onAccept,
-  onSaveModify,
-}: Readonly<ModalActionsProps>) {
+  onApply,
+}: Readonly<ModalFooterActionsProps>) {
+  const applyLabel = selectedCount > 0 ? `Apply Selected (${selectedCount})` : 'Apply Changes';
+
   return (
-    <div className="kiosk-modal-actions" style={{ marginTop: '20px', flexWrap: 'wrap' }}>
-      <button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>
-        Close
-      </button>
-
-      {pendingSuggestion && !isModifying && (
-        <>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onReject}
-            disabled={submitting}
-            style={{ color: '#b91c1c' }}
-          >
-            Reject
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onModifyStart}
-            disabled={submitting}
-          >
-            Modify
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={onAccept}
-            disabled={submitting}
-            style={{ backgroundColor: '#7c3aed' }}
-          >
-            Accept All
-          </button>
-        </>
+    <div className="ai-modal-footer">
+      {pendingSuggestion && hasConflicts && (
+        <p className="ai-footer-warning" role="status">
+          Resolve the highlighted attribute conflicts above before applying.
+        </p>
       )}
-
-      {pendingSuggestion && isModifying && (
-        <>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onCancelEdit}
-            disabled={submitting}
-          >
-            Cancel Edit
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={onSaveModify}
-            disabled={submitting}
-            style={{ backgroundColor: '#7c3aed' }}
-          >
-            Save &amp; Apply
-          </button>
-        </>
+      {pendingSuggestion && !hasConflicts && !hasChanges && (
+        <p className="ai-footer-hint">
+          Select at least one attribute chip above, or tap Reject to dismiss this suggestion.
+        </p>
       )}
+      <div className="kiosk-modal-actions ai-modal-actions">
+        <button type="button" className="secondary-button" onClick={onClose} disabled={submitting}>
+          Close
+        </button>
+
+        {pendingSuggestion && (
+          <>
+            <button
+              type="button"
+              className="secondary-button ai-reject-btn"
+              onClick={onReject}
+              disabled={submitting}
+            >
+              Reject
+            </button>
+            <button
+              type="button"
+              className="primary-button ai-apply-btn"
+              onClick={onApply}
+              disabled={submitting || hasConflicts || !hasChanges}
+            >
+              {submitting ? 'Applying...' : applyLabel}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function AiSuggestionModal({
   wishId,
+  wish,
   secret,
   token,
   onClose,
   onApplied,
 }: Readonly<AiSuggestionModalProps>) {
+  const { categories = [], rules = [], stickers } = useEventProfile();
+  const isMobile = useIsMobileViewport();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WishAiSuggestion[]>([]);
-  const [isModifying, setIsModifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
-  const [modifiedCreator, setModifiedCreator] = useState<Record<string, string>>({});
-  const [modifiedDesired, setModifiedDesired] = useState<Record<string, string>>({});
+  const [selectedCreator, setSelectedCreator] = useState<AttrMap>({});
+  const [selectedDesired, setSelectedDesired] = useState<AttrMap>({});
+  const [customCreator, setCustomCreator] = useState<AttrMap>({});
+  const [customDesired, setCustomDesired] = useState<AttrMap>({});
+  const [removedCreator, setRemovedCreator] = useState<AttrMap>({});
+  const [removedDesired, setRemovedDesired] = useState<AttrMap>({});
+
+  const existingCreator = useMemo(
+    () => normalizeAttrMap(wish?.creator_attributes as Record<string, unknown> | undefined),
+    [wish?.creator_attributes]
+  );
+  const existingDesired = useMemo(
+    () => normalizeAttrMap(wish?.desired_attributes as Record<string, unknown> | undefined),
+    [wish?.desired_attributes]
+  );
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true);
@@ -331,18 +241,18 @@ export default function AiSuggestionModal({
       }
 
       setSuggestions(data);
-      const pending = data.find((s) => s.status === 'pending') || data[0];
+      const pending = data.find((s) => s.status === 'pending');
       if (pending) {
-        setModifiedCreator(
-          formatAttributesForEdit(
-            pending.suggested_creator_attributes as Record<string, unknown> | undefined
-          )
+        const sugCreator = normalizeAttrMap(
+          pending.suggested_creator_attributes as Record<string, unknown> | undefined
         );
-        setModifiedDesired(
-          formatAttributesForEdit(
-            pending.suggested_desired_attributes as Record<string, unknown> | undefined
-          )
-        );
+        // Creator attributes default to selected (opt-out); desired attributes default to unselected (opt-in guardrail).
+        setSelectedCreator(sugCreator);
+        setSelectedDesired({});
+        setCustomCreator({});
+        setCustomDesired({});
+        setRemovedCreator({});
+        setRemovedDesired({});
       }
     } catch (err) {
       console.error('Failed to load suggestions:', err);
@@ -356,7 +266,91 @@ export default function AiSuggestionModal({
     void loadSuggestions();
   }, [loadSuggestions]);
 
-  const handleAction = async (action: 'accept' | 'reject' | 'modify') => {
+  useEffect(() => {
+    if (isMobile) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting) {
+        onClose();
+      }
+    };
+    globalThis.document?.addEventListener('keydown', handleKeyDown);
+    return () => globalThis.document?.removeEventListener('keydown', handleKeyDown);
+  }, [isMobile, submitting, onClose]);
+
+  const pendingSuggestion = suggestions.find((s) => s.status === 'pending');
+
+  const suggestedCreator = useMemo(
+    () =>
+      normalizeAttrMap(
+        pendingSuggestion?.suggested_creator_attributes as Record<string, unknown> | undefined
+      ),
+    [pendingSuggestion]
+  );
+
+  const suggestedDesired = useMemo(
+    () =>
+      normalizeAttrMap(
+        pendingSuggestion?.suggested_desired_attributes as Record<string, unknown> | undefined
+      ),
+    [pendingSuggestion]
+  );
+
+  const allAddedCreator = useMemo(
+    () => mergeAttributeMaps(selectedCreator, customCreator),
+    [selectedCreator, customCreator]
+  );
+  const allAddedDesired = useMemo(
+    () => mergeAttributeMaps(selectedDesired, customDesired),
+    [selectedDesired, customDesired]
+  );
+
+  const finalCreator = useMemo(
+    () => mergeAttributeMaps(existingCreator, allAddedCreator, removedCreator),
+    [existingCreator, allAddedCreator, removedCreator]
+  );
+  const finalDesired = useMemo(
+    () => mergeAttributeMaps(existingDesired, allAddedDesired, removedDesired),
+    [existingDesired, allAddedDesired, removedDesired]
+  );
+
+  const creatorConflicts = useMemo(
+    () => detectAttributeConflicts(finalCreator, rules),
+    [finalCreator, rules]
+  );
+  const desiredConflicts = useMemo(
+    () => detectAttributeConflicts(finalDesired, rules),
+    [finalDesired, rules]
+  );
+
+  const hasConflicts = creatorConflicts.length > 0 || desiredConflicts.length > 0;
+  const selectedCount = countAttrValues(allAddedCreator) + countAttrValues(allAddedDesired);
+  const hasChanges =
+    !areAttrMapsEqual(finalCreator, existingCreator) ||
+    !areAttrMapsEqual(finalDesired, existingDesired);
+
+  const previewWish: Wish | null = useMemo(() => {
+    if (!wish) return null;
+    const normalizedContacts = (wish.contacts || [])
+      .filter((c): c is { type: string; value: string } => Boolean(c.type && c.value))
+      .map((c) => ({ type: c.type, value: c.value }));
+    return {
+      id: wish.id,
+      content: wish.content,
+      creator_attributes: finalCreator,
+      contacts: normalizedContacts,
+      wishmail_enabled: wish.wishmail_enabled,
+      image_id: wish.image_id || undefined,
+      image_url: wish.image_url,
+      card_style: wish.card_style,
+    };
+  }, [wish, finalCreator]);
+
+  const stickerCount = useMemo(
+    () => (previewWish ? countMatchingStickers(previewWish.creator_attributes, stickers) : 0),
+    [previewWish, stickers]
+  );
+
+  const submitReview = async (action: 'accept' | 'reject' | 'modify') => {
     setSubmitting(true);
     setError(null);
     setMessage(null);
@@ -373,8 +367,8 @@ export default function AiSuggestionModal({
       }
 
       if (action === 'modify') {
-        bodyPayload.creator_attributes = parseAttributesFromEdit(modifiedCreator);
-        bodyPayload.desired_attributes = parseAttributesFromEdit(modifiedDesired);
+        bodyPayload.creator_attributes = finalCreator;
+        bodyPayload.desired_attributes = finalDesired;
       }
 
       const { response, error: resErr } = await apiClient.POST(
@@ -401,9 +395,7 @@ export default function AiSuggestionModal({
         modify: 'modified',
       }[action];
       setMessage(`Suggestion ${actionPastTense} successfully.`);
-      if (onApplied) {
-        onApplied();
-      }
+      onApplied?.();
       setTimeout(() => {
         onClose();
       }, 1000);
@@ -415,81 +407,230 @@ export default function AiSuggestionModal({
     }
   };
 
-  const pendingSuggestion = suggestions.find((s) => s.status === 'pending');
+  const handleApply = () => {
+    if (hasConflicts || !hasChanges) return;
+    const exactAccept = isExactFullAccept({
+      existingCreator,
+      existingDesired,
+      suggestedCreator,
+      suggestedDesired,
+      finalCreator,
+      finalDesired,
+    });
+    void submitReview(exactAccept ? 'accept' : 'modify');
+  };
 
-  const renderContent = () => {
+  const resolveKeepExisting = (
+    setterSelected: React.Dispatch<React.SetStateAction<AttrMap>>,
+    setterCustom: React.Dispatch<React.SetStateAction<AttrMap>>,
+    targets: Array<{ category: string; value: string }>
+  ) => {
+    setterSelected((prev) =>
+      targets.reduce((acc, t) => removeAttrValue(acc, t.category, t.value), prev)
+    );
+    setterCustom((prev) =>
+      targets.reduce((acc, t) => removeAttrValue(acc, t.category, t.value), prev)
+    );
+  };
+
+  const resolveReplaceExisting = (
+    setterRemoved: React.Dispatch<React.SetStateAction<AttrMap>>,
+    targets: Array<{ category: string; value: string }>
+  ) => {
+    setterRemoved((prev) =>
+      targets.reduce((acc, t) => addAttrValue(acc, t.category, t.value), prev)
+    );
+  };
+
+  const renderMainBody = () => {
     if (loading) {
-      return (
-        <div style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
-          Loading suggestions...
-        </div>
-      );
+      return <div className="ai-modal-state-message">Loading suggestions...</div>;
     }
 
     if (!pendingSuggestion) {
-      return (
-        <div style={{ padding: '16px 0', textAlign: 'center', color: '#64748b' }}>
-          {getEmptySuggestionMessage(suggestions)}
+      return <div className="ai-modal-state-message">{getEmptySuggestionMessage(suggestions)}</div>;
+    }
+
+    return (
+      <div className={`ai-modal-layout ${previewWish ? 'ai-modal-layout--with-preview' : ''}`}>
+        {previewWish && isMobile && (
+          <LiveCardPreviewPanel
+            previewWish={previewWish}
+            stickerCount={stickerCount}
+            isMobile={true}
+            mobilePreviewOpen={mobilePreviewOpen}
+            onToggleMobilePreview={() => setMobilePreviewOpen((prev) => !prev)}
+          />
+        )}
+
+        <div className="ai-modal-controls-column">
+          {pendingSuggestion.reasoning && (
+            <p className="ai-reasoning-note">
+              <strong>AI Note:</strong> {pendingSuggestion.reasoning}
+            </p>
+          )}
+
+          <AiAttributeSection
+            variant="creator"
+            title="About You (This Wish)"
+            emptyLabel="No creator attributes suggested."
+            categories={categories}
+            existingAttributes={existingCreator}
+            suggestedAttributes={suggestedCreator}
+            selectedSuggested={selectedCreator}
+            customAdded={customCreator}
+            removedExisting={removedCreator}
+            conflicts={creatorConflicts}
+            onToggleSuggested={(cat, val) =>
+              setSelectedCreator((prev) => toggleAttrValue(prev, cat, val))
+            }
+            onAddCustom={(cat, val) => setCustomCreator((prev) => addAttrValue(prev, cat, val))}
+            onRemoveCustom={(cat, val) =>
+              setCustomCreator((prev) => removeAttrValue(prev, cat, val))
+            }
+            onReplaceExisting={(cat, val) =>
+              setRemovedCreator((prev) => addAttrValue(prev, cat, val))
+            }
+            onRestoreExisting={(cat, val) =>
+              setRemovedCreator((prev) => removeAttrValue(prev, cat, val))
+            }
+            onResolveKeepExisting={(targets) =>
+              resolveKeepExisting(setSelectedCreator, setCustomCreator, targets)
+            }
+            onResolveReplaceWithSuggested={(targets) =>
+              resolveReplaceExisting(setRemovedCreator, targets)
+            }
+          />
+
+          <AiAttributeSection
+            variant="desired"
+            title="Looking For (Match Filter)"
+            emptyLabel="No desired match criteria suggested."
+            categories={categories}
+            existingAttributes={existingDesired}
+            suggestedAttributes={suggestedDesired}
+            selectedSuggested={selectedDesired}
+            customAdded={customDesired}
+            removedExisting={removedDesired}
+            conflicts={desiredConflicts}
+            onToggleSuggested={(cat, val) =>
+              setSelectedDesired((prev) => toggleAttrValue(prev, cat, val))
+            }
+            onAddCustom={(cat, val) => setCustomDesired((prev) => addAttrValue(prev, cat, val))}
+            onRemoveCustom={(cat, val) =>
+              setCustomDesired((prev) => removeAttrValue(prev, cat, val))
+            }
+            onReplaceExisting={(cat, val) =>
+              setRemovedDesired((prev) => addAttrValue(prev, cat, val))
+            }
+            onRestoreExisting={(cat, val) =>
+              setRemovedDesired((prev) => removeAttrValue(prev, cat, val))
+            }
+            onResolveKeepExisting={(targets) =>
+              resolveKeepExisting(setSelectedDesired, setCustomDesired, targets)
+            }
+            onResolveReplaceWithSuggested={(targets) =>
+              resolveReplaceExisting(setRemovedDesired, targets)
+            }
+          />
         </div>
-      );
-    }
 
-    if (isModifying) {
-      return (
-        <EditAttributesForm
-          modifiedCreator={modifiedCreator}
-          setModifiedCreator={setModifiedCreator}
-          modifiedDesired={modifiedDesired}
-          setModifiedDesired={setModifiedDesired}
-        />
-      );
-    }
-
-    return <ReviewAttributesDisplay suggestion={pendingSuggestion} />;
+        {previewWish && !isMobile && (
+          <LiveCardPreviewPanel
+            previewWish={previewWish}
+            stickerCount={stickerCount}
+            isMobile={false}
+            mobilePreviewOpen={false}
+            onToggleMobilePreview={() => {}}
+          />
+        )}
+      </div>
+    );
   };
+
+  const titleNode = (
+    <span className="ai-modal-title-inline">
+      <span aria-hidden="true">✨</span>
+      <span>Review AI Suggestions</span>
+    </span>
+  );
+
+  const innerContent = (
+    <>
+      <p className="ai-modal-subtitle">
+        Tap chips to choose which tags apply to this wish. Nothing changes until you tap Apply.
+      </p>
+
+      {error && (
+        <div className="kiosk-modal-error" role="alert">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="message success" role="status">
+          {message}
+        </div>
+      )}
+
+      {renderMainBody()}
+
+      <ModalFooterActions
+        pendingSuggestion={pendingSuggestion}
+        submitting={submitting}
+        hasConflicts={hasConflicts}
+        hasChanges={hasChanges}
+        selectedCount={selectedCount}
+        onClose={onClose}
+        onReject={() => void submitReview('reject')}
+        onApply={handleApply}
+      />
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <BottomSheet
+        isOpen={true}
+        onClose={onClose}
+        id="ai-suggestions-sheet"
+        title={titleNode}
+        className="ai-suggestions-sheet"
+      >
+        {innerContent}
+      </BottomSheet>
+    );
+  }
 
   return (
     <dialog
       open
-      className="kiosk-modal-backdrop"
-      style={{
-        zIndex: 100000,
-        border: 'none',
-        padding: 0,
-        margin: 0,
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100vw',
-        maxHeight: '100vh',
-      }}
+      className="kiosk-modal-backdrop ai-modal-backdrop"
       aria-labelledby="ai-suggestions-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) {
+          onClose();
+        }
+      }}
     >
-      <div className="kiosk-modal" style={{ maxWidth: '560px', width: '92%' }}>
-        <h2 id="ai-suggestions-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>✨</span>
-          <span>Review AI Suggestions</span>
-        </h2>
-        <p className="kiosk-modal-sub" style={{ marginBottom: '16px' }}>
-          Suggestions were automatically extracted from your wish content. Review, edit, or reject
-          them below.
-        </p>
-
-        {error && <div className="kiosk-modal-error">{error}</div>}
-        {message && <div className="message success">{message}</div>}
-
-        {renderContent()}
-
-        <ModalActions
-          pendingSuggestion={pendingSuggestion}
-          isModifying={isModifying}
-          submitting={submitting}
-          onClose={onClose}
-          onReject={() => void handleAction('reject')}
-          onModifyStart={() => setIsModifying(true)}
-          onCancelEdit={() => setIsModifying(false)}
-          onAccept={() => void handleAction('accept')}
-          onSaveModify={() => void handleAction('modify')}
-        />
+      <div
+        className={`ai-modal-surface ${previewWish ? 'ai-modal-surface--wide' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="ai-modal-header">
+          <h2 id="ai-suggestions-title" className="ai-modal-heading">
+            {titleNode}
+          </h2>
+          <button
+            type="button"
+            className="ai-modal-close-icon"
+            onClick={onClose}
+            disabled={submitting}
+            aria-label="Close AI suggestions modal"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="ai-modal-scroll-body">{innerContent}</div>
       </div>
     </dialog>
   );

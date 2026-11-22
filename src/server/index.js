@@ -105,10 +105,13 @@ app.get('/api/config', async (req, res) => {
   const { getDomainConfig } = await import('./configManager.js');
   const { getMergedBranding } = await import('./brandingManager.js');
   const { getAiStatus } = await import('./ai/index.js');
+  const { getRules } = await import('./rulesManager.js');
   const domainConfig = getDomainConfig();
   const branding = await getMergedBranding();
+  const liveRules = getRules();
   res.json({
     ...domainConfig,
+    rules: liveRules.length > 0 ? liveRules : domainConfig.rules || [],
     branding,
     realtimeProvider: process.env.REALTIME_PROVIDER || 'socketio',
     domain: process.env.WISHBOARD_DOMAIN || domainConfig.domain || '',

@@ -500,10 +500,10 @@
               "nullable": true
             },
             "example": {
-              "genders": [
+              "gender": [
                 "woman"
               ],
-              "roles": [
+              "role": [
                 "switch"
               ]
             }
@@ -514,13 +514,18 @@
               "nullable": true
             },
             "example": {
-              "genders": [
+              "gender": [
                 "man"
               ],
-              "roles": [
+              "role": [
                 "top"
               ]
             }
+          },
+          "reasoning": {
+            "type": "string",
+            "nullable": true,
+            "example": "Extracted self-described role from wish text."
           },
           "status": {
             "type": "string",
@@ -533,6 +538,10 @@
             "example": "pending"
           },
           "created_at": {
+            "type": "string",
+            "example": "2026-10-13T20:00:00.000Z"
+          },
+          "updated_at": {
             "type": "string",
             "example": "2026-10-13T20:00:00.000Z"
           },
@@ -1244,6 +1253,12 @@
           },
           "ai": {
             "$ref": "#/components/schemas/AiStatus"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchmakingRule"
+            }
           }
         },
         "required": [

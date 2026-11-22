@@ -206,12 +206,18 @@ export const WishAiSuggestionSchema = registry.register(
     wish_id: z.string().openapi({ example: 'wish_k9x2m' }),
     suggested_creator_attributes: z
       .record(z.any())
-      .openapi({ example: { genders: ['woman'], roles: ['switch'] } }),
+      .openapi({ example: { gender: ['woman'], role: ['switch'] } }),
     suggested_desired_attributes: z
       .record(z.any())
-      .openapi({ example: { genders: ['man'], roles: ['top'] } }),
+      .openapi({ example: { gender: ['man'], role: ['top'] } }),
+    reasoning: z
+      .string()
+      .nullable()
+      .optional()
+      .openapi({ example: 'Extracted self-described role from wish text.' }),
     status: z.enum(['pending', 'accepted', 'rejected', 'modified']).openapi({ example: 'pending' }),
     created_at: z.string().openapi({ example: '2026-10-13T20:00:00.000Z' }),
+    updated_at: z.string().optional().openapi({ example: '2026-10-13T20:00:00.000Z' }),
     reviewed_at: z.string().nullable().optional().openapi({ example: null }),
   })
 );
@@ -539,6 +545,7 @@ export const ConfigResponseSchema = registry.register(
     appVersion: z.string().openapi({ example: '1.32.1' }),
     branding: BrandingSchema.optional(),
     ai: AiStatusSchema.optional(),
+    rules: z.array(RuleSchema).optional(),
   })
 );
 

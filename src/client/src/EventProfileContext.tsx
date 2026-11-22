@@ -1,4 +1,5 @@
 import React, { createContext, use, useEffect, useState } from 'react';
+import type { Rule } from '@wishboards/matching-engine';
 
 export interface Category {
   id: string;
@@ -33,6 +34,7 @@ export interface EventProfile {
   title?: string;
   contact_methods: string[];
   categories: Category[];
+  rules?: Rule[];
   branding?: BrandingConfig;
   ai?: AiStatus;
   stickers?: Record<
@@ -58,6 +60,7 @@ const emptyProfile: EventProfile = {
   profile: '',
   contact_methods: ['Phone', 'Email'],
   categories: [],
+  rules: [],
   branding: {
     themePreset: 'midnight',
     accentColor: '#f59e0b',
