@@ -296,7 +296,7 @@ function buildParameterOverrides(options, mode) {
     'AI_MODEL',
     'AiModel',
     tomlOverrides,
-    'gemini-2.0-flash'
+    'gemini-flash-latest'
   );
 
   assertSafeParam('ProjectName', projectName);

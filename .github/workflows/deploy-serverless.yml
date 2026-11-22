@@ -58,9 +58,9 @@ on:
         required: false
         type: string
       ai_model:
-        description: 'AI model name (e.g. gemini-2.0-flash)'
+        description: 'AI model name (e.g. gemini-flash-latest)'
         required: false
-        default: 'gemini-2.0-flash'
+        default: 'gemini-flash-latest'
         type: string
   workflow_call:
     inputs:
@@ -115,7 +115,7 @@ on:
       ai_model:
         description: 'AI model name'
         required: false
-        default: 'gemini-2.0-flash'
+        default: 'gemini-flash-latest'
         type: string
 
 permissions:
@@ -202,7 +202,7 @@ jobs:
           export ENABLE_AI_FEATURES=$(get_var "ENABLE_AI_FEATURES" "$ENABLE_AI_FEATURES" "false")
           export AI_PROVIDER=$(get_var "AI_PROVIDER" "$AI_PROVIDER" "noop")
           export AI_API_KEY_SSM=$(get_var "AI_API_KEY_SSM" "$AI_API_KEY_SSM" "")
-          export AI_MODEL=$(get_var "AI_MODEL" "$AI_MODEL" "gemini-2.0-flash")
+          export AI_MODEL=$(get_var "AI_MODEL" "$AI_MODEL" "gemini-flash-latest")
           MODE=$(get_var "MODE" "$MODE" "dev")
 
           CMD="node src/cli/wishboard.js serverless deploy --mode $MODE --event-profile $EVENT_PROF"

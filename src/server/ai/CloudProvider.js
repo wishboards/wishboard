@@ -37,23 +37,53 @@ export async function resolveAiApiKey(explicitKey = '') {
   return '';
 }
 
+export const GEMINI_OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+export const OPENAI_BASE_URL = 'https://api.openai.com/v1';
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+export const DEFAULT_GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001';
+export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
+
+export function isGeminiModel(model = '') {
+  return typeof model === 'string' && model.trim().toLowerCase().startsWith('gemini');
+}
+
+function resolveCloudUrl({ explicitUrl, apiEndpoint, pathSuffix, useGemini }) {
+  if (explicitUrl) return explicitUrl;
+  if (apiEndpoint) {
+    return `${apiEndpoint.replace(/\/+$/, '')}${pathSuffix}`;
+  }
+  const base = useGemini ? GEMINI_OPENAI_BASE_URL : OPENAI_BASE_URL;
+  return `${base}${pathSuffix}`;
+}
+
+function stripJsonCodeFences(raw = '') {
+  const trimmed = raw.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+  return fenced ? fenced[1].trim() : trimmed;
+}
+
 /**
  * Cloud LLM inference provider for serverless deployments or systems with external API access.
- * Compatible with OpenAI and Gemini REST API formats.
+ * Compatible with Gemini (OpenAI-compatible endpoint) and OpenAI REST API formats.
  */
 export class CloudInferenceProvider extends InferenceProvider {
   /**
    * @param {Object} [options]
    * @param {string} [options.apiKey]
    * @param {string} [options.apiUrl]
+   * @param {string} [options.apiEndpoint]
    * @param {string} [options.model]
    */
   constructor(options = {}) {
     super();
     this.apiKey = options.apiKey || process.env.AI_API_KEY || '';
-    this.apiUrl =
-      options.apiUrl || process.env.AI_API_URL || 'https://api.openai.com/v1/chat/completions';
-    this.model = options.model || process.env.AI_MODEL || 'gpt-4o-mini';
+    this.model = options.model || process.env.AI_MODEL || DEFAULT_GEMINI_MODEL;
+    this.apiUrl = resolveCloudUrl({
+      explicitUrl: options.apiUrl || process.env.AI_API_URL || '',
+      apiEndpoint: options.apiEndpoint || process.env.AI_API_ENDPOINT || '',
+      pathSuffix: '/chat/completions',
+      useGemini: isGeminiModel(this.model),
+    });
     this.timeoutMs = options.timeoutMs || 10000;
   }
 
@@ -145,7 +175,7 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
 
       const data = await res.json();
       const rawContent = data.choices?.[0]?.message?.content || '{}';
-      const parsed = JSON.parse(rawContent);
+      const parsed = JSON.parse(stripJsonCodeFences(rawContent));
 
       return {
         suggestedCreatorAttributes: parsed.suggestedCreatorAttributes || {},
@@ -164,21 +194,32 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
 }
 
 /**
- * Cloud embedding provider using standard OpenAI/compatible embeddings endpoints.
+ * Cloud embedding provider using Gemini (OpenAI-compatible) or OpenAI embeddings endpoints.
  */
 export class CloudEmbeddingProvider extends EmbeddingProvider {
   /**
    * @param {Object} [options]
    * @param {string} [options.apiKey]
    * @param {string} [options.apiUrl]
+   * @param {string} [options.apiEndpoint]
    * @param {string} [options.model]
    */
   constructor(options = {}) {
     super();
     this.apiKey = options.apiKey || process.env.AI_API_KEY || '';
-    this.apiUrl =
-      options.apiUrl || process.env.AI_EMBEDDING_API_URL || 'https://api.openai.com/v1/embeddings';
-    this.model = options.model || process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small';
+    const explicitModel = options.model || process.env.AI_EMBEDDING_MODEL || '';
+    const useGemini = explicitModel
+      ? isGeminiModel(explicitModel)
+      : isGeminiModel(process.env.AI_MODEL || DEFAULT_GEMINI_MODEL);
+    this.model =
+      explicitModel ||
+      (useGemini ? DEFAULT_GEMINI_EMBEDDING_MODEL : DEFAULT_OPENAI_EMBEDDING_MODEL);
+    this.apiUrl = resolveCloudUrl({
+      explicitUrl: options.apiUrl || process.env.AI_EMBEDDING_API_URL || '',
+      apiEndpoint: options.apiEndpoint || process.env.AI_API_ENDPOINT || '',
+      pathSuffix: '/embeddings',
+      useGemini,
+    });
     this.timeoutMs = options.timeoutMs || 10000;
   }
 

@@ -148,7 +148,7 @@ serverless
   .option('--enable-ai', 'Enable optional AI features (tag suggestions and semantic search)')
   .option('--ai-provider <provider>', 'AI provider: noop, local, or cloud', 'noop')
   .option('--ai-api-key-ssm <path>', 'AWS SSM parameter name holding the AI API key')
-  .option('--ai-model <model>', 'AI model name for cloud provider', 'gemini-2.0-flash')
+  .option('--ai-model <model>', 'AI model name for cloud provider', 'gemini-flash-latest')
   .action(async (options, command) => {
     try {
       const { deployServerless } = await import('./commands/serverless.js');

@@ -62,11 +62,18 @@ AI_API_KEY=your_api_key_here
 # AWS SSM Parameter path for secure serverless API key storage (recommended for AWS)
 AI_API_KEY_SSM=/wishboard/ai/gemini-api-key
 
-# Model name (default: "gemini-2.0-flash")
-AI_MODEL=gemini-2.0-flash
+# Model name (default: "gemini-flash-latest"; models starting with "gemini" automatically route
+# to Google's OpenAI-compatible Gemini endpoint, while OpenAI models route to api.openai.com)
+AI_MODEL=gemini-flash-latest
 
-# Custom API endpoint (optional; defaults to Google Generative Language API)
-# AI_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta
+# Embedding model (default: "gemini-embedding-001" for Gemini models, "text-embedding-3-small" for OpenAI)
+# AI_EMBEDDING_MODEL=gemini-embedding-001
+
+# Custom OpenAI-compatible base URL (optional; overrides auto-routing for both chat and embeddings)
+# AI_API_ENDPOINT=https://generativelanguage.googleapis.com/v1beta/openai
+# Or override individual full URLs directly:
+# AI_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+# AI_EMBEDDING_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/embeddings
 ```
 
 ### Turnkey Cloud Setup with `wishboard bootstrap`
