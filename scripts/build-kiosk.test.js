@@ -85,7 +85,7 @@ export -f id
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  const runScript = (mode) => {
+  const runScript = (mode, extraArgs = '') => {
     if (process.platform === 'win32') {
       console.warn('bash script execution skipped on Windows platform.');
       return null;
@@ -96,7 +96,7 @@ export -f id
         'bash',
         [
           '-c',
-          `source "./${relativeMock}" && bash ./scripts/build-kiosk.sh "${mode}" test-domain.com`,
+          `source "./${relativeMock}" && bash ./scripts/build-kiosk.sh "${mode}" test-domain.com ${extraArgs}`,
         ],
         {
           cwd: PROJECT_ROOT,
@@ -135,7 +135,18 @@ export -f id
     const content = getEnvContent();
     expect(content).toContain('WISHBOARD_DOMAIN=test-domain.com');
     expect(content).toContain('WISHBOARD_AP_IP=10.42.0.1:3000');
+    expect(content).toContain('ENABLE_AI_FEATURES=false');
+    expect(content).toContain('AI_PROVIDER=noop');
     expect(content).not.toContain('NODE_ENV=development');
+  });
+
+  it('writes ENABLE_AI_FEATURES and AI_PROVIDER when passed as arguments', () => {
+    const ran = runScript('dual', 'keep latest lifestyle "" true local');
+    if (!ran) return;
+
+    const content = getEnvContent();
+    expect(content).toContain('ENABLE_AI_FEATURES=true');
+    expect(content).toContain('AI_PROVIDER=local');
   });
 
   it('sets NODE_ENV=development in dev mode', () => {

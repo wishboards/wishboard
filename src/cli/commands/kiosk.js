@@ -11,6 +11,7 @@ const BUILD_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'build-kiosk.sh');
 const COMPOSE_FILE = path.join(PROJECT_ROOT, 'docker-compose.yml');
 const DEFAULT_DOMAIN = 'wishboard.painless-computing.com';
 const VALID_MODES = ['prod', 'dev', 'dual'];
+const VALID_AI_PROVIDERS = ['noop', 'local', 'cloud'];
 
 function logStep(msg) {
   console.log(`\x1b[36m==> ${msg}\x1b[0m`);
@@ -26,6 +27,17 @@ function assertMode(mode) {
   if (!VALID_MODES.includes(mode)) {
     throw new Error(`Mode must be one of: ${VALID_MODES.join(', ')} (got '${mode}').`);
   }
+}
+
+function resolveAiConfig(options) {
+  const enableAi = !!options.enableAi;
+  const aiProvider = options.aiProvider || (enableAi ? 'local' : 'noop');
+  if (!VALID_AI_PROVIDERS.includes(aiProvider)) {
+    throw new Error(
+      `AI provider must be one of: ${VALID_AI_PROVIDERS.join(', ')} (got '${aiProvider}').`
+    );
+  }
+  return { enableAi: enableAi ? 'true' : 'false', aiProvider };
 }
 
 /** App image tag to deploy: explicit --app-version, else package.json version, else 'latest'. */
@@ -47,7 +59,8 @@ function assertCommand(name) {
 }
 
 function runRemoteKioskSteps(target, remoteTemp, config, dryRun) {
-  const { mode, domain, deployRules, appVersion, eventProfile, skipSetup } = config;
+  const { mode, domain, deployRules, appVersion, eventProfile, skipSetup, enableAi, aiProvider } =
+    config;
   logStep('[2/4] Uploading setup-kiosk.sh, build-kiosk.sh, and docker-compose.yml...');
   for (const src of [SETUP_SCRIPT, BUILD_SCRIPT, COMPOSE_FILE]) {
     const up = execCommand('scp', [src, `${target}:${remoteTemp}/${path.basename(src)}`], {
@@ -67,7 +80,7 @@ function runRemoteKioskSteps(target, remoteTemp, config, dryRun) {
   }
 
   logStep('[4/4] Running build-kiosk.sh on the Pi (docker compose up + display)...');
-  const buildCmd = String.raw`sed -i 's/\r$//' ${remoteTemp}/build-kiosk.sh && sudo bash ${remoteTemp}/build-kiosk.sh ${mode} ${domain} ${deployRules} ${appVersion} ${eventProfile} ${remoteTemp}`;
+  const buildCmd = String.raw`sed -i 's/\r$//' ${remoteTemp}/build-kiosk.sh && sudo bash ${remoteTemp}/build-kiosk.sh ${mode} ${domain} ${deployRules} ${appVersion} ${eventProfile} ${remoteTemp} ${enableAi} ${aiProvider}`;
   if (execCommand('ssh', [target, buildCmd], { dryRun }).status !== 0) {
     throw new Error('Remote build-kiosk.sh failed.');
   }
@@ -88,6 +101,7 @@ export function deployKiosk(options) {
   const appVersion = resolveVersion(options.appVersion);
   const skipSetup = !!options.skipSetup;
   assertMode(mode);
+  const { enableAi, aiProvider } = resolveAiConfig(options);
 
   const eventProfile = getEventProfile(options);
   const profileDir = path.resolve(PROJECT_ROOT, 'profiles', eventProfile);
@@ -97,7 +111,9 @@ export function deployKiosk(options) {
 
   const target = `${user}@${host}`;
   console.log(`\n\x1b[32mWishboard kiosk deployment → ${target}\x1b[0m`);
-  logInfo(`Mode: ${mode}   Domain: ${domain}   Version: ${appVersion}   Rules: ${deployRules}`);
+  logInfo(
+    `Mode: ${mode}   Domain: ${domain}   Version: ${appVersion}   Rules: ${deployRules}   AI: ${enableAi === 'true' ? aiProvider : 'disabled'}`
+  );
   console.log('');
 
   if (!dryRun) {
@@ -125,7 +141,7 @@ export function deployKiosk(options) {
     runRemoteKioskSteps(
       target,
       remoteTemp,
-      { mode, domain, deployRules, appVersion, eventProfile, skipSetup },
+      { mode, domain, deployRules, appVersion, eventProfile, skipSetup, enableAi, aiProvider },
       dryRun
     );
 
@@ -196,6 +212,7 @@ export function runKiosk(options) {
   const deployRules = options.resetRules ? 'reset' : 'keep';
   const appVersion = resolveVersion(options.appVersion);
   assertMode(mode);
+  const { enableAi, aiProvider } = resolveAiConfig(options);
   if (!dryRun) assertCommand('bash');
 
   const eventProfile = getEventProfile(options);
@@ -205,11 +222,11 @@ export function runKiosk(options) {
   }
 
   logStep(
-    `Bringing up the kiosk locally (mode: ${mode}, version: ${appVersion}, rules: ${deployRules}, profile: ${eventProfile})...`
+    `Bringing up the kiosk locally (mode: ${mode}, version: ${appVersion}, rules: ${deployRules}, profile: ${eventProfile}, ai: ${enableAi === 'true' ? aiProvider : 'disabled'})...`
   );
   const res = execCommand(
     'bash',
-    [BUILD_SCRIPT, mode, domain, deployRules, appVersion, eventProfile],
+    [BUILD_SCRIPT, mode, domain, deployRules, appVersion, eventProfile, '', enableAi, aiProvider],
     {
       cwd: PROJECT_ROOT,
       dryRun,

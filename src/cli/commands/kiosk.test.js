@@ -97,6 +97,24 @@ describe('kiosk commands', () => {
       expect(sshCmds().some((s) => s.includes('build-kiosk.sh'))).toBe(true);
     });
 
+    it('defaults AI provider to local when enableAi is true', () => {
+      deployKiosk({ host: 'pi.local', mode: 'dual', enableAi: true });
+      expect(
+        sshCmds().some((s) => s.includes('build-kiosk.sh dual') && s.endsWith('true local'))
+      ).toBe(true);
+    });
+
+    it('forwards explicit aiProvider and rejects invalid AI providers', () => {
+      deployKiosk({ host: 'pi.local', mode: 'dev', enableAi: true, aiProvider: 'cloud' });
+      expect(
+        sshCmds().some((s) => s.includes('build-kiosk.sh dev') && s.endsWith('true cloud'))
+      ).toBe(true);
+
+      expect(() =>
+        deployKiosk({ host: 'pi.local', mode: 'dev', enableAi: true, aiProvider: 'bogus' })
+      ).toThrow(/AI provider must be one of/);
+    });
+
     it('throws if ssh is missing', () => {
       vi.mocked(commandUtils.hasCommand).mockImplementation((cmd) => cmd !== 'ssh');
       expect(() => deployKiosk({ host: 'pi.local' })).toThrow('ssh missing');
@@ -163,13 +181,31 @@ describe('kiosk commands', () => {
   });
 
   describe('runKiosk', () => {
-    it('runs build-kiosk.sh with mode/domain/rules/version/eventProfile', () => {
+    it('runs build-kiosk.sh with mode/domain/rules/version/eventProfile and AI defaults', () => {
       runKiosk({ mode: 'prod', domain: 'ex.com', resetRules: true, appVersion: '3.1.4' });
       const call = vi
         .mocked(commandUtils.execCommand)
         .mock.calls.find((c) => c[0] === 'bash' && String(c[1][0]).includes('build-kiosk.sh'));
       expect(call).toBeDefined();
-      expect(call[1].slice(1)).toEqual(['prod', 'ex.com', 'reset', '3.1.4', 'lifestyle']);
+      expect(call[1].slice(1)).toEqual([
+        'prod',
+        'ex.com',
+        'reset',
+        '3.1.4',
+        'lifestyle',
+        '',
+        'false',
+        'noop',
+      ]);
+    });
+
+    it('passes enableAi and defaults aiProvider to local in runKiosk', () => {
+      runKiosk({ mode: 'dual', enableAi: true });
+      const call = vi
+        .mocked(commandUtils.execCommand)
+        .mock.calls.find((c) => c[0] === 'bash' && String(c[1][0]).includes('build-kiosk.sh'));
+      expect(call).toBeDefined();
+      expect(call[1].slice(7)).toEqual(['true', 'local']);
     });
 
     it('passes custom eventProfile when specified', () => {

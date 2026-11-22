@@ -35,7 +35,7 @@ services:
         max-size: '10m'
         max-file: '3'
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=http://db:8080
       # Public domain + AP IP for the poster/Wi-Fi popup, resolved at runtime via
       # /api/config. Substituted from the .env that build-kiosk.sh writes (empty in
@@ -43,6 +43,12 @@ services:
       - WISHBOARD_DOMAIN=${WISHBOARD_DOMAIN:-}
       - WISHBOARD_AP_IP=${WISHBOARD_AP_IP:-}
       - EVENT_PROFILE=${EVENT_PROFILE:-lifestyle}
-      # - WISHBOARD_ADMIN_USERNAME=admin
-      # - WISHBOARD_ADMIN_SECRET=admin-board
-      # - CORS_ALLOWED_ORIGINS=http://your-domain.com
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - ENABLE_AI_FEATURES=${ENABLE_AI_FEATURES:-false}
+      - AI_PROVIDER=${AI_PROVIDER:-noop}
+      - AI_MODEL=${AI_MODEL:-}
+      - AI_EMBEDDING_MODEL=${AI_EMBEDDING_MODEL:-}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_API_ENDPOINT=${AI_API_ENDPOINT:-}
+      - WISHBOARD_ADMIN_USERNAME=${WISHBOARD_ADMIN_USERNAME:-}
+      - WISHBOARD_ADMIN_SECRET=${WISHBOARD_ADMIN_SECRET:-}

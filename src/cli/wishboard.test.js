@@ -165,9 +165,26 @@ describe('wishboard CLI entrypoint', () => {
 
   it('routes to kiosk deploy command with options', async () => {
     const mod = await import('./commands/kiosk.js');
-    await runCLI(['kiosk', 'deploy', '--host', 'mypi.local', '--mode', 'prod', '--dry-run']);
+    await runCLI([
+      'kiosk',
+      'deploy',
+      '--host',
+      'mypi.local',
+      '--mode',
+      'prod',
+      '--enable-ai',
+      '--ai-provider',
+      'local',
+      '--dry-run',
+    ]);
     expect(mod.deployKiosk).toHaveBeenCalledWith(
-      expect.objectContaining({ host: 'mypi.local', mode: 'prod', dryRun: true })
+      expect.objectContaining({
+        host: 'mypi.local',
+        mode: 'prod',
+        enableAi: true,
+        aiProvider: 'local',
+        dryRun: true,
+      })
     );
   });
 
@@ -205,9 +222,9 @@ describe('wishboard CLI entrypoint', () => {
 
   it('routes to kiosk run command with options', async () => {
     const mod = await import('./commands/kiosk.js');
-    await runCLI(['kiosk', 'run', '--reset-rules', '--dry-run']);
+    await runCLI(['kiosk', 'run', '--reset-rules', '--enable-ai', '--dry-run']);
     expect(mod.runKiosk).toHaveBeenCalledWith(
-      expect.objectContaining({ resetRules: true, dryRun: true })
+      expect.objectContaining({ resetRules: true, enableAi: true, dryRun: true })
     );
   });
 
