@@ -1270,6 +1270,13 @@ function AuthenticatedAccountPage() {
           onApplied={() => {
             void loadWishes();
           }}
+          onProfileUpdated={(updatedAttrs) => {
+            const nextStrings: Record<string, string> = {};
+            for (const [cat, vals] of Object.entries(updatedAttrs)) {
+              nextStrings[cat] = vals.join(', ');
+            }
+            setEditIdentityAttributes(nextStrings);
+          }}
         />
       )}
     </section>

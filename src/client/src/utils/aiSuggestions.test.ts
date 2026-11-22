@@ -13,6 +13,7 @@ import {
   formatCategoryLabel,
   areAttrMapsEqual,
   isExactFullAccept,
+  findMissingProfileCategories,
 } from './aiSuggestions';
 
 const SAMPLE_RULES: Rule[] = [
@@ -154,5 +155,17 @@ describe('aiSuggestions utilities', () => {
         finalDesired: {},
       })
     ).toBe(false);
+  });
+
+  it('finds categories missing from Account Profile compared to selected creator suggestions', () => {
+    const missing = findMissingProfileCategories(
+      { role: ['Switch'] },
+      { role: ['Top'], orientation: ['Queer'], gender: [] },
+      [
+        { id: 'role', label: 'Role' },
+        { id: 'orientation', label: 'Orientation' },
+      ]
+    );
+    expect(missing).toEqual(['Orientation']);
   });
 });

@@ -578,8 +578,44 @@
             "additionalProperties": {
               "nullable": true
             }
+          },
+          "update_profile": {
+            "type": "boolean",
+            "example": false
+          },
+          "profile_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
           }
         }
+      },
+      "WishAiSuggestionActionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Suggestion accepted successfully."
+          },
+          "profile_updated": {
+            "type": "boolean",
+            "example": false
+          },
+          "identity_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          }
+        },
+        "required": [
+          "success"
+        ]
       },
       "WishmailMessage": {
         "type": "object",
@@ -1803,7 +1839,7 @@
           "Wishes"
         ],
         "summary": "Review AI suggestion for a wish",
-        "description": "Accepts, rejects, or modifies AI attribute suggestions.",
+        "description": "Accepts, rejects, or modifies AI attribute suggestions, with optional Account Profile sync for signed-in owners.",
         "parameters": [
           {
             "name": "id",
@@ -1842,7 +1878,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/WishAiSuggestionActionResponse"
                 }
               }
             }

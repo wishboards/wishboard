@@ -99,13 +99,21 @@ describe('integration: AI suggestion review and semantic search', () => {
     expect(tokenRes.status).toBe(200);
     expect(tokenRes.body).toHaveLength(1);
 
-    // 6. Accept suggestion
+    // 6. Accept suggestion and sync creator attributes into Account Profile
     const acceptRes = await request(app)
       .post(`/api/wishes/${wishId}/suggestions/accept`)
       .set('Authorization', `Bearer ${userToken}`)
-      .send({});
+      .send({ update_profile: true });
     expect(acceptRes.status).toBe(200);
     expect(acceptRes.body.success).toBe(true);
+    expect(acceptRes.body.profile_updated).toBe(true);
+
+    // Verify Account Profile identity_attributes updated
+    const meRes = await request(app)
+      .get('/api/users/me')
+      .set('Authorization', `Bearer ${userToken}`);
+    expect(meRes.status).toBe(200);
+    expect(meRes.body.identity_attributes).toMatchObject({ role: ['Switch'] });
 
     // Verify wish attributes updated
     const updatedWishRes = await request(app).get(`/api/wishes/${wishId}`);

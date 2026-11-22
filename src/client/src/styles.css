@@ -2974,3 +2974,99 @@ table.responsive-table td {
 .ai-suggestions-sheet .bottom-sheet-drawer {
   max-height: 92vh;
 }
+
+.ai-scope-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--wb-bg-surface-elevated, rgba(148, 163, 184, 0.08));
+  border: 1px solid var(--wb-border-subtle, rgba(148, 163, 184, 0.25));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-scope-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-scope-title {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--wb-text-primary, #0f172a);
+}
+
+.ai-scope-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: var(--wb-accent-subtle, rgba(245, 158, 11, 0.15));
+  color: var(--wb-accent-primary, #d97706);
+}
+
+.ai-scope-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 10px;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--wb-bg-surface, transparent);
+  border: 1px solid var(--wb-border-subtle, rgba(148, 163, 184, 0.25));
+  cursor: pointer;
+}
+
+.ai-scope-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #7c3aed;
+  cursor: pointer;
+}
+
+.ai-scope-checkbox-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.9rem;
+  color: var(--wb-text-primary, #0f172a);
+}
+
+.ai-scope-checkbox-sub {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--wb-text-secondary, #64748b);
+  line-height: 1.4;
+}
+
+.ai-scope-nudge {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  font-size: 0.83rem;
+  line-height: 1.4;
+  color: var(--wb-text-primary, #0f172a);
+}
+
+.ai-scope-replaced-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-scope-replaced-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--wb-text-secondary, #64748b);
+}

@@ -274,3 +274,6 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// eslint-disable-next-line react-refresh/only-export-components -- Context hook export co-located with provider per idiomatic React pattern
+export const useOptionalAuth = () => use(AuthContext);

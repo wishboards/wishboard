@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiClient, bearerHeader } from '../api/client';
 import type { components } from '../api/schema';
+import { useOptionalAuth } from '../AuthContext';
 import { useEventProfile } from '../EventProfileContext';
 import BottomSheet from './common/BottomSheet';
 import WishCard, { type CardStyle, type Wish } from './WishCard';
 import AiAttributeSection from './AiAttributeSection';
+import AiProfileScopeCard from './AiProfileScopeCard';
 import { countMatchingStickers } from '../utils/stickers';
 import {
   type AttrMap,
@@ -12,6 +14,7 @@ import {
   areAttrMapsEqual,
   countAttrValues,
   detectAttributeConflicts,
+  findMissingProfileCategories,
   isExactFullAccept,
   mergeAttributeMaps,
   normalizeAttrMap,
@@ -38,8 +41,10 @@ export interface AiSuggestionModalProps {
   wish?: AiSuggestionWishContext;
   secret?: string;
   token?: string | null;
+  userProfileAttributes?: Record<string, string[]>;
   onClose: () => void;
   onApplied?: () => void;
+  onProfileUpdated?: (updatedAttributes: Record<string, string[]>) => void;
 }
 
 function useIsMobileViewport(): boolean {
@@ -190,10 +195,13 @@ export default function AiSuggestionModal({
   wish,
   secret,
   token,
+  userProfileAttributes,
   onClose,
   onApplied,
+  onProfileUpdated,
 }: Readonly<AiSuggestionModalProps>) {
   const { categories = [], rules = [], stickers } = useEventProfile();
+  const auth = useOptionalAuth();
   const isMobile = useIsMobileViewport();
 
   const [loading, setLoading] = useState(true);
@@ -209,6 +217,10 @@ export default function AiSuggestionModal({
   const [customDesired, setCustomDesired] = useState<AttrMap>({});
   const [removedCreator, setRemovedCreator] = useState<AttrMap>({});
   const [removedDesired, setRemovedDesired] = useState<AttrMap>({});
+  const [updateProfile, setUpdateProfile] = useState(false);
+  const [removedProfileAttrs, setRemovedProfileAttrs] = useState<AttrMap>({});
+
+  const isSignedIn = Boolean(token && (auth?.user || userProfileAttributes !== undefined));
 
   const existingCreator = useMemo(
     () => normalizeAttrMap(wish?.creator_attributes as Record<string, unknown> | undefined),
@@ -217,6 +229,13 @@ export default function AiSuggestionModal({
   const existingDesired = useMemo(
     () => normalizeAttrMap(wish?.desired_attributes as Record<string, unknown> | undefined),
     [wish?.desired_attributes]
+  );
+  const profileAttributes = useMemo(
+    () =>
+      normalizeAttrMap(
+        (userProfileAttributes ?? auth?.user?.attributes) as Record<string, unknown> | undefined
+      ),
+    [userProfileAttributes, auth?.user?.attributes]
   );
 
   const loadSuggestions = useCallback(async () => {
@@ -253,6 +272,8 @@ export default function AiSuggestionModal({
         setCustomDesired({});
         setRemovedCreator({});
         setRemovedDesired({});
+        setUpdateProfile(false);
+        setRemovedProfileAttrs({});
       }
     } catch (err) {
       console.error('Failed to load suggestions:', err);
@@ -312,6 +333,10 @@ export default function AiSuggestionModal({
     () => mergeAttributeMaps(existingDesired, allAddedDesired, removedDesired),
     [existingDesired, allAddedDesired, removedDesired]
   );
+  const finalProfile = useMemo(
+    () => mergeAttributeMaps(profileAttributes, allAddedCreator, removedProfileAttrs),
+    [profileAttributes, allAddedCreator, removedProfileAttrs]
+  );
 
   const creatorConflicts = useMemo(
     () => detectAttributeConflicts(finalCreator, rules),
@@ -321,12 +346,23 @@ export default function AiSuggestionModal({
     () => detectAttributeConflicts(finalDesired, rules),
     [finalDesired, rules]
   );
+  const profileConflicts = useMemo(
+    () => (updateProfile ? detectAttributeConflicts(finalProfile, rules) : []),
+    [updateProfile, finalProfile, rules]
+  );
 
-  const hasConflicts = creatorConflicts.length > 0 || desiredConflicts.length > 0;
+  const missingProfileCategories = useMemo(
+    () => findMissingProfileCategories(profileAttributes, allAddedCreator, categories),
+    [profileAttributes, allAddedCreator, categories]
+  );
+
+  const hasConflicts =
+    creatorConflicts.length > 0 || desiredConflicts.length > 0 || profileConflicts.length > 0;
   const selectedCount = countAttrValues(allAddedCreator) + countAttrValues(allAddedDesired);
   const hasChanges =
     !areAttrMapsEqual(finalCreator, existingCreator) ||
-    !areAttrMapsEqual(finalDesired, existingDesired);
+    !areAttrMapsEqual(finalDesired, existingDesired) ||
+    (updateProfile && !areAttrMapsEqual(finalProfile, profileAttributes));
 
   const previewWish: Wish | null = useMemo(() => {
     if (!wish) return null;
@@ -360,6 +396,8 @@ export default function AiSuggestionModal({
         secret?: string;
         creator_attributes?: Record<string, string[]>;
         desired_attributes?: Record<string, string[]>;
+        update_profile?: boolean;
+        profile_attributes?: Record<string, string[]>;
       } = {};
 
       if (secret) {
@@ -371,16 +409,22 @@ export default function AiSuggestionModal({
         bodyPayload.desired_attributes = finalDesired;
       }
 
-      const { response, error: resErr } = await apiClient.POST(
-        '/api/wishes/{id}/suggestions/{action}',
-        {
-          params: {
-            path: { id: wishId, action },
-          },
-          headers: bearerHeader(token),
-          body: bodyPayload,
-        }
-      );
+      if (action !== 'reject' && isSignedIn && updateProfile) {
+        bodyPayload.update_profile = true;
+        bodyPayload.profile_attributes = finalProfile;
+      }
+
+      const {
+        data,
+        response,
+        error: resErr,
+      } = await apiClient.POST('/api/wishes/{id}/suggestions/{action}', {
+        params: {
+          path: { id: wishId, action },
+        },
+        headers: bearerHeader(token),
+        body: bodyPayload,
+      });
 
       if (!response.ok) {
         setError(
@@ -394,7 +438,17 @@ export default function AiSuggestionModal({
         reject: 'rejected',
         modify: 'modified',
       }[action];
-      setMessage(`Suggestion ${actionPastTense} successfully.`);
+      const profileSuffix = data?.profile_updated ? ' Account Profile updated too.' : '';
+      setMessage(`Suggestion ${actionPastTense} successfully.${profileSuffix}`);
+
+      if (data?.profile_updated) {
+        void auth?.refreshUser();
+        const updatedAttrs = normalizeAttrMap(
+          data.identity_attributes as Record<string, unknown> | undefined
+        );
+        onProfileUpdated?.(Object.keys(updatedAttrs).length > 0 ? updatedAttrs : finalProfile);
+      }
+
       onApplied?.();
       setTimeout(() => {
         onClose();
@@ -501,6 +555,29 @@ export default function AiSuggestionModal({
               resolveReplaceExisting(setRemovedCreator, targets)
             }
           />
+
+          {isSignedIn && (countAttrValues(allAddedCreator) > 0 || updateProfile) && (
+            <AiProfileScopeCard
+              updateProfile={updateProfile}
+              onToggleUpdateProfile={(next) => {
+                setUpdateProfile(next);
+                if (!next) {
+                  setRemovedProfileAttrs({});
+                }
+              }}
+              missingCategoryLabels={missingProfileCategories}
+              profileAttributes={profileAttributes}
+              addedCreatorAttributes={allAddedCreator}
+              removedProfileAttributes={removedProfileAttrs}
+              profileConflicts={profileConflicts}
+              onReplaceProfileValues={(targets) =>
+                resolveReplaceExisting(setRemovedProfileAttrs, targets)
+              }
+              onRestoreProfileValue={(cat, val) =>
+                setRemovedProfileAttrs((prev) => removeAttrValue(prev, cat, val))
+              }
+            />
+          )}
 
           <AiAttributeSection
             variant="desired"
