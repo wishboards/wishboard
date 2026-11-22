@@ -24,14 +24,14 @@ const DEFAULT_BRANDING: BrandingConfig = {
   boardBgUrl: null,
 };
 
-const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const ALLOWED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // eslint-disable-next-line react-refresh/only-export-components -- Helper exported for unit testing file validation logic
 export const validateRasterFile = (file: File): string | null => {
   const lowerName = file.name.toLowerCase();
   const isSvg = file.type === 'image/svg+xml' || lowerName.endsWith('.svg');
-  if (isSvg || !ALLOWED_MIME_TYPES.includes(file.type)) {
+  if (isSvg || !ALLOWED_MIME_TYPES.has(file.type)) {
     return 'Invalid file type. Only PNG, JPG, and WEBP raster images are allowed. SVGs are strictly prohibited.';
   }
   if (file.size > MAX_FILE_SIZE) {
@@ -335,7 +335,7 @@ function LivePreview({ branding }: Readonly<LivePreviewProps>) {
             Texture: <strong>{branding.boardTexture || 'cork'}</strong>
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            Primary:
+            Primary:{' '}
             <span
               style={{
                 display: 'inline-block',
@@ -348,7 +348,7 @@ function LivePreview({ branding }: Readonly<LivePreviewProps>) {
             />
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            Accent:
+            Accent:{' '}
             <span
               style={{
                 display: 'inline-block',
@@ -506,7 +506,7 @@ export default function BrandingStudioSection({
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage(null);
     setError(null);

@@ -68,8 +68,10 @@ function processCategoryTerms(category, text, context, state) {
   }
 }
 
-const LEADING_FILLER_REGEX =
-  /^(?:(?:hey|hi|hello)\s+(?:all|everyone|everybody|folks|y'all|yall|there|wishboard)|greetings\s+(?:all|everyone|everybody|folks|wishboard))[,!.:;\-\s]+/i;
+const GREETING_FILLER_REGEX =
+  /^(?:hey|hi|hello)\s+(?:all|everyone|everybody|folks|y'all|yall|there|wishboard)[,!.:;\-\s]+/i;
+const FORMAL_GREETING_FILLER_REGEX =
+  /^greetings\s+(?:all|everyone|everybody|folks|wishboard)[,!.:;\-\s]+/i;
 
 /**
  * Strips demonstrable card-redundant greeting filler (e.g., "Hey all,") while strictly
@@ -79,7 +81,10 @@ export function streamlineWishText(content = '') {
   const trimmed = String(content || '').trim();
   if (!trimmed) return null;
 
-  const stripped = trimmed.replace(LEADING_FILLER_REGEX, '').trim();
+  const stripped = trimmed
+    .replace(GREETING_FILLER_REGEX, '')
+    .replace(FORMAL_GREETING_FILLER_REGEX, '')
+    .trim();
   if (!stripped || stripped.length === trimmed.length) {
     return null;
   }

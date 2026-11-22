@@ -55,10 +55,18 @@ export function isGeminiModel(model = '') {
   return typeof model === 'string' && model.trim().toLowerCase().startsWith('gemini');
 }
 
+function hasCloudApiKey(apiKey) {
+  return Boolean(apiKey || process.env.AI_API_KEY || process.env.AI_API_KEY_SSM || cachedSsmApiKey);
+}
+
 function resolveCloudUrl({ explicitUrl, apiEndpoint, pathSuffix, useGemini }) {
   if (explicitUrl) return explicitUrl;
   if (apiEndpoint) {
-    return `${apiEndpoint.replace(/\/+$/, '')}${pathSuffix}`;
+    let end = apiEndpoint.length;
+    while (end > 0 && apiEndpoint[end - 1] === '/') {
+      end--;
+    }
+    return `${apiEndpoint.slice(0, end)}${pathSuffix}`;
   }
   const base = useGemini ? GEMINI_OPENAI_BASE_URL : OPENAI_BASE_URL;
   return `${base}${pathSuffix}`;
@@ -66,8 +74,14 @@ function resolveCloudUrl({ explicitUrl, apiEndpoint, pathSuffix, useGemini }) {
 
 function stripJsonCodeFences(raw = '') {
   const trimmed = raw.trim();
-  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  return fenced ? fenced[1].trim() : trimmed;
+  if (!trimmed.startsWith('```') || !trimmed.endsWith('```') || trimmed.length < 6) {
+    return trimmed;
+  }
+  let inner = trimmed.slice(3, -3);
+  if (inner.slice(0, 4).toLowerCase() === 'json') {
+    inner = inner.slice(4);
+  }
+  return inner.trim();
 }
 
 /**
@@ -102,9 +116,7 @@ export class CloudInferenceProvider extends InferenceProvider {
   }
 
   isAvailable() {
-    return Boolean(
-      this.apiKey || process.env.AI_API_KEY || process.env.AI_API_KEY_SSM || cachedSsmApiKey
-    );
+    return hasCloudApiKey(this.apiKey);
   }
 
   /**
@@ -391,9 +403,7 @@ export class CloudEmbeddingProvider extends EmbeddingProvider {
   }
 
   isAvailable() {
-    return Boolean(
-      this.apiKey || process.env.AI_API_KEY || process.env.AI_API_KEY_SSM || cachedSsmApiKey
-    );
+    return hasCloudApiKey(this.apiKey);
   }
 
   async generateEmbedding(text = '') {
