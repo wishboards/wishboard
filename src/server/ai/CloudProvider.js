@@ -1,4 +1,5 @@
 import { InferenceProvider, EmbeddingProvider } from './interfaces.js';
+import { LocalInferenceProvider } from './LocalProvider.js';
 import logger from '../logger.js';
 
 let cachedSsmApiKey = null;
@@ -40,8 +41,15 @@ export async function resolveAiApiKey(explicitKey = '') {
 export const GEMINI_OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
 export const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+export const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-flash-lite-latest';
 export const DEFAULT_GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001';
 export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
+
+const RETRYABLE_HTTP_STATUSES = new Set([429, 502, 503, 504]);
+
+function hasSuggestedAttributes(attrs = {}) {
+  return Object.values(attrs).some((vals) => Array.isArray(vals) && vals.length > 0);
+}
 
 export function isGeminiModel(model = '') {
   return typeof model === 'string' && model.trim().toLowerCase().startsWith('gemini');
@@ -78,6 +86,12 @@ export class CloudInferenceProvider extends InferenceProvider {
     super();
     this.apiKey = options.apiKey || process.env.AI_API_KEY || '';
     this.model = options.model || process.env.AI_MODEL || DEFAULT_GEMINI_MODEL;
+    const defaultFallback =
+      isGeminiModel(this.model) && this.model !== DEFAULT_GEMINI_FALLBACK_MODEL
+        ? DEFAULT_GEMINI_FALLBACK_MODEL
+        : '';
+    this.fallbackModel = options.fallbackModel ?? process.env.AI_FALLBACK_MODEL ?? defaultFallback;
+    this.localFallback = options.localFallback !== false ? new LocalInferenceProvider() : null;
     this.apiUrl = resolveCloudUrl({
       explicitUrl: options.apiUrl || process.env.AI_API_URL || '',
       apiEndpoint: options.apiEndpoint || process.env.AI_API_ENDPOINT || '',
@@ -94,7 +108,99 @@ export class CloudInferenceProvider extends InferenceProvider {
   }
 
   /**
+   * Executes a single chat completion request for the given model.
+   * @returns {Promise<{ok: true, result: Object} | {ok: false, retryable: boolean, reason: string}>}
+   */
+  async _requestCompletion({ key, model, systemPrompt, userPrompt }) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+      const requestBody = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2,
+      };
+      if (isGeminiModel(model)) {
+        requestBody.reasoning_effort = 'low';
+      }
+
+      const res = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        logger.warn('Cloud AI inference request returned non-OK status', {
+          model,
+          apiUrl: this.apiUrl,
+          status: res.status,
+          error: errorText,
+        });
+        return {
+          ok: false,
+          retryable: RETRYABLE_HTTP_STATUSES.has(res.status),
+          reason: `Cloud AI error: HTTP ${res.status}`,
+        };
+      }
+
+      const data = await res.json();
+      const firstChoice = data.choices?.[0];
+      const rawContent = firstChoice?.message?.content || '';
+      if (!rawContent) {
+        logger.warn('Cloud AI inference returned empty content', {
+          model,
+          finishReason: firstChoice?.finish_reason ?? null,
+        });
+        return {
+          ok: false,
+          retryable: false,
+          reason: `Cloud AI returned empty content (finish_reason: ${firstChoice?.finish_reason ?? 'unknown'})`,
+        };
+      }
+
+      const parsed = JSON.parse(stripJsonCodeFences(rawContent));
+
+      return {
+        ok: true,
+        result: {
+          suggestedCreatorAttributes:
+            parsed.suggestedCreatorAttributes || parsed.creatorAttributes || {},
+          suggestedDesiredAttributes:
+            parsed.suggestedDesiredAttributes || parsed.desiredAttributes || {},
+          reasoning: parsed.reasoning || 'Extracted via cloud LLM',
+        },
+      };
+    } catch (err) {
+      logger.warn('Cloud AI inference request failed', {
+        model,
+        apiUrl: this.apiUrl,
+        error: err.message,
+      });
+      return {
+        ok: false,
+        retryable: true,
+        reason: `Inference failed: ${err.message}`,
+      };
+    }
+  }
+
+  /**
    * Sends prompt to LLM endpoint requesting structured attribute extraction.
+   * Retries transient Gemini capacity/rate-limit errors against a fallback model
+   * and degrades to local heuristics when cloud inference remains unavailable.
    */
   async suggestAttributes({
     content = '',
@@ -136,86 +242,65 @@ Return ONLY valid JSON with this exact schema:
 Existing Creator Attributes: ${JSON.stringify(existingCreatorAttributes)}
 Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
 
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
-      const requestBody = {
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.2,
-      };
-      if (isGeminiModel(this.model)) {
-        requestBody.reasoning_effort = 'low';
-      }
-
-      const res = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timer);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        logger.warn('Cloud AI inference request returned non-OK status', {
-          model: this.model,
-          apiUrl: this.apiUrl,
-          status: res.status,
-          error: errorText,
-        });
-        return {
-          suggestedCreatorAttributes: {},
-          suggestedDesiredAttributes: {},
-          reasoning: `Cloud AI error: HTTP ${res.status}`,
-        };
-      }
-
-      const data = await res.json();
-      const firstChoice = data.choices?.[0];
-      const rawContent = firstChoice?.message?.content || '';
-      if (!rawContent) {
-        logger.warn('Cloud AI inference returned empty content', {
-          model: this.model,
-          finishReason: firstChoice?.finish_reason ?? null,
-        });
-        return {
-          suggestedCreatorAttributes: {},
-          suggestedDesiredAttributes: {},
-          reasoning: `Cloud AI returned empty content (finish_reason: ${firstChoice?.finish_reason ?? 'unknown'})`,
-        };
-      }
-
-      const parsed = JSON.parse(stripJsonCodeFences(rawContent));
-
-      return {
-        suggestedCreatorAttributes:
-          parsed.suggestedCreatorAttributes || parsed.creatorAttributes || {},
-        suggestedDesiredAttributes:
-          parsed.suggestedDesiredAttributes || parsed.desiredAttributes || {},
-        reasoning: parsed.reasoning || 'Extracted via cloud LLM',
-      };
-    } catch (err) {
-      logger.warn('Cloud AI inference request failed', {
-        model: this.model,
-        apiUrl: this.apiUrl,
-        error: err.message,
-      });
-      return {
-        suggestedCreatorAttributes: {},
-        suggestedDesiredAttributes: {},
-        reasoning: `Inference failed: ${err.message}`,
-      };
+    const primaryAttempt = await this._requestCompletion({
+      key,
+      model: this.model,
+      systemPrompt,
+      userPrompt,
+    });
+    if (primaryAttempt.ok) {
+      return primaryAttempt.result;
     }
+
+    let lastReason = primaryAttempt.reason;
+    let retryable = primaryAttempt.retryable;
+
+    if (retryable && this.fallbackModel && this.fallbackModel !== this.model) {
+      logger.info('Retrying cloud AI inference with fallback model', {
+        primaryModel: this.model,
+        fallbackModel: this.fallbackModel,
+        reason: lastReason,
+      });
+      const fallbackAttempt = await this._requestCompletion({
+        key,
+        model: this.fallbackModel,
+        systemPrompt,
+        userPrompt,
+      });
+      if (fallbackAttempt.ok) {
+        return fallbackAttempt.result;
+      }
+      lastReason = fallbackAttempt.reason;
+      retryable = fallbackAttempt.retryable;
+    }
+
+    if (retryable && this.localFallback) {
+      const localResult = await this.localFallback.suggestAttributes({
+        content,
+        existingCreatorAttributes,
+        existingDesiredAttributes,
+        taxonomy,
+      });
+      if (
+        hasSuggestedAttributes(localResult.suggestedCreatorAttributes) ||
+        hasSuggestedAttributes(localResult.suggestedDesiredAttributes)
+      ) {
+        logger.info('Using local heuristic fallback after cloud AI outage', {
+          model: this.model,
+          reason: lastReason,
+        });
+        return {
+          ...localResult,
+          reasoning: `${localResult.reasoning} (local fallback after ${lastReason})`,
+        };
+      }
+    }
+
+    return {
+      suggestedCreatorAttributes: {},
+      suggestedDesiredAttributes: {},
+      reasoning: lastReason,
+    };
   }
 }
 

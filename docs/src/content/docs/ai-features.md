@@ -25,7 +25,8 @@ AI functionality is **completely optional and disabled by default** (`ENABLE_AI_
    - In `cloud` mode, requests can be pointed to Google Gemini's free tier ($0/mo for low-volume demo/event usage) or an internal LLM endpoint.
 
 3. **Graceful Fallbacks**:
-   - If an AI provider is unreachable or returns an error, the background worker logs the failure and leaves the wish untouched.
+   - If a primary Gemini model hits a transient capacity or rate-limit error (`HTTP 429`/`502`/`503`/`504` or timeout), `CloudInferenceProvider` automatically retries once against `gemini-flash-lite-latest` (overrideable via `AI_FALLBACK_MODEL`) and, if cloud inference is still unavailable, falls back to `LocalInferenceProvider` heuristics so attendees still receive taxonomy tag suggestions.
+   - If an AI provider is completely unreachable or returns an unrecoverable error, the background worker logs the failure and leaves the wish untouched.
    - If semantic search has no matching vectors or the provider is unavailable, search automatically falls back to standard SQL `LIKE` substring filtering.
 
 ---
