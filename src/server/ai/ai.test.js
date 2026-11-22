@@ -19,7 +19,16 @@ import {
 } from './index.js';
 import { queueWishForTagging, drainQueue } from './taggingWorker.js';
 import db from '../db.js';
-import { resolveAiApiKey, resetCachedSsmApiKey } from './CloudProvider.js';
+import {
+  resolveAiApiKey,
+  resetCachedSsmApiKey,
+  GEMINI_OPENAI_BASE_URL,
+  OPENAI_BASE_URL,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_EMBEDDING_MODEL,
+  DEFAULT_OPENAI_EMBEDDING_MODEL,
+  isGeminiModel,
+} from './CloudProvider.js';
 
 vi.mock('@aws-sdk/client-ssm', () => {
   class MockSSMClient {
@@ -197,6 +206,84 @@ describe('AI Module', () => {
       resetCachedSsmApiKey();
       process.env.AI_API_KEY_SSM = '/wishboard/ai/fail';
       expect(await resolveAiApiKey()).toBe('');
+    });
+
+    it('auto-routes Gemini and OpenAI endpoints and respects explicit URL/endpoint overrides', () => {
+      expect(isGeminiModel('gemini-flash-latest')).toBe(true);
+      expect(isGeminiModel('  GEMINI-3.8-flash ')).toBe(true);
+      expect(isGeminiModel('gpt-4o-mini')).toBe(false);
+      expect(isGeminiModel()).toBe(false);
+
+      // Default routes to Google Gemini OpenAI-compatible endpoints
+      delete process.env.AI_MODEL;
+      delete process.env.AI_EMBEDDING_MODEL;
+      delete process.env.AI_API_URL;
+      delete process.env.AI_EMBEDDING_API_URL;
+      delete process.env.AI_API_ENDPOINT;
+
+      const defaultInf = new CloudInferenceProvider({ apiKey: 'k' });
+      expect(defaultInf.model).toBe(DEFAULT_GEMINI_MODEL);
+      expect(defaultInf.apiUrl).toBe(`${GEMINI_OPENAI_BASE_URL}/chat/completions`);
+
+      const defaultEmb = new CloudEmbeddingProvider({ apiKey: 'k' });
+      expect(defaultEmb.model).toBe(DEFAULT_GEMINI_EMBEDDING_MODEL);
+      expect(defaultEmb.apiUrl).toBe(`${GEMINI_OPENAI_BASE_URL}/embeddings`);
+
+      // Switching AI_MODEL to an OpenAI model auto-routes both chat and embeddings to OpenAI
+      process.env.AI_MODEL = 'gpt-4o-mini';
+      const openaiInf = new CloudInferenceProvider({ apiKey: 'k' });
+      expect(openaiInf.apiUrl).toBe(`${OPENAI_BASE_URL}/chat/completions`);
+
+      const openaiEmb = new CloudEmbeddingProvider({ apiKey: 'k' });
+      expect(openaiEmb.model).toBe(DEFAULT_OPENAI_EMBEDDING_MODEL);
+      expect(openaiEmb.apiUrl).toBe(`${OPENAI_BASE_URL}/embeddings`);
+
+      // Explicit AI_EMBEDDING_MODEL overrides inference model family for embedding endpoint
+      const explicitGeminiEmb = new CloudEmbeddingProvider({
+        apiKey: 'k',
+        model: 'gemini-embedding-001',
+      });
+      expect(explicitGeminiEmb.apiUrl).toBe(`${GEMINI_OPENAI_BASE_URL}/embeddings`);
+
+      // AI_API_ENDPOINT trims trailing slashes and appends endpoint path
+      process.env.AI_API_ENDPOINT = 'https://proxy.example.com/v1///';
+      expect(new CloudInferenceProvider({ apiKey: 'k' }).apiUrl).toBe(
+        'https://proxy.example.com/v1/chat/completions'
+      );
+      expect(new CloudEmbeddingProvider({ apiKey: 'k' }).apiUrl).toBe(
+        'https://proxy.example.com/v1/embeddings'
+      );
+
+      // Explicit AI_API_URL / AI_EMBEDDING_API_URL win over AI_API_ENDPOINT
+      process.env.AI_API_URL = 'https://custom.example.com/chat';
+      process.env.AI_EMBEDDING_API_URL = 'https://custom.example.com/embed';
+      expect(new CloudInferenceProvider({ apiKey: 'k' }).apiUrl).toBe(
+        'https://custom.example.com/chat'
+      );
+      expect(new CloudEmbeddingProvider({ apiKey: 'k' }).apiUrl).toBe(
+        'https://custom.example.com/embed'
+      );
+    });
+
+    it('CloudInferenceProvider strips markdown JSON code fences from LLM responses', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  '```json\n{"suggestedCreatorAttributes":{"roles":["switch"]},"suggestedDesiredAttributes":{},"reasoning":"Fenced response"}\n```',
+              },
+            },
+          ],
+        }),
+      });
+
+      const provider = new CloudInferenceProvider({ apiKey: 'test-key' });
+      const res = await provider.suggestAttributes({ content: 'Switch looking for friends' });
+      expect(res.suggestedCreatorAttributes).toEqual({ roles: ['switch'] });
+      expect(res.reasoning).toBe('Fenced response');
     });
 
     it('CloudInferenceProvider degrades gracefully when API key is missing', async () => {

@@ -59,8 +59,8 @@ Parameters:
     Description: '(Optional) SSM parameter name holding the AI API key (e.g. /wishboard/ai/gemini-api-key).'
   AiModel:
     Type: String
-    Default: 'gemini-2.0-flash'
-    Description: '(Optional) Model name for cloud AI provider (e.g. gemini-2.0-flash).'
+    Default: 'gemini-flash-latest'
+    Description: '(Optional) Model name for cloud AI provider (e.g. gemini-flash-latest).'
 
 Conditions:
   UseCustomDomain: !Not [!Equals [!Ref DomainName, '']]
