@@ -384,6 +384,60 @@ describe('serverless commands', () => {
       expect(pov).toContain("DatabaseAuthTokenSsm='/wishboard/dev/turso-auth-token'");
     });
 
+    it('passes AI parameters from CLI options into overrides', () => {
+      deployServerless({
+        stackName: 'wishboard-serverless-dev',
+        mode: 'dev',
+        dryRun: true,
+        enableAi: true,
+        aiProvider: 'cloud',
+        aiApiKeySsm: '/wishboard/ai/gemini-key',
+        aiModel: 'gemini-2.0-flash',
+      });
+
+      const pov = overridesOf(findDeploy());
+      expect(pov).toContain("EnableAiFeatures='true'");
+      expect(pov).toContain("AiProvider='cloud'");
+      expect(pov).toContain("AiApiKeySsm='/wishboard/ai/gemini-key'");
+      expect(pov).toContain("AiModel='gemini-2.0-flash'");
+    });
+
+    it('passes AI parameters from environment variables into overrides', () => {
+      process.env.ENABLE_AI_FEATURES = 'true';
+      process.env.AI_PROVIDER = 'cloud';
+      process.env.AI_API_KEY_SSM = '/wishboard/ai/gemini-api-key';
+      process.env.AI_MODEL = 'gemini-2.5-flash';
+      try {
+        deployServerless({
+          stackName: 'wishboard-serverless-dev',
+          mode: 'dev',
+          dryRun: true,
+        });
+
+        const pov = overridesOf(findDeploy());
+        expect(pov).toContain("EnableAiFeatures='true'");
+        expect(pov).toContain("AiProvider='cloud'");
+        expect(pov).toContain("AiApiKeySsm='/wishboard/ai/gemini-api-key'");
+        expect(pov).toContain("AiModel='gemini-2.5-flash'");
+      } finally {
+        delete process.env.ENABLE_AI_FEATURES;
+        delete process.env.AI_PROVIDER;
+        delete process.env.AI_API_KEY_SSM;
+        delete process.env.AI_MODEL;
+      }
+    });
+
+    it('rejects parameter override values with unsafe characters in AI parameters', () => {
+      expect(() =>
+        deployServerless({
+          stackName: 'wishboard-serverless-dev',
+          mode: 'dev',
+          dryRun: true,
+          aiApiKeySsm: '/wishboard/key; rm -rf /',
+        })
+      ).toThrow(/Invalid value for AiApiKeySsm/);
+    });
+
     it('reads stack_name, region, and profile from samconfig.toml when no CLI options given', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readFileSync).mockReturnValue(

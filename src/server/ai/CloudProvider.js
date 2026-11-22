@@ -1,6 +1,42 @@
 import { InferenceProvider, EmbeddingProvider } from './interfaces.js';
 import logger from '../logger.js';
 
+let cachedSsmApiKey = null;
+
+export function resetCachedSsmApiKey() {
+  cachedSsmApiKey = null;
+}
+
+/**
+ * Resolves the AI API key with priority:
+ * 1. Explicitly passed key
+ * 2. Environment variable AI_API_KEY
+ * 3. In-memory cached SSM key
+ * 4. AWS SSM Parameter Store if AI_API_KEY_SSM is set
+ */
+export async function resolveAiApiKey(explicitKey = '') {
+  if (explicitKey) return explicitKey;
+  if (process.env.AI_API_KEY) return process.env.AI_API_KEY;
+  if (cachedSsmApiKey) return cachedSsmApiKey;
+  if (process.env.AI_API_KEY_SSM) {
+    try {
+      const { SSMClient, GetParameterCommand } = await import('@aws-sdk/client-ssm');
+      const ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'us-east-1' });
+      const res = await ssmClient.send(
+        new GetParameterCommand({ Name: process.env.AI_API_KEY_SSM, WithDecryption: true })
+      );
+      cachedSsmApiKey = res.Parameter?.Value?.trim() || '';
+      return cachedSsmApiKey;
+    } catch (err) {
+      logger.error('Failed to retrieve AI API key from AWS SSM', {
+        parameter: process.env.AI_API_KEY_SSM,
+        error: err.message,
+      });
+    }
+  }
+  return '';
+}
+
 /**
  * Cloud LLM inference provider for serverless deployments or systems with external API access.
  * Compatible with OpenAI and Gemini REST API formats.
@@ -22,7 +58,9 @@ export class CloudInferenceProvider extends InferenceProvider {
   }
 
   isAvailable() {
-    return Boolean(this.apiKey);
+    return Boolean(
+      this.apiKey || process.env.AI_API_KEY || process.env.AI_API_KEY_SSM || cachedSsmApiKey
+    );
   }
 
   /**
@@ -34,7 +72,8 @@ export class CloudInferenceProvider extends InferenceProvider {
     existingDesiredAttributes = {},
     taxonomy = [],
   }) {
-    if (!this.isAvailable()) {
+    const key = await resolveAiApiKey(this.apiKey);
+    if (!key) {
       return {
         suggestedCreatorAttributes: {},
         suggestedDesiredAttributes: {},
@@ -75,7 +114,7 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
           model: this.model,
@@ -144,11 +183,14 @@ export class CloudEmbeddingProvider extends EmbeddingProvider {
   }
 
   isAvailable() {
-    return Boolean(this.apiKey);
+    return Boolean(
+      this.apiKey || process.env.AI_API_KEY || process.env.AI_API_KEY_SSM || cachedSsmApiKey
+    );
   }
 
   async generateEmbedding(text = '') {
-    if (!this.isAvailable() || !text.trim()) {
+    const key = await resolveAiApiKey(this.apiKey);
+    if (!key || !text.trim()) {
       return [];
     }
 
@@ -160,7 +202,7 @@ export class CloudEmbeddingProvider extends EmbeddingProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
           model: this.model,

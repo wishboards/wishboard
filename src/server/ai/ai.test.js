@@ -19,12 +19,39 @@ import {
 } from './index.js';
 import { queueWishForTagging, drainQueue } from './taggingWorker.js';
 import db from '../db.js';
+import { resolveAiApiKey, resetCachedSsmApiKey } from './CloudProvider.js';
+
+vi.mock('@aws-sdk/client-ssm', () => {
+  class MockSSMClient {
+    async send(command) {
+      if (command?.name === 'fail') {
+        throw new Error('SSM Access Denied');
+      }
+      return {
+        Parameter: { Value: 'mocked-ssm-api-key\n' },
+      };
+    }
+  }
+
+  class MockGetParameterCommand {
+    constructor(input) {
+      this.name = input?.Name?.includes('fail') ? 'fail' : 'ok';
+      Object.assign(this, input);
+    }
+  }
+
+  return {
+    SSMClient: MockSSMClient,
+    GetParameterCommand: MockGetParameterCommand,
+  };
+});
 
 describe('AI Module', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
     resetProviders();
+    resetCachedSsmApiKey();
     process.env = { ...originalEnv };
   });
 
@@ -148,6 +175,30 @@ describe('AI Module', () => {
   });
 
   describe('CloudProvider', () => {
+    it('resolveAiApiKey resolves explicit key, env key, SSM key, and caches', async () => {
+      // 1. Explicit key
+      expect(await resolveAiApiKey('explicit-key')).toBe('explicit-key');
+
+      // 2. AI_API_KEY environment variable
+      process.env.AI_API_KEY = 'env-api-key';
+      expect(await resolveAiApiKey()).toBe('env-api-key');
+      delete process.env.AI_API_KEY;
+
+      // 3. AWS SSM parameter
+      process.env.AI_API_KEY_SSM = '/wishboard/ai/gemini-api-key';
+      const keyFromSsm = await resolveAiApiKey();
+      expect(keyFromSsm).toBe('mocked-ssm-api-key');
+
+      // 4. Cached SSM key (even if SSM env var is deleted)
+      delete process.env.AI_API_KEY_SSM;
+      expect(await resolveAiApiKey()).toBe('mocked-ssm-api-key');
+
+      // 5. SSM failure handles gracefully
+      resetCachedSsmApiKey();
+      process.env.AI_API_KEY_SSM = '/wishboard/ai/fail';
+      expect(await resolveAiApiKey()).toBe('');
+    });
+
     it('CloudInferenceProvider degrades gracefully when API key is missing', async () => {
       const provider = new CloudInferenceProvider({ apiKey: '' });
       expect(provider.isAvailable()).toBe(false);
