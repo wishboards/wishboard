@@ -5,8 +5,7 @@ const STREAMLINED = '30yo switch looking for indie tabletop games at the lounge!
 
 async function createWishAndMockSuggestions(page: Page) {
   const passphrase = 'AiE2ePassphrase123'; // gitleaks:allow
-  await page.goto('/');
-  await page.click('button:has-text("Enter a Wish")');
+  await page.goto('/#enter');
   await page.fill('textarea[placeholder="Type your wish here"]', ORIGINAL);
   await page.fill('#passphrase', passphrase);
   await page.click('button[type="submit"]:has-text("Submit Wish")');
@@ -15,6 +14,15 @@ async function createWishAndMockSuggestions(page: Page) {
   const wishId = (await successMsg.locator('strong').first().innerText())
     .replace('Wish saved! ID: ', '')
     .trim();
+
+  // The Manage page reads pending_suggestions_count from the wish payload; inject it
+  // since the E2E server runs with AI disabled.
+  await page.route(`**/api/wishes/${wishId}`, async (route) => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const res = await route.fetch();
+    const json = await res.json();
+    await route.fulfill({ response: res, json: { ...json, pending_suggestions_count: 1 } });
+  });
 
   let postBody: Record<string, unknown> | null = null;
   await page.route(`**/api/wishes/${wishId}/suggestions*`, async (route) => {
@@ -63,7 +71,7 @@ test.describe('AI suggestion review modal', () => {
     await expect(page.getByLabel('Live card preview')).toBeVisible();
 
     // Creator chips default selected; desired chip opt-in unselected
-    const chips = page.getByRole('button', { name: /Switch/i });
+    const chips = page.locator('.ai-chip', { hasText: 'Switch' });
     await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
     await expect(chips.last()).toHaveAttribute('aria-pressed', 'false');
     await chips.last().click();
@@ -96,7 +104,10 @@ test.describe('AI suggestion review modal', () => {
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     // Touch-friendly chip height
-    const box = await page.getByRole('button', { name: /Queer/i }).first().boundingBox();
+    const box = await page
+      .locator('.bottom-sheet-drawer .ai-chip', { hasText: 'Queer' })
+      .first()
+      .boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   });
 });
