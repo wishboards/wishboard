@@ -50,11 +50,10 @@ async function handleSocketUnsubscribe(socket, { channel } = {}) {
   } else if (channel?.startsWith(WISH_SUGGESTIONS_PREFIX)) {
     await socket.leave(channel);
   } else if (channel === 'user:suggestions' && socket.rooms) {
-    for (const room of socket.rooms) {
-      if (room.startsWith(USER_SUGGESTIONS_PREFIX)) {
-        await socket.leave(room);
-      }
-    }
+    const roomsToLeave = [...socket.rooms].filter((room) =>
+      room.startsWith(USER_SUGGESTIONS_PREFIX)
+    );
+    await Promise.all(roomsToLeave.map((room) => socket.leave(room)));
   }
 }
 

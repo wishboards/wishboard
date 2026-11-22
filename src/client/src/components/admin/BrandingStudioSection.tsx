@@ -117,15 +117,6 @@ function ImageDropzone({
           textAlign: 'center',
           backgroundColor: isDragOver ? 'rgba(245, 158, 11, 0.08)' : 'rgba(15, 23, 42, 0.4)',
           transition: 'border-color 0.2s, background-color 0.2s',
-          cursor: 'pointer',
-        }}
-        onClick={() => inputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            inputRef.current?.click();
-          }
         }}
         aria-label={`Upload ${label}`}
       >
@@ -160,21 +151,44 @@ function ImageDropzone({
                 border: '1px solid #334155',
               }}
             />
-            <button
-              type="button"
-              className="secondary-button"
-              style={{ fontSize: '0.8rem', padding: '4px 10px' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-                if (inputRef.current) inputRef.current.value = '';
-              }}
+            <div
+              style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}
             >
-              Remove {label}
-            </button>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                onClick={() => inputRef.current?.click()}
+              >
+                Replace {label}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ fontSize: '0.8rem', padding: '4px 10px' }}
+                onClick={() => {
+                  onRemove();
+                  if (inputRef.current) inputRef.current.value = '';
+                }}
+              >
+                Remove {label}
+              </button>
+            </div>
           </div>
         ) : (
-          <div>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              width: '100%',
+              cursor: 'pointer',
+              color: 'inherit',
+              minHeight: 'auto',
+            }}
+          >
             <div style={{ fontSize: '1.8rem', marginBottom: '4px' }}>📁</div>
             <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
               {uploading
@@ -182,7 +196,7 @@ function ImageDropzone({
                 : 'Drag & drop raster image (PNG, JPG, WebP) or click to browse'}
             </p>
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Max 5MB • SVGs prohibited</span>
-          </div>
+          </button>
         )}
       </div>
     </div>

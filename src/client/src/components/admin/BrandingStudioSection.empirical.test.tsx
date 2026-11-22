@@ -643,7 +643,7 @@ describe('Empirical Verification: Theming and Branding Studio', () => {
       });
     });
 
-    it('supports keyboard navigation (Enter and Space) on dropzone and leaves drop on non-file drag', async () => {
+    it('triggers browse button and handles drag/empty drop on dropzone', async () => {
       const setMessageMock = vi.fn();
       const setErrorMock = vi.fn();
 
@@ -681,10 +681,11 @@ describe('Empirical Verification: Theming and Branding Studio', () => {
       // Trigger drop with empty dataTransfer
       fireEvent.drop(dropzone, { dataTransfer: { files: [] } });
 
-      // Trigger keyboard events
-      fireEvent.keyDown(dropzone, { key: 'Enter' });
-      fireEvent.keyDown(dropzone, { key: ' ' });
-      fireEvent.keyDown(dropzone, { key: 'Tab' }); // ignored key
+      // Trigger native browse button click
+      const browseButtons = screen.getAllByRole('button', {
+        name: /drag & drop raster image/i,
+      });
+      fireEvent.click(browseButtons[0]);
 
       // Render star icon when logoUrl is null
       expect(screen.getByText('🌟')).toBeInTheDocument();
