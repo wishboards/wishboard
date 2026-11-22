@@ -19,8 +19,8 @@ npx wishboard bootstrap \
 ### What `bootstrap` automates:
 
 1. **CI/CD Quality & Security Secrets**: Configures `SONAR_TOKEN`, `STRYKER_DASHBOARD_API_KEY`, and `GITLEAKS_LICENSE` (sharing with Dependabot automatically to keep automated dependency PRs green).
-2. **AWS OIDC Deployment Role**: Deploys the CloudFormation stack in `aws-serverless/github-oidc-role.yaml` to create an OpenID Connect IAM role and configures `AWS_ROLE_TO_ASSUME`, `AWS_REGION`, and `AWS_STACK_NAME`.
-3. **Database & SSM Parameter Store**: Uses the `turso` CLI to create or retrieve a libSQL/Turso database and auth token, stores the token as an encrypted `SecureString` in AWS SSM (`/<repo>/<profile>/database-auth-token`), and configures `DATABASE_URL` and `DATABASE_AUTH_TOKEN_SSM` repository variables.
+2. **AWS OIDC Deployment Role**: Deploys the CloudFormation stack in `aws-serverless/github-oidc-role.yaml` to create an OpenID Connect IAM role and configures `AWS_ROLE_TO_ASSUME` and `AWS_REGION`.
+3. **Database & SSM Parameter Store**: Uses the `turso` CLI to create or retrieve a libSQL/Turso database and auth token, stores the token as an encrypted `SecureString` in AWS SSM (`/<repo>/<profile>/database-auth-token`), and configures `<PROFILE>_DATABASE_URL` and `<PROFILE>_DATABASE_AUTH_TOKEN_SSM` repository variables.
 
 ### Common Options:
 

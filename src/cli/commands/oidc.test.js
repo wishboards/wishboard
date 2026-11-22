@@ -102,7 +102,7 @@ describe('oidc commands', () => {
         { dryRun: false }
       );
 
-      // Verifies GitHub secrets were registered
+      // Verifies GitHub secrets and repo-wide variables were registered (no unprefixed AWS_STACK_NAME)
       expect(commandUtils.execCommand).toHaveBeenCalledWith(
         'gh',
         [
@@ -113,6 +113,16 @@ describe('oidc commands', () => {
           'arn:aws:iam::123456789012:role/detected-repo-github-oidc-role',
         ],
         { dryRun: false }
+      );
+      expect(commandUtils.execCommand).toHaveBeenCalledWith(
+        'gh',
+        ['variable', 'set', 'AWS_REGION', '--body', 'us-west-2'],
+        { dryRun: false }
+      );
+      expect(commandUtils.execCommand).not.toHaveBeenCalledWith(
+        'gh',
+        expect.arrayContaining(['AWS_STACK_NAME']),
+        expect.anything()
       );
     });
 
