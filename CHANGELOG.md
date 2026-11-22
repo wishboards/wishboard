@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.44.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.43.0...wishboard-v1.44.0) (2026-11-22)
+
+
+### Features
+
+* **ai:** Phase 1 interactive chips, desired guardrails, client conflict resolution & responsive modal (ADR 0012) ([#645](https://github.com/wishboards/wishboard/issues/645)) ([19cc7d3](https://github.com/wishboards/wishboard/commit/19cc7d3da8f21ded961e9e1404bfe061f96c2296))
+* **ai:** Phase 2 signed-in profile scope control and profile conflict detection (ADR 0012) ([#647](https://github.com/wishboards/wishboard/issues/647)) ([b523bfc](https://github.com/wishboards/wishboard/commit/b523bfc85abfce1fa20d4481f3f438c7f77cdb1a))
+* sticker-aware non-lossy wish streamlining in AI review (ADR 0012 phase 3) ([#649](https://github.com/wishboards/wishboard/issues/649)) ([38e314d](https://github.com/wishboards/wishboard/commit/38e314d34aa807e1057073c190493b5a4aff2c58))
+
+
+### Bug Fixes
+
+* **ai:** fall back to gemini-flash-lite-latest and local heuristics on transient cloud errors ([#639](https://github.com/wishboards/wishboard/issues/639)) ([9f44aa9](https://github.com/wishboards/wishboard/commit/9f44aa94a752e15c6115606c45ed7c70897ff39e))
+
 ## [1.43.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.42.0...wishboard-v1.43.0) (2026-11-22)
 
 
