@@ -4,6 +4,10 @@ title: UI Component Catalog (Storybook)
 
 Wishboard includes a standalone component catalog built with [Storybook](https://storybook.js.org/) to develop, document, and test UI components in isolation (implementing **ADR 0008 Phase 3**).
 
+:::tip[Live Component Catalog]
+Browse the published interactive catalog directly at [`/storybook/`](../storybook/) — built automatically alongside this documentation site on every push to `main`.
+:::
+
 The catalog integrates `@storybook/addon-a11y` for automated accessibility audits (axe-core) and provides interactive toolbar controls to preview components across all **4 built-in theme presets** and **5 tactile paper tints**.
 
 ---
@@ -51,6 +55,7 @@ The component catalog covers the following core UI components:
 8. **`MobileBottomBar`**: Thumb-zone bottom navigation bar with unread wishmail badges.
 9. **`AttributeInput`**: Accessible tag selector with suggestions and input validation.
 10. **`WishPreview`**: Live wish card creator preview with real-time pushpin color cycling.
+11. **`AiSuggestionBadge`**: Interactive pending-suggestions indicator that opens the human-in-the-loop AI review modal on wish cards.
 
 ---
 
@@ -72,4 +77,4 @@ To build the static catalog bundle:
 npm run build:storybook
 ```
 
-This outputs static assets into `storybook-static/`, which is merged into the GitHub Pages deployment under `/storybook/`.
+This outputs static assets into `storybook-static/`, which is merged into the GitHub Pages deployment under [`/storybook/`](../storybook/).
