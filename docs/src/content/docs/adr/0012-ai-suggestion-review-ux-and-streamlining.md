@@ -4,7 +4,7 @@ sidebar:
   label: 0012 AI Suggestion Review UX & Streamlining
 ---
 
-- **Status:** Accepted (Phases 1–2 implemented; Phase 3 planned)
+- **Status:** Implemented (Phase 1: [#645](https://github.com/wishboards/wishboard/pull/645); Phase 2: [#647](https://github.com/wishboards/wishboard/pull/647); Phase 3: streamlining, Storybook, E2E and docs)
 - **Date:** 2026-11
 - **Context Date:** 2026-11
 - **Extends:** [ADR 0007: Decomposable & Optional AI Integration](../0007-ai-integration/), [ADR 0011: Dual-Persona Skinning & Mobile Companion UX](../0011-theming-skinning-and-mobile-companion-ux/)

@@ -25,6 +25,7 @@ import {
   resetLambdaDispatcher,
 } from './taggingWorker.js';
 import db from '../db.js';
+import { streamlineWishText } from './LocalProvider.js';
 import {
   resolveAiApiKey,
   resetCachedSsmApiKey,
@@ -162,7 +163,32 @@ describe('AI Module', () => {
       });
       expect(res.suggestedCreatorAttributes).toEqual({});
       expect(res.suggestedDesiredAttributes).toEqual({});
+      expect(res.suggestedContent).toBeNull();
       expect(res.reasoning).toContain('No taxonomy terms');
+    });
+
+    it('streamlineWishText strips card-redundant greeting filler while preserving age and details', async () => {
+      expect(streamlineWishText('')).toBeNull();
+      expect(streamlineWishText('30yo switch looking for tabletop games')).toBeNull();
+      expect(streamlineWishText('Hey all!')).toBeNull();
+      expect(streamlineWishText('Hey all, 30yo queer switch looking for tabletop games!')).toBe(
+        '30yo queer switch looking for tabletop games!'
+      );
+      expect(streamlineWishText('Hi everyone! looking for board game buddies Saturday night')).toBe(
+        'Looking for board game buddies Saturday night'
+      );
+      expect(streamlineWishText('Hello wishboard - coffee in the hotel lobby?')).toBe(
+        'Coffee in the hotel lobby?'
+      );
+
+      const provider = new LocalInferenceProvider();
+      const res = await provider.suggestAttributes({
+        content: 'Hey all, I am a 30yo switch looking for coffee!',
+        taxonomy: sampleTaxonomy,
+      });
+      expect(res.suggestedCreatorAttributes.roles).toContain('switch');
+      expect(res.suggestedContent).toBe('I am a 30yo switch looking for coffee!');
+      expect(res.reasoning).toContain('Removed redundant greeting filler');
     });
 
     it('LocalEmbeddingProvider generates normalized deterministic vectors', async () => {
@@ -472,6 +498,82 @@ describe('AI Module', () => {
       expect(authRes.reasoning).toContain('HTTP 401');
     });
 
+    it('CloudInferenceProvider injects sticker summary into prompt, parses suggestedContent, and normalizes identical text to null', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    suggestedCreatorAttributes: {
+                      orientation: ['Queer'],
+                      gender: ['Trans Man'],
+                      role: ['Switch'],
+                    },
+                    suggestedDesiredAttributes: {},
+                    suggested_content: '30yo switch looking for tabletop games at the lounge!',
+                    reasoning: 'Trimmed greeting and stickered labels while keeping age and role.',
+                  }),
+                },
+              },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    suggestedCreatorAttributes: {},
+                    suggestedDesiredAttributes: {},
+                    suggestedContent: '  Looking for   coffee at noon  ',
+                    reasoning: 'No change needed',
+                  }),
+                },
+              },
+            ],
+          }),
+        });
+      globalThis.fetch = mockFetch;
+
+      const provider = new CloudInferenceProvider({ apiKey: 'test-key' });
+      const res = await provider.suggestAttributes({
+        content: 'Hey all, 30yo queer trans man switch looking for tabletop games at the lounge!',
+        taxonomy: [
+          { id: 'orientation', label: 'Orientation', suggestions: ['Queer'] },
+          { id: 'gender', label: 'Gender', suggestions: ['Trans Man'] },
+          { id: 'role', label: 'Role', suggestions: ['Switch'] },
+        ],
+        stickers: {
+          orientation: { queer: { type: 'heart' } },
+          gender: { trans: { type: 'flag' }, man: { type: 'icon' } },
+        },
+      });
+
+      expect(res.suggestedContent).toBe('30yo switch looking for tabletop games at the lounge!');
+      const sentBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const systemPrompt = sentBody.messages[0].content;
+      expect(systemPrompt).toContain('Visual Stickers Shown on Card');
+      expect(systemPrompt).toContain('- orientation: queer');
+      expect(systemPrompt).toContain('- gender: trans, man');
+      expect(systemPrompt).toContain('STRICT NON-LOSSY RULES');
+
+      // Identical normalized content becomes null, and empty stickers reports None configured
+      const sameRes = await provider.suggestAttributes({
+        content: 'Looking for coffee at noon',
+        taxonomy: [],
+        stickers: {},
+      });
+      expect(sameRes.suggestedContent).toBeNull();
+      const secondPrompt = JSON.parse(mockFetch.mock.calls[1][1].body).messages[0].content;
+      expect(secondPrompt).toContain('None configured');
+    });
+
     it('CloudEmbeddingProvider calls embeddings endpoint and handles failures', async () => {
       const provider = new CloudEmbeddingProvider({ apiKey: 'test-key' });
       expect(provider.isAvailable()).toBe(true);
@@ -680,6 +782,25 @@ describe('AI Module', () => {
             content: 'Looking for tabletop games',
             creatorAttributes: {},
             desiredAttributes: {},
+            skipInference: false,
+          },
+        });
+
+        queueWishForTagging({
+          wishId: 'lambda-async-embed-only',
+          content: 'Streamlined wish text',
+          skipInference: true,
+        });
+        await drainQueue();
+
+        expect(mockDispatch).toHaveBeenLastCalledWith('wishboard-ai-dev-express-api', {
+          __wishboardAsyncTask: 'aiTagging',
+          payload: {
+            wishId: 'lambda-async-embed-only',
+            content: 'Streamlined wish text',
+            creatorAttributes: {},
+            desiredAttributes: {},
+            skipInference: true,
           },
         });
 
@@ -713,6 +834,60 @@ describe('AI Module', () => {
       } finally {
         resetLambdaDispatcher();
       }
+    });
+
+    it('stages suggestion when only suggestedContent is returned and skips inference when skipInference is true', async () => {
+      process.env.ENABLE_AI_FEATURES = 'true';
+      process.env.AI_PROVIDER = 'local';
+
+      const testWishId = 'test-ai-worker-streamline-only';
+      await db
+        .prepare(
+          'INSERT OR REPLACE INTO wishes (id, content, contacts, wishmail_enabled, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          testWishId,
+          'Hey all, grabbing coffee in the main lobby!',
+          '[]',
+          0,
+          1,
+          new Date().toISOString(),
+          new Date().toISOString()
+        );
+
+      queueWishForTagging({
+        wishId: testWishId,
+        content: 'Hey all, grabbing coffee in the main lobby!',
+      });
+      await drainQueue();
+
+      const suggestion = await db
+        .prepare('SELECT * FROM wish_ai_suggestions WHERE wish_id = ?')
+        .get(testWishId);
+      expect(suggestion).toBeDefined();
+      expect(suggestion.suggested_content).toBe('Grabbing coffee in the main lobby!');
+
+      // Delete suggestion, then run with skipInference: true — should refresh embedding only
+      await db.prepare('DELETE FROM wish_ai_suggestions WHERE wish_id = ?').run(testWishId);
+      queueWishForTagging({
+        wishId: testWishId,
+        content: 'Hey all, grabbing coffee in the main lobby!',
+        skipInference: true,
+      });
+      await drainQueue();
+
+      const afterSkip = await db
+        .prepare('SELECT * FROM wish_ai_suggestions WHERE wish_id = ?')
+        .get(testWishId);
+      expect(afterSkip).toBeUndefined();
+
+      const embRow = await db
+        .prepare('SELECT * FROM wish_embeddings WHERE wish_id = ?')
+        .get(testWishId);
+      expect(embRow).toBeDefined();
+
+      await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(testWishId);
+      await db.prepare('DELETE FROM wishes WHERE id = ?').run(testWishId);
     });
   });
 });

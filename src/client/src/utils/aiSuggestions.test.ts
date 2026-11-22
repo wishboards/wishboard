@@ -14,6 +14,7 @@ import {
   areAttrMapsEqual,
   isExactFullAccept,
   findMissingProfileCategories,
+  findDeselectedStickeredTags,
 } from './aiSuggestions';
 
 const SAMPLE_RULES: Rule[] = [
@@ -167,5 +168,30 @@ describe('aiSuggestions utilities', () => {
       ]
     );
     expect(missing).toEqual(['Orientation']);
+  });
+
+  it('identifies deselected creator tags that render visual stickers while ignoring non-stickered tags', () => {
+    const stickers = {
+      orientation: { queer: { type: 'heart', class: 'flag-rainbow' } },
+      gender: { trans: { type: 'flag', class: 'flag-trans' } },
+    };
+
+    expect(findDeselectedStickeredTags({ orientation: ['Queer'] }, {}, undefined)).toEqual([]);
+
+    expect(
+      findDeselectedStickeredTags(
+        { orientation: ['Queer'], gender: ['Trans Man'], role: ['Switch'] },
+        { gender: ['Trans Man'] },
+        stickers
+      )
+    ).toEqual(['Queer']);
+
+    expect(
+      findDeselectedStickeredTags(
+        { orientation: ['Queer'], gender: ['Trans Man'], role: ['Switch'] },
+        {},
+        stickers
+      )
+    ).toEqual(['Queer', 'Trans Man']);
   });
 });

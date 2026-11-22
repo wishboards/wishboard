@@ -64,6 +64,7 @@ export function queueWishForTagging({
   content,
   creatorAttributes = {},
   desiredAttributes = {},
+  skipInference = false,
 }) {
   if (!wishId || !content?.trim() || !isAiEnabled()) {
     return;
@@ -74,6 +75,7 @@ export function queueWishForTagging({
     content: content.trim(),
     creatorAttributes,
     desiredAttributes,
+    skipInference: Boolean(skipInference),
   };
 
   const runTask = async () => {
@@ -81,7 +83,10 @@ export function queueWishForTagging({
       try {
         const dispatched = await dispatchAsyncLambdaTagging(payload);
         if (dispatched) {
-          logger.info('Dispatched async Lambda AI tagging job for wish', { wish_id: wishId });
+          logger.info('Dispatched async Lambda AI tagging job for wish', {
+            wish_id: wishId,
+            skip_inference: payload.skipInference,
+          });
           return;
         }
       } catch (err) {
@@ -132,6 +137,14 @@ async function processInferenceJob(wishId, provider, params) {
   const inferenceResult = await provider.suggestAttributes(params);
   const suggestedCreator = inferenceResult?.suggestedCreatorAttributes || {};
   const suggestedDesired = inferenceResult?.suggestedDesiredAttributes || {};
+  const rawSuggestedContent =
+    typeof inferenceResult?.suggestedContent === 'string'
+      ? inferenceResult.suggestedContent.trim().slice(0, 500)
+      : null;
+  const suggestedContent =
+    rawSuggestedContent && rawSuggestedContent !== params.content.trim()
+      ? rawSuggestedContent
+      : null;
   const reasoning = inferenceResult?.reasoning || '';
 
   const hasCreatorSuggestions = Object.keys(suggestedCreator).some(
@@ -141,8 +154,8 @@ async function processInferenceJob(wishId, provider, params) {
     (k) => Array.isArray(suggestedDesired[k]) && suggestedDesired[k].length > 0
   );
 
-  if (!hasCreatorSuggestions && !hasDesiredSuggestions) {
-    logger.info('Completed AI inference for wish with no new attribute suggestions', {
+  if (!hasCreatorSuggestions && !hasDesiredSuggestions && !suggestedContent) {
+    logger.info('Completed AI inference for wish with no new attribute or wording suggestions', {
       wish_id: wishId,
       model: provider.model || null,
       reasoning,
@@ -159,13 +172,14 @@ async function processInferenceJob(wishId, provider, params) {
 
   await db
     .prepare(
-      'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, reasoning, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, suggested_content, reasoning, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       suggestionId,
       wishId,
       JSON.stringify(suggestedCreator),
       JSON.stringify(suggestedDesired),
+      suggestedContent,
       reasoning,
       'pending',
       now,
@@ -176,6 +190,7 @@ async function processInferenceJob(wishId, provider, params) {
     wish_id: wishId,
     suggestion_id: suggestionId,
     model: provider.model || null,
+    has_streamlined_content: Boolean(suggestedContent),
   });
 
   notifyAiSuggestionsReady(wishId, suggestionId);
@@ -206,7 +221,13 @@ async function processEmbeddingJob(wishId, provider, content) {
 /**
  * Processes an individual wish tagging job (inference + vector embedding in parallel).
  */
-export async function processWishJob({ wishId, content, creatorAttributes, desiredAttributes }) {
+export async function processWishJob({
+  wishId,
+  content,
+  creatorAttributes,
+  desiredAttributes,
+  skipInference = false,
+}) {
   if (!isAiEnabled()) {
     return;
   }
@@ -220,16 +241,22 @@ export async function processWishJob({ wishId, content, creatorAttributes, desir
 
   const profile = getEventProfile() || {};
   const taxonomy = profile.categories || [];
+  const stickers = profile.stickers || {};
 
-  await Promise.allSettled([
-    processInferenceJob(wishId, inferenceProvider, {
-      content,
-      existingCreatorAttributes: creatorAttributes,
-      existingDesiredAttributes: desiredAttributes,
-      taxonomy,
-    }),
-    processEmbeddingJob(wishId, embeddingProvider, content),
-  ]);
+  const jobs = [processEmbeddingJob(wishId, embeddingProvider, content)];
+  if (!skipInference) {
+    jobs.unshift(
+      processInferenceJob(wishId, inferenceProvider, {
+        content,
+        existingCreatorAttributes: creatorAttributes,
+        existingDesiredAttributes: desiredAttributes,
+        taxonomy,
+        stickers,
+      })
+    );
+  }
+
+  await Promise.allSettled(jobs);
 }
 
 /**

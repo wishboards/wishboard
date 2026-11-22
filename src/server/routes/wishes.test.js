@@ -1051,5 +1051,84 @@ describe('Wish creation, claim, and management API edge cases', () => {
         role: ['Switch'],
       });
     });
+
+    it('returns suggested_content and supports optional streamlined content update with validation', async () => {
+      const createRes = await request(app).post('/api/wishes').send({
+        content: 'Hey all, 30yo queer switch looking for board games at the hotel lounge!',
+        passphrase: 'streamline-wish-secret',
+      });
+      expect(createRes.status).toBe(201);
+      const wishId = createRes.body.id;
+
+      const now = new Date().toISOString();
+      await db
+        .prepare(
+          'INSERT INTO wish_ai_suggestions (id, wish_id, suggested_creator_attributes, suggested_desired_attributes, suggested_content, reasoning, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(
+          'sugg-streamline',
+          wishId,
+          JSON.stringify({ orientation: ['Queer'], role: ['Switch'] }),
+          JSON.stringify({}),
+          '30yo switch looking for board games at the hotel lounge!',
+          'Trimmed greeting filler and stickered orientation label while preserving age and role.',
+          'pending',
+          now,
+          now
+        );
+
+      const getRes = await request(app)
+        .get(`/api/wishes/${wishId}/suggestions`)
+        .query({ secret: 'streamline-wish-secret' });
+      expect(getRes.status).toBe(200);
+      expect(getRes.body[0].suggested_content).toBe(
+        '30yo switch looking for board games at the hotel lounge!'
+      );
+
+      // Blank content rejected with 400
+      const blankRes = await request(app)
+        .post(`/api/wishes/${wishId}/suggestions/modify`)
+        .send({
+          secret: 'streamline-wish-secret',
+          creator_attributes: { orientation: ['Queer'], role: ['Switch'] },
+          desired_attributes: {},
+          content: '   ',
+        });
+      expect(blankRes.status).toBe(400);
+      expect(blankRes.body.error).toContain('between 1 and 500 characters');
+
+      // Over-length content rejected with 400
+      const tooLongRes = await request(app)
+        .post(`/api/wishes/${wishId}/suggestions/modify`)
+        .send({
+          secret: 'streamline-wish-secret',
+          creator_attributes: { orientation: ['Queer'], role: ['Switch'] },
+          desired_attributes: {},
+          content: 'a'.repeat(501),
+        });
+      expect(tooLongRes.status).toBe(400);
+
+      // Valid streamlined content updates wishes.content and returns content_updated: true
+      const applyRes = await request(app)
+        .post(`/api/wishes/${wishId}/suggestions/modify`)
+        .send({
+          secret: 'streamline-wish-secret',
+          creator_attributes: { orientation: ['Queer'], role: ['Switch'] },
+          desired_attributes: {},
+          content: '30yo switch looking for board games at the hotel lounge!',
+        });
+      expect(applyRes.status).toBe(200);
+      expect(applyRes.body.content_updated).toBe(true);
+
+      const updatedWish = await request(app).get(`/api/wishes/${wishId}`);
+      expect(updatedWish.status).toBe(200);
+      expect(updatedWish.body.content).toBe(
+        '30yo switch looking for board games at the hotel lounge!'
+      );
+      expect(updatedWish.body.creator_attributes).toEqual({
+        orientation: ['Queer'],
+        role: ['Switch'],
+      });
+    });
   });
 });

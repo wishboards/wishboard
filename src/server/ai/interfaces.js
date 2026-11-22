@@ -4,14 +4,16 @@
 
 export class InferenceProvider {
   /**
-   * Analyzes wish content and suggests relevant taxonomy-aligned attributes.
+   * Analyzes wish content and suggests relevant taxonomy-aligned attributes
+   * plus optional non-lossy streamlined card text.
    *
    * @param {Object} params
    * @param {string} params.content
    * @param {Record<string, string[]>} [params.existingCreatorAttributes]
    * @param {Record<string, string[]>} [params.existingDesiredAttributes]
    * @param {Array<{ id: string, label: string, suggestions: string[] }>} [params.taxonomy]
-   * @returns {Promise<{ suggestedCreatorAttributes: Record<string, string[]>, suggestedDesiredAttributes: Record<string, string[]>, reasoning?: string }>}
+   * @param {Record<string, Record<string, unknown>>} [params.stickers]
+   * @returns {Promise<{ suggestedCreatorAttributes: Record<string, string[]>, suggestedDesiredAttributes: Record<string, string[]>, suggestedContent?: string | null, reasoning?: string }>}
    */
   async suggestAttributes(_params) {
     throw new Error('suggestAttributes must be implemented by subclass');

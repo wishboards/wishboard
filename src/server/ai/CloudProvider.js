@@ -111,7 +111,7 @@ export class CloudInferenceProvider extends InferenceProvider {
    * Executes a single chat completion request for the given model.
    * @returns {Promise<{ok: true, result: Object} | {ok: false, retryable: boolean, reason: string}>}
    */
-  async _requestCompletion({ key, model, systemPrompt, userPrompt }) {
+  async _requestCompletion({ key, model, systemPrompt, userPrompt, originalContent = '' }) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -172,6 +172,10 @@ export class CloudInferenceProvider extends InferenceProvider {
       }
 
       const parsed = JSON.parse(stripJsonCodeFences(rawContent));
+      const suggestedContent = normalizeSuggestedContent(
+        parsed.suggestedContent ?? parsed.suggested_content ?? null,
+        originalContent
+      );
 
       return {
         ok: true,
@@ -180,6 +184,7 @@ export class CloudInferenceProvider extends InferenceProvider {
             parsed.suggestedCreatorAttributes || parsed.creatorAttributes || {},
           suggestedDesiredAttributes:
             parsed.suggestedDesiredAttributes || parsed.desiredAttributes || {},
+          suggestedContent,
           reasoning: parsed.reasoning || 'Extracted via cloud LLM',
         },
       };
@@ -198,7 +203,8 @@ export class CloudInferenceProvider extends InferenceProvider {
   }
 
   /**
-   * Sends prompt to LLM endpoint requesting structured attribute extraction.
+   * Sends prompt to LLM endpoint requesting structured attribute extraction
+   * and optional strictly non-lossy card streamlining.
    * Retries transient Gemini capacity/rate-limit errors against a fallback model
    * and degrades to local heuristics when cloud inference remains unavailable.
    */
@@ -207,12 +213,14 @@ export class CloudInferenceProvider extends InferenceProvider {
     existingCreatorAttributes = {},
     existingDesiredAttributes = {},
     taxonomy = [],
+    stickers = {},
   }) {
     const key = await resolveAiApiKey(this.apiKey);
     if (!key) {
       return {
         suggestedCreatorAttributes: {},
         suggestedDesiredAttributes: {},
+        suggestedContent: null,
         reasoning: 'Cloud inference API key not configured',
       };
     }
@@ -221,13 +229,27 @@ export class CloudInferenceProvider extends InferenceProvider {
       .map((cat) => `- ${cat.label} (${cat.id}): ${cat.suggestions?.join(', ')}`)
       .join('\n');
 
+    const stickerSummary = formatStickerSummary(stickers);
+
     const systemPrompt = `You are an AI assistant for a convention wishboard matching system.
-Your job is to analyze wish content and suggest relevant attributes for:
+Your job is to analyze wish content and return structured suggestions:
 1. "suggestedCreatorAttributes": Attributes describing the person who wrote the wish.
 2. "suggestedDesiredAttributes": Attributes describing the person/people they are seeking to meet.
+3. "suggestedContent": (Optional string or null) A more concise version of the wish text for a physical 3x5 index card.
 
 Allowed Categories and Taxonomy:
 ${taxonomyDescription}
+
+Visual Stickers Shown on Card (Creator Attributes ONLY):
+${stickerSummary}
+
+STRICT NON-LOSSY RULES for "suggestedContent":
+- NEVER remove unstructured personal or contextual details that do not become visual stickers (such as age like "30yo", location, dates/times, specific hobbies, interests, boundaries, humor, or tone).
+- NEVER remove structured attributes that do NOT have a visual sticker listed above (for example, roles without stickers or anything describing who the author is looking for / desired attributes).
+- ONLY remove:
+  (a) Creator self-descriptors that WILL render as visual stickers listed above, AND
+  (b) Demonstrably redundant card-opening/closing greeting filler (such as "Hey all,", "Hi everyone!", "Hello wishboard,") because the card itself is already the greeting.
+- Keep natural grammar and the author's voice. If nothing redundant can be safely removed without losing details, return null for "suggestedContent".
 
 Only suggest attributes that match or closely align with the provided taxonomy.
 Do not duplicate existing attributes.
@@ -235,6 +257,7 @@ Return ONLY valid JSON with this exact schema:
 {
   "suggestedCreatorAttributes": { "category_id": ["Term"] },
   "suggestedDesiredAttributes": { "category_id": ["Term"] },
+  "suggestedContent": "optional streamlined wish text or null",
   "reasoning": "brief explanation"
 }`;
 
@@ -247,6 +270,7 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
       model: this.model,
       systemPrompt,
       userPrompt,
+      originalContent: content,
     });
     if (primaryAttempt.ok) {
       return primaryAttempt.result;
@@ -266,6 +290,7 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
         model: this.fallbackModel,
         systemPrompt,
         userPrompt,
+        originalContent: content,
       });
       if (fallbackAttempt.ok) {
         return fallbackAttempt.result;
@@ -280,10 +305,12 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
         existingCreatorAttributes,
         existingDesiredAttributes,
         taxonomy,
+        stickers,
       });
       if (
         hasSuggestedAttributes(localResult.suggestedCreatorAttributes) ||
-        hasSuggestedAttributes(localResult.suggestedDesiredAttributes)
+        hasSuggestedAttributes(localResult.suggestedDesiredAttributes) ||
+        Boolean(localResult.suggestedContent)
       ) {
         logger.info('Using local heuristic fallback after cloud AI outage', {
           model: this.model,
@@ -299,9 +326,38 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
     return {
       suggestedCreatorAttributes: {},
       suggestedDesiredAttributes: {},
+      suggestedContent: null,
       reasoning: lastReason,
     };
   }
+}
+
+function formatStickerSummary(stickers) {
+  if (!stickers || typeof stickers !== 'object') {
+    return 'None configured';
+  }
+  const lines = Object.entries(stickers)
+    .map(([cat, map]) => {
+      const keys = map && typeof map === 'object' ? Object.keys(map) : [];
+      return keys.length > 0 ? `- ${cat}: ${keys.join(', ')}` : null;
+    })
+    .filter(Boolean);
+  return lines.length > 0 ? lines.join('\n') : 'None configured';
+}
+
+function normalizeSuggestedContent(rawSuggested, originalContent) {
+  if (typeof rawSuggested !== 'string') return null;
+  const cleaned = rawSuggested.trim().slice(0, 500);
+  if (!cleaned) return null;
+  const normalizedOrig = String(originalContent || '')
+    .trim()
+    .replaceAll(/\s+/g, ' ')
+    .toLowerCase();
+  const normalizedNext = cleaned.replaceAll(/\s+/g, ' ').toLowerCase();
+  if (normalizedNext === normalizedOrig) {
+    return null;
+  }
+  return cleaned;
 }
 
 /**

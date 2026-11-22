@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
+import * as AiSuggestionModalStories from './AiSuggestionModal.stories';
 import * as AttributeInputStories from './AttributeInput.stories';
 import * as BottomSheetStories from './common/BottomSheet.stories';
 import * as FlagButtonStories from './FlagButton.stories';
@@ -13,6 +14,25 @@ import * as WishCardStories from './WishCard.stories';
 import * as WishPreviewStories from './WishPreview.stories';
 
 describe('Storybook Stories Smoke Tests', () => {
+  it('renders AiSuggestionModal stories without crashing', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      for (const story of [
+        AiSuggestionModalStories.DefaultReview,
+        AiSuggestionModalStories.SignedInProfileScope,
+        AiSuggestionModalStories.ConflictResolution,
+        AiSuggestionModalStories.StreamlinedTextComparison,
+      ]) {
+        const Render = story.render!;
+        const { container, unmount } = render(<Render />);
+        expect(container).toBeTruthy();
+        unmount();
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('renders AttributeInput stories without crashing', () => {
     const { container: c1 } = render(<AttributeInputStories.Orientation.render />);
     expect(c1).toBeTruthy();
