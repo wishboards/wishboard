@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { deployServerless, destroyServerless } from './serverless.js';
 import * as commandUtils from '../commandUtils.js';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 vi.mock('../commandUtils.js', async (importOriginal) => {
   const actual = await importOriginal();
@@ -868,6 +870,460 @@ describe('serverless commands', () => {
       const del = calls.find((c) => c[0] === 'sam' && c[1].includes('delete'));
       expect(del).toBeDefined();
       expect(del[2]).toEqual(expect.objectContaining({ dryRun: true }));
+    });
+  });
+
+  describe('parameter overrides and deploy argv (exact)', () => {
+    const ENV_KEYS = [
+      'PROJECT_NAME',
+      'DOMAIN_NAME',
+      'CERTIFICATE_DOMAIN_NAME',
+      'HOSTED_ZONE_ID',
+      'ACM_CERTIFICATE_ARN',
+      'DATABASE_URL',
+      'DATABASE_AUTH_TOKEN_SSM',
+      'ENABLE_AI_FEATURES',
+      'AI_PROVIDER',
+      'AI_API_KEY_SSM',
+      'AI_MODEL',
+      'CONFIG_ENV',
+      'EVENT_PROFILE',
+    ];
+    let savedEnv;
+
+    beforeEach(() => {
+      savedEnv = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
+      for (const k of ENV_KEYS) delete process.env[k];
+    });
+
+    afterEach(() => {
+      for (const k of ENV_KEYS) {
+        if (savedEnv[k] === undefined) delete process.env[k];
+        else process.env[k] = savedEnv[k];
+      }
+    });
+
+    function deployCalls() {
+      return vi
+        .mocked(commandUtils.execCommand)
+        .mock.calls.filter(([cmd, args]) => cmd === 'sam' && args[0] === 'deploy');
+    }
+
+    function overridesFor(options, toml = '') {
+      vi.mocked(commandUtils.execCommand).mockClear();
+      vi.mocked(fs.readFileSync).mockReturnValue(toml);
+      deployServerless({ stackName: 'wishboard-serverless', ...options });
+      const calls = deployCalls();
+      expect(calls.length).toBeGreaterThan(0);
+      const args = calls[calls.length - 1][1];
+      return args[args.indexOf('--parameter-overrides') + 1];
+    }
+
+    it('builds the exact default overrides string in prod mode', () => {
+      expect(overridesFor({})).toBe(
+        "ProjectName='wishboard' DomainName='' CertificateDomainName='' HostedZoneId='' " +
+          "AcmCertificateArn='' NodeEnv='production' DatabaseUrl='' DatabaseAuthTokenSsm='' " +
+          "EnableAiFeatures='false' AiProvider='noop' AiApiKeySsm='' AiModel='gemini-flash-latest'"
+      );
+    });
+
+    it('uses every CLI option value verbatim and development NodeEnv in dev mode', () => {
+      const str = overridesFor({
+        mode: 'dev',
+        projectName: 'myproj',
+        domain: 'app.example.com',
+        certDomain: 'example.com',
+        hostedZoneId: 'Z123456',
+        acmCertArn: 'arn:aws:acm:us-east-1:123456789012:certificate/abc-123',
+        databaseUrl: 'libsql://db.turso.io',
+        databaseAuthTokenSsm: '/wishboard/db/token',
+        enableAi: true,
+        aiProvider: 'cloud',
+        aiApiKeySsm: '/wishboard/ai/key',
+        aiModel: 'gemini-pro',
+      });
+      expect(str).toBe(
+        "ProjectName='myproj-dev' DomainName='app.example.com' CertificateDomainName='example.com' " +
+          "HostedZoneId='Z123456' AcmCertificateArn='arn:aws:acm:us-east-1:123456789012:certificate/abc-123' " +
+          "NodeEnv='development' DatabaseUrl='libsql://db.turso.io' " +
+          "DatabaseAuthTokenSsm='/wishboard/db/token' EnableAiFeatures='true' AiProvider='cloud' " +
+          "AiApiKeySsm='/wishboard/ai/key' AiModel='gemini-pro'"
+      );
+    });
+
+    it('env beats toml, toml beats fallback, and empty-string env/option values fall through', () => {
+      const toml =
+        '[default.deploy.parameters]\nparameter_overrides = "DomainName=\\"toml.example.com\\" DatabaseUrl=\\"libsql://toml-db\\""\n';
+      // toml only
+      expect(overridesFor({}, toml)).toContain("DomainName='toml.example.com'");
+      expect(overridesFor({}, toml)).toContain("DatabaseUrl='libsql://toml-db'");
+      // env beats toml
+      process.env.DOMAIN_NAME = 'env.example.com';
+      expect(overridesFor({}, toml)).toContain("DomainName='env.example.com'");
+      // option beats env
+      expect(overridesFor({ domain: 'opt.example.com' }, toml)).toContain(
+        "DomainName='opt.example.com'"
+      );
+      // empty-string option and env both fall through to toml
+      process.env.DOMAIN_NAME = '';
+      expect(overridesFor({ domain: '' }, toml)).toContain("DomainName='toml.example.com'");
+    });
+
+    it('a longer key in toml does not leak into a shorter one (CustomDomainName vs DomainName)', () => {
+      const toml =
+        '[default.deploy.parameters]\nparameter_overrides = "CustomDomainName=\\"custom.example.com\\""\n';
+      expect(overridesFor({}, toml)).toContain("DomainName=''");
+    });
+
+    it('refuses to deploy when the first toml DomainName token is empty but a later one is set', () => {
+      // Resolution takes the first DomainName token (empty), while the
+      // not-silently-blanked guard sees the non-empty later token and refuses.
+      const toml =
+        '[default.deploy.parameters]\nparameter_overrides = "DomainName=\\"\\" DomainName=\\"real.example.com\\""\n';
+      vi.mocked(fs.readFileSync).mockReturnValue(toml);
+      expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+        /DomainName is set in samconfig\.toml \("real\.example\.com"\) but resolved to empty/
+      );
+    });
+
+    it('rejects parameter values outside the safe allowlist', () => {
+      expect(() => overridesFor({ domain: 'bad domain!' })).toThrowError(
+        new Error(
+          'Invalid value for DomainName: only letters, digits, and ". _ : / * -" are allowed.'
+        )
+      );
+      expect(() => overridesFor({ projectName: 'bad;name' })).toThrowError(
+        /Invalid value for ProjectName/
+      );
+    });
+
+    it('derives the project name from the stack name suffix', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      deployServerless({ stackName: 'wishboard-serverless-acme' });
+      const args = deployCalls()[0][1];
+      const str = args[args.indexOf('--parameter-overrides') + 1];
+      expect(str).toContain("ProjectName='wishboard-acme'");
+    });
+
+    it('stack name wishboard-serverless-dev in dev mode yields plain wishboard (no double -dev)', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      deployServerless({ stackName: 'wishboard-serverless-dev', mode: 'dev' });
+      const args = deployCalls()[0][1];
+      const str = args[args.indexOf('--parameter-overrides') + 1];
+      expect(str).toContain("ProjectName='wishboard-dev'");
+    });
+
+    it('PROJECT_NAME env wins over the stack suffix and still gets the dev suffix', () => {
+      process.env.PROJECT_NAME = 'envproj';
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      deployServerless({ stackName: 'wishboard-serverless-acme', mode: 'dev' });
+      const args = deployCalls()[0][1];
+      const str = args[args.indexOf('--parameter-overrides') + 1];
+      expect(str).toContain("ProjectName='envproj-dev'");
+    });
+
+    it('builds the exact sam deploy argv for a plain non-guided deploy', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      deployServerless({
+        stackName: 'wishboard-serverless',
+        region: 'eu-west-1',
+        profile: 'prod-profile',
+      });
+      const calls = deployCalls();
+      expect(calls).toHaveLength(1);
+      expect(calls[0][1]).toEqual([
+        'deploy',
+        '--config-env',
+        'lifestyle',
+        '--stack-name',
+        'wishboard-serverless',
+        '--no-confirm-changeset',
+        '--no-fail-on-empty-changeset',
+        '--capabilities',
+        'CAPABILITY_IAM',
+        '--resolve-s3',
+        '--profile',
+        'prod-profile',
+        '--region',
+        'eu-west-1',
+        '--parameter-overrides',
+        "ProjectName='wishboard' DomainName='' CertificateDomainName='' HostedZoneId='' " +
+          "AcmCertificateArn='' NodeEnv='production' DatabaseUrl='' DatabaseAuthTokenSsm='' " +
+          "EnableAiFeatures='false' AiProvider='noop' AiApiKeySsm='' AiModel='gemini-flash-latest'",
+        '--tags',
+        'Project=wishboard',
+      ]);
+      expect(calls[0][2]).toEqual(expect.objectContaining({ dryRun: false }));
+      expect(process.env.AWS_MAX_ATTEMPTS).toBe('6');
+      expect(process.env.AWS_RETRY_MODE).toBe('adaptive');
+    });
+
+    it('retries a failing sam deploy 4 times total, then throws the exact error', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'sam' && args[0] === 'deploy') return { status: 1, stdout: '', stderr: 'net' };
+        return base(cmd, args, opts);
+      });
+      expect(() =>
+        deployServerless({ stackName: 'wishboard-serverless', sleep: () => {} })
+      ).toThrowError(new Error('sam deploy failed after 4 attempt(s).'));
+      expect(deployCalls()).toHaveLength(4);
+      const logs = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+      expect(logs).toContain(
+        '    sam deploy attempt 1 failed (exit 1); likely a transient upload error. Retrying in 5s...'
+      );
+      expect(logs).toContain(
+        '    sam deploy attempt 3 failed (exit 1); likely a transient upload error. Retrying in 5s...'
+      );
+    });
+
+    it('a deploy that succeeds on the second attempt stops retrying', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      let attempts = 0;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'sam' && args[0] === 'deploy') {
+          attempts += 1;
+          return attempts < 2
+            ? { status: 1, stdout: '', stderr: 'net' }
+            : { status: 0, stdout: '', stderr: '' };
+        }
+        return base(cmd, args, opts);
+      });
+      deployServerless({ stackName: 'wishboard-serverless', sleep: () => {} });
+      expect(attempts).toBe(2);
+    });
+
+    it('verifyAwsAuth rejects a None account and an empty account', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      for (const stdout of ['None\n', '  \n']) {
+        vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+          if (cmd === 'aws' && args.some((a) => String(a).includes('get-caller-identity'))) {
+            return { status: 0, stdout, stderr: '' };
+          }
+          return base(cmd, args, opts);
+        });
+        expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+          new Error('Unable to authenticate to AWS. Check your credentials / --profile value.')
+        );
+        vi.mocked(commandUtils.execCommand).mockImplementation(base);
+      }
+    });
+
+    it('getStackOutput failure throws the exact error naming the stack', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'aws' && args.some((a) => String(a).includes('describe-stacks'))) {
+          return { status: 1, stdout: '', stderr: 'gone' };
+        }
+        return base(cmd, args, opts);
+      });
+      expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+        new Error("Failed to read stack outputs for 'wishboard-serverless'.")
+      );
+    });
+
+    it('missing stack outputs throw their exact errors', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (
+          cmd === 'aws' &&
+          args.some((a) => String(a).includes('describe-stacks')) &&
+          args.some((a) => String(a).includes('FrontendBucketName'))
+        ) {
+          return { status: 0, stdout: 'None\n', stderr: '' };
+        }
+        return base(cmd, args, opts);
+      });
+      expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+        new Error('FrontendBucketName output not found. Did the stack deploy successfully?')
+      );
+    });
+
+    it('CloudFront already up to date: logs the exact line and never calls update', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'aws' && args.some((a) => String(a).includes('get-function-configuration'))) {
+          return {
+            status: 0,
+            stdout: JSON.stringify({
+              Environment: { Variables: { CLOUDFRONT_DISTRIBUTION_ID: 'DIST123', OTHER: 'x' } },
+            }),
+            stderr: '',
+          };
+        }
+        return base(cmd, args, opts);
+      });
+      deployServerless({ stackName: 'wishboard-serverless' });
+      const calls = vi.mocked(commandUtils.execCommand).mock.calls;
+      expect(
+        calls.some(([cmd, args]) => cmd === 'aws' && args.includes('update-function-configuration'))
+      ).toBe(false);
+      const logs = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+      expect(logs).toContain('    CLOUDFRONT_DISTRIBUTION_ID is already up to date (DIST123)');
+    });
+
+    it('CloudFront changed: update call carries the merged variables JSON exactly', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'aws' && args.some((a) => String(a).includes('get-function-configuration'))) {
+          return {
+            status: 0,
+            stdout: JSON.stringify({
+              Environment: { Variables: { CLOUDFRONT_DISTRIBUTION_ID: 'OLD', OTHER: 'x' } },
+            }),
+            stderr: '',
+          };
+        }
+        return base(cmd, args, opts);
+      });
+      deployServerless({ stackName: 'wishboard-serverless' });
+      const calls = vi.mocked(commandUtils.execCommand).mock.calls;
+      const update = calls.find(
+        ([cmd, args]) => cmd === 'aws' && args.includes('update-function-configuration')
+      );
+      expect(update).toBeDefined();
+      expect(update[1]).toEqual([
+        'lambda',
+        'update-function-configuration',
+        '--function-name',
+        'api-fn-physical',
+        '--environment',
+        JSON.stringify({ Variables: { CLOUDFRONT_DISTRIBUTION_ID: 'DIST123', OTHER: 'x' } }),
+      ]);
+      const logs = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+      expect(logs).toContain(
+        '    Successfully configured CLOUDFRONT_DISTRIBUTION_ID=DIST123 on api-fn-physical'
+      );
+    });
+
+    it('CloudFront config fetch failure is swallowed into the exact warning line', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'aws' && args.some((a) => String(a).includes('get-function-configuration'))) {
+          return { status: 1, stdout: '', stderr: 'denied' };
+        }
+        return base(cmd, args, opts);
+      });
+      deployServerless({ stackName: 'wishboard-serverless' });
+      const logs = vi.mocked(console.log).mock.calls.map((c) => c[0]);
+      expect(logs).toContain(
+        '    Warning: Could not dynamically set CLOUDFRONT_DISTRIBUTION_ID on Lambda: Failed to fetch Lambda function configuration'
+      );
+    });
+
+    it('migration: exact s3 ls/sync/rm/rb sequence for the old images bucket', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = [], opts) => {
+        if (cmd === 'aws' && args[0] === 's3' && args[1] === 'ls') {
+          return { status: 0, stdout: '2024-01-01 00:00:00 file.jpg\n', stderr: '' };
+        }
+        return base(cmd, args, opts);
+      });
+      deployServerless({ stackName: 'wishboard-serverless' });
+      const calls = vi.mocked(commandUtils.execCommand).mock.calls;
+      const s3 = calls.filter(([cmd, args]) => cmd === 'aws' && args[0] === 's3');
+      expect(s3.map(([, args]) => args).slice(0, 7)).toEqual([
+        ['s3', 'ls', 's3://wishboard-images-123456789012'],
+        ['s3', 'sync', 's3://wishboard-images-123456789012', 's3://images-bucket'],
+        ['s3', 'rm', 's3://wishboard-images-123456789012', '--recursive'],
+        ['s3', 'rb', 's3://wishboard-images-123456789012'],
+        ['s3', 'ls', 's3://wishboard-frontend-123456789012'],
+        ['s3', 'rm', 's3://wishboard-frontend-123456789012', '--recursive'],
+        ['s3', 'rb', 's3://wishboard-frontend-123456789012'],
+      ]);
+    });
+
+    it('frontend upload: exact sync argv for root, assets, and fonts, plus invalidation', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      deployServerless({ stackName: 'wishboard-serverless' });
+      const calls = vi.mocked(commandUtils.execCommand).mock.calls;
+      const syncs = calls.filter(
+        ([cmd, args]) => cmd === 'aws' && args[0] === 's3' && args[1] === 'sync'
+      );
+      const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+      const dist = path.join(repoRoot, 'dist');
+      expect(syncs.map(([, args]) => args)).toEqual([
+        [
+          's3',
+          'sync',
+          dist,
+          's3://frontend-bucket',
+          '--exclude',
+          'assets/*',
+          '--exclude',
+          'fonts/*',
+          '--delete',
+          '--cache-control',
+          'no-cache, no-store, must-revalidate',
+        ],
+        [
+          's3',
+          'sync',
+          `${dist}/assets`,
+          's3://frontend-bucket/assets',
+          '--delete',
+          '--cache-control',
+          'public, max-age=31536000, immutable',
+        ],
+        [
+          's3',
+          'sync',
+          `${dist}/fonts`,
+          's3://frontend-bucket/fonts',
+          '--delete',
+          '--cache-control',
+          'public, max-age=31536000',
+        ],
+      ]);
+      const invalidation = calls.find(
+        ([cmd, args]) => cmd === 'aws' && args.includes('create-invalidation')
+      );
+      expect(invalidation[1]).toEqual([
+        'cloudfront',
+        'create-invalidation',
+        '--distribution-id',
+        'DIST123',
+        '--paths',
+        '/*',
+      ]);
+    });
+
+    it('frontend upload failures throw their exact errors', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue('');
+      const base = defaultExec;
+      const failOn =
+        (needle) =>
+        (cmd, args = [], opts) => {
+          if (
+            cmd === 'aws' &&
+            args.some((a) => String(a).includes(needle)) &&
+            !args.some((a) => String(a).includes('get-caller-identity'))
+          ) {
+            return { status: 1, stdout: '', stderr: 's3 fail' };
+          }
+          return base(cmd, args, opts);
+        };
+      vi.mocked(commandUtils.execCommand).mockImplementation(failOn('no-cache'));
+      expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+        new Error('Frontend root files upload to S3 failed.')
+      );
+      vi.mocked(commandUtils.execCommand).mockImplementation(failOn('immutable'));
+      expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+        new Error('Frontend assets upload to S3 failed.')
+      );
+      vi.mocked(commandUtils.execCommand).mockImplementation(failOn('create-invalidation'));
+      expect(() => deployServerless({ stackName: 'wishboard-serverless' })).toThrowError(
+        new Error('CloudFront invalidation failed.')
+      );
     });
   });
 });
