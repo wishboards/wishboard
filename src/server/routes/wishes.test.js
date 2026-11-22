@@ -815,4 +815,54 @@ describe('Wish creation, claim, and management API edge cases', () => {
       }
     });
   });
+
+  describe('Manage wish attribute overrides', () => {
+    it('returns creator_attributes and desired_attributes on GET /api/wishes/:id and updates them via /manage', async () => {
+      const createRes = await request(app)
+        .post('/api/wishes')
+        .send({
+          content: 'Looking for rope play',
+          creator_attributes: { gender: 'Woman', role: 'Switch' },
+          desired_attributes: { role: 'Rigger' },
+        });
+      expect(createRes.status).toBe(201);
+      const { id, secret } = createRes.body;
+
+      const getRes = await request(app).get(`/api/wishes/${id}`);
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.creator_attributes).toEqual({ gender: ['Woman'], role: ['Switch'] });
+      expect(getRes.body.desired_attributes).toEqual({ role: ['Rigger'] });
+
+      const updateRes = await request(app)
+        .post(`/api/wishes/${id}/manage`)
+        .send({
+          secret,
+          action: 'update',
+          content: 'Updated rope play wish',
+          creator_attributes: { gender: 'Woman', orientation: 'Queer', role: 'Switch' },
+          desired_attributes: { role: 'Rigger, Top' },
+        });
+      expect(updateRes.status).toBe(200);
+
+      const getAfter = await request(app).get(`/api/wishes/${id}`);
+      expect(getAfter.body.creator_attributes).toEqual({
+        gender: ['Woman'],
+        orientation: ['Queer'],
+        role: ['Switch'],
+      });
+      expect(getAfter.body.desired_attributes).toEqual({ role: ['Rigger', 'Top'] });
+
+      // Conflicting exclusion attributes should be rejected with 400
+      const conflictRes = await request(app)
+        .post(`/api/wishes/${id}/manage`)
+        .send({
+          secret,
+          action: 'update',
+          content: 'Conflicting wish',
+          creator_attributes: { orientation: 'gay, straight' },
+        });
+      expect(conflictRes.status).toBe(400);
+      expect(conflictRes.body.error).toContain('conflict');
+    });
+  });
 });

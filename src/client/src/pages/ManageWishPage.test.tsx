@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import ManageWishPage from './ManageWishPage';
+import EventProfileContext from '../EventProfileContext';
 import React from 'react';
 
 // Setup fetch mock
@@ -195,5 +196,59 @@ describe('ManageWishPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Wish' }));
     await waitFor(() => expect(screen.getByText('Delete error')).toBeInTheDocument());
+  });
+
+  it('loads and saves per-wish attribute overrides when categories are present', async () => {
+    const profileWithCategories = {
+      profile: 'lifestyle',
+      contact_methods: ['Email'],
+      categories: [
+        { id: 'gender', label: 'Gender', suggestions: ['Woman', 'Nonbinary'] },
+        { id: 'role', label: 'Role', suggestions: ['Switch', 'Rigger'] },
+      ],
+      realtimeProvider: 'socketio',
+      apIp: '',
+      isServerless: false,
+    };
+
+    globalThis.window.location.hash = '#manage-wish?id=w-attr&secret=sec';
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'w-attr',
+        content: 'Rope play wish',
+        creator_attributes: { gender: ['Woman'], role: ['Switch'] },
+        desired_attributes: { role: ['Rigger'] },
+        is_active: true,
+      }),
+    } as any);
+
+    render(
+      <EventProfileContext value={profileWithCategories}>
+        <ManageWishPage />
+      </EventProfileContext>
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue('Woman')).toBeInTheDocument());
+    expect(screen.getByDisplayValue('Switch')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Rigger')).toBeInTheDocument();
+
+    const desiredRoleInput = screen.getByLabelText(/Desired Role\(s\)/i);
+    fireEvent.change(desiredRoleInput, { target: { value: 'Rigger, Top' } });
+
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as any);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      const postCall = vi.mocked(globalThis.fetch).mock.calls[1];
+      expect(postCall[0]).toBe('/api/wishes/w-attr/manage');
+      const sentBody = JSON.parse((postCall[1] as RequestInit).body as string);
+      expect(sentBody.creator_attributes).toEqual({ gender: 'Woman', role: 'Switch' });
+      expect(sentBody.desired_attributes).toEqual({ role: 'Rigger, Top' });
+    });
   });
 });

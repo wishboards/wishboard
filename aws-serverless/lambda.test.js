@@ -9,6 +9,7 @@ vi.mock('@codegenie/serverless-express', () => {
 });
 
 const mockDrainQueue = vi.fn().mockResolvedValue(undefined);
+const mockProcessWishJob = vi.fn().mockResolvedValue(undefined);
 const mockFlushBroadcasts = vi.fn().mockResolvedValue([]);
 
 vi.mock('../src/server/index.js', () => {
@@ -16,7 +17,9 @@ vi.mock('../src/server/index.js', () => {
 });
 
 vi.mock('../src/server/ai/taggingWorker.js', () => ({
+  ASYNC_TAGGING_EVENT_KEY: '__wishboardAsyncTask',
   drainQueue: mockDrainQueue,
+  processWishJob: mockProcessWishJob,
 }));
 
 vi.mock('../src/server/socket.js', () => ({
@@ -27,6 +30,7 @@ describe('lambda.mjs', () => {
   beforeEach(() => {
     vi.resetModules();
     mockDrainQueue.mockClear();
+    mockProcessWishJob.mockClear();
     mockFlushBroadcasts.mockClear();
   });
 
@@ -50,4 +54,14 @@ describe('lambda.mjs', () => {
     expect(mockDrainQueue).toHaveBeenCalledTimes(2);
     expect(mockFlushBroadcasts).toHaveBeenCalledTimes(2);
   }, 15000);
+
+  it('handles async self-invoked AI tagging events outside the HTTP path', async () => {
+    const lambda = await import('./lambda.mjs');
+    const payload = { wishId: 'w-async-1', content: 'Queer switch seeking top' };
+    const res = await lambda.handler({ __wishboardAsyncTask: 'aiTagging', payload }, {});
+
+    expect(res).toEqual({ statusCode: 200, ok: true });
+    expect(mockProcessWishJob).toHaveBeenCalledWith(payload);
+    expect(mockDrainQueue).not.toHaveBeenCalled();
+  });
 });

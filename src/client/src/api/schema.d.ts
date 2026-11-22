@@ -3149,6 +3149,12 @@ export interface components {
       content?: string;
       contacts?: unknown;
       wishmail_enabled?: boolean;
+      creator_attributes?: {
+        [key: string]: string | string[];
+      };
+      desired_attributes?: {
+        [key: string]: string | string[];
+      };
       /** @example ocean-sun-meadow */
       new_passphrase?: string;
     };
@@ -3490,6 +3496,14 @@ export interface components {
       /** @example /images/branding-bg.webp */
       boardBgUrl?: string | null;
     };
+    AiStatus: {
+      /** @example false */
+      enabled: boolean;
+      /** @example noop */
+      provider: string;
+      /** @example gemini-flash-latest */
+      model?: string | null;
+    };
     ConfigResponse: {
       /** @example wishboards.local */
       domain: string;
@@ -3504,6 +3518,7 @@ export interface components {
       /** @example 1.32.1 */
       appVersion: string;
       branding?: components['schemas']['Branding'];
+      ai?: components['schemas']['AiStatus'];
     };
     CaptivePortalStatus: {
       /** @example false */

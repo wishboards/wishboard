@@ -84,7 +84,7 @@ export class CloudInferenceProvider extends InferenceProvider {
       pathSuffix: '/chat/completions',
       useGemini: isGeminiModel(this.model),
     });
-    this.timeoutMs = options.timeoutMs || 10000;
+    this.timeoutMs = options.timeoutMs || 20000;
   }
 
   isAvailable() {
@@ -117,8 +117,8 @@ export class CloudInferenceProvider extends InferenceProvider {
 
     const systemPrompt = `You are an AI assistant for a convention wishboard matching system.
 Your job is to analyze wish content and suggest relevant attributes for:
-1. "creatorAttributes": Attributes describing the person who wrote the wish.
-2. "desiredAttributes": Attributes describing the person/people they are seeking to meet.
+1. "suggestedCreatorAttributes": Attributes describing the person who wrote the wish.
+2. "suggestedDesiredAttributes": Attributes describing the person/people they are seeking to meet.
 
 Allowed Categories and Taxonomy:
 ${taxonomyDescription}
@@ -140,21 +140,26 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
+      const requestBody = {
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2,
+      };
+      if (isGeminiModel(this.model)) {
+        requestBody.reasoning_effort = 'low';
+      }
+
       const res = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${key}`,
         },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.2,
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
@@ -163,6 +168,8 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
       if (!res.ok) {
         const errorText = await res.text();
         logger.warn('Cloud AI inference request returned non-OK status', {
+          model: this.model,
+          apiUrl: this.apiUrl,
           status: res.status,
           error: errorText,
         });
@@ -174,16 +181,35 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
       }
 
       const data = await res.json();
-      const rawContent = data.choices?.[0]?.message?.content || '{}';
+      const firstChoice = data.choices?.[0];
+      const rawContent = firstChoice?.message?.content || '';
+      if (!rawContent) {
+        logger.warn('Cloud AI inference returned empty content', {
+          model: this.model,
+          finishReason: firstChoice?.finish_reason ?? null,
+        });
+        return {
+          suggestedCreatorAttributes: {},
+          suggestedDesiredAttributes: {},
+          reasoning: `Cloud AI returned empty content (finish_reason: ${firstChoice?.finish_reason ?? 'unknown'})`,
+        };
+      }
+
       const parsed = JSON.parse(stripJsonCodeFences(rawContent));
 
       return {
-        suggestedCreatorAttributes: parsed.suggestedCreatorAttributes || {},
-        suggestedDesiredAttributes: parsed.suggestedDesiredAttributes || {},
+        suggestedCreatorAttributes:
+          parsed.suggestedCreatorAttributes || parsed.creatorAttributes || {},
+        suggestedDesiredAttributes:
+          parsed.suggestedDesiredAttributes || parsed.desiredAttributes || {},
         reasoning: parsed.reasoning || 'Extracted via cloud LLM',
       };
     } catch (err) {
-      logger.warn('Cloud AI inference request failed', { error: err.message });
+      logger.warn('Cloud AI inference request failed', {
+        model: this.model,
+        apiUrl: this.apiUrl,
+        error: err.message,
+      });
       return {
         suggestedCreatorAttributes: {},
         suggestedDesiredAttributes: {},

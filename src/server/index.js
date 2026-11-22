@@ -104,6 +104,7 @@ const frontendLimiter = rateLimit({
 app.get('/api/config', async (req, res) => {
   const { getDomainConfig } = await import('./configManager.js');
   const { getMergedBranding } = await import('./brandingManager.js');
+  const { getAiStatus } = await import('./ai/index.js');
   const domainConfig = getDomainConfig();
   const branding = await getMergedBranding();
   res.json({
@@ -115,6 +116,7 @@ app.get('/api/config', async (req, res) => {
     isServerless: !!process.env.AWS_EXECUTION_ENV,
     apiVersion: getApiVersion(),
     appVersion: getAppVersion(),
+    ai: getAiStatus(),
   });
 });
 

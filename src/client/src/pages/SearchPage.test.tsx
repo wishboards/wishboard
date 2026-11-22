@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import SearchPage from './SearchPage';
+import { useEventProfile } from '../EventProfileContext';
 
 let mockUser: any = null;
 
@@ -334,5 +335,90 @@ describe('SearchPage', () => {
     expect(
       screen.getByRole('button', { name: /Filter Attributes, 1 selected/i })
     ).toBeInTheDocument();
+  });
+
+  it('shows Semantic Search toggle and auto-falls back to semantic results on empty keyword search when AI is enabled', async () => {
+    const aiProfile = {
+      profile: 'lifestyle',
+      contact_methods: ['Email'],
+      categories: [],
+      realtimeProvider: 'apigateway',
+      apIp: '',
+      isServerless: true,
+      ai: { enabled: true, provider: 'cloud', model: 'gemini-flash-latest' },
+    };
+    const originalImpl = vi.mocked(useEventProfile).getMockImplementation();
+    vi.mocked(useEventProfile).mockReturnValue(aiProfile);
+
+    try {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => [] })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{ id: 'sem-1', content: 'Looking for rope play' }],
+        }) as any;
+
+      render(<SearchPage />);
+
+      const toggle = screen.getByLabelText(/Semantic Search \(AI\)/i) as HTMLInputElement;
+      expect(toggle).toBeInTheDocument();
+      expect(toggle.checked).toBe(false);
+
+      fireEvent.change(screen.getByPlaceholderText(/Search existing wishes/i), {
+        target: { value: 'shibari' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /Search/i }));
+
+      await waitFor(() => expect(screen.getByText('Looking for rope play')).toBeInTheDocument());
+      expect(screen.getByText(/No exact keyword matches/i)).toBeInTheDocument();
+      expect(globalThis.fetch).toHaveBeenNthCalledWith(1, expect.stringContaining('q=shibari'));
+      expect(globalThis.fetch).toHaveBeenNthCalledWith(2, expect.stringContaining('mode=semantic'));
+
+      // Direct semantic toggle sends mode=semantic on first call
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ id: 'sem-2', content: 'AI wish' }],
+      } as any);
+      fireEvent.click(toggle);
+      fireEvent.click(screen.getByRole('button', { name: /Search/i }));
+      await waitFor(() => expect(screen.getByText('AI wish')).toBeInTheDocument());
+      expect(screen.queryByText(/No exact keyword matches/i)).not.toBeInTheDocument();
+    } finally {
+      if (originalImpl) vi.mocked(useEventProfile).mockImplementation(originalImpl);
+    }
+  });
+
+  it('stays quiet when both keyword search and AI semantic follow-up return empty results', async () => {
+    const aiProfile = {
+      profile: 'lifestyle',
+      contact_methods: ['Email'],
+      categories: [],
+      realtimeProvider: 'apigateway',
+      apIp: '',
+      isServerless: true,
+      ai: { enabled: true, provider: 'cloud', model: 'gemini-flash-latest' },
+    };
+    const originalImpl = vi.mocked(useEventProfile).getMockImplementation();
+    vi.mocked(useEventProfile).mockReturnValue(aiProfile);
+
+    try {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => [] })
+        .mockResolvedValueOnce({ ok: true, json: async () => [] }) as any;
+
+      render(<SearchPage />);
+
+      fireEvent.change(screen.getByPlaceholderText(/Search existing wishes/i), {
+        target: { value: 'zzzzz' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /Search/i }));
+
+      await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
+      expect(screen.queryByText(/No exact keyword matches/i)).not.toBeInTheDocument();
+    } finally {
+      if (originalImpl) vi.mocked(useEventProfile).mockImplementation(originalImpl);
+    }
   });
 });
