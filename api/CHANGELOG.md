@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/wishboards/wishboard/compare/api-v1.4.0...api-v1.5.0) (2026-11-22)
+
+
+### Features
+
+* **ai:** implement decomposable and optional AI integration ([#332](https://github.com/wishboards/wishboard/issues/332)) ([#628](https://github.com/wishboards/wishboard/issues/628)) ([91f7ca5](https://github.com/wishboards/wishboard/commit/91f7ca54c476b0e33812fcb442af843016c5b39d))
+
 ## [1.4.0](https://github.com/wishboards/wishboard/compare/api-v1.3.0...api-v1.4.0) (2026-11-11)
 
 
