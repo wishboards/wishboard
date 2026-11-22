@@ -195,6 +195,11 @@ kiosk
     'Container image tag to deploy (default: package.json version)'
   )
   .option('--skip-setup', 'Skip running setup-kiosk.sh on the Pi (fast container update)')
+  .option('--enable-ai', 'Enable optional AI features (tag suggestions and semantic search)')
+  .option(
+    '--ai-provider <provider>',
+    'AI provider: noop, local, or cloud (default: local when --enable-ai is set)'
+  )
   .action(async (options, command) => {
     try {
       const { deployKiosk } = await import('./commands/kiosk.js');
@@ -235,6 +240,11 @@ kiosk
   )
   .option('--reset-rules', 'Re-seed matching rules from bundled defaults (default: keep existing)')
   .option('--app-version <version>', 'Container image tag to run (default: package.json version)')
+  .option('--enable-ai', 'Enable optional AI features (tag suggestions and semantic search)')
+  .option(
+    '--ai-provider <provider>',
+    'AI provider: noop, local, or cloud (default: local when --enable-ai is set)'
+  )
   .action(async (options, command) => {
     try {
       const { runKiosk } = await import('./commands/kiosk.js');

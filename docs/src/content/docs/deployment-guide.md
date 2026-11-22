@@ -59,7 +59,7 @@ From your **local developer machine** (not the Pi), run the unified deployment c
 npx wishboard kiosk deploy --host raspberrypi.local --mode prod --domain wishboard.example.com
 ```
 
-Add `--user <name>` if your Pi login isn't `pi`, and `--dry-run` to preview the exact SSH/scp steps without executing them. `--reset-rules` re-seeds the matching rules from the profile defaults (`profiles/**/rules.yaml`) — rules live in the database `rules` table now, not a file. It clears only the DB `rules` table and preserves uploaded images, users, and wishes (this was corrected in [#194](https://github.com/wishboards/wishboard/issues/194); it previously wiped the whole `/app/data` volume).
+Add `--user <name>` if your Pi login isn't `pi`, `--dry-run` to preview the exact SSH/scp steps without executing them, and `--enable-ai` (optionally `--ai-provider local`, the default when `--enable-ai` is passed) to enable offline AI tag suggestions and semantic search on the kiosk. `--reset-rules` re-seeds the matching rules from the profile defaults (`profiles/**/rules.yaml`) — rules live in the database `rules` table now, not a file. It clears only the DB `rules` table and preserves uploaded images, users, and wishes (this was corrected in [#194](https://github.com/wishboards/wishboard/issues/194); it previously wiped the whole `/app/data` volume).
 
 ### Networking Modes
 
@@ -111,10 +111,10 @@ If you need to inject special environment variables (like changing the default a
    AI_PROVIDER=local
    ```
 
-4. Restart the Docker container so it picks up the new environment variables:
+4. Recreate the Docker container so it picks up the new environment variables (`docker compose restart` alone does not reload changed `.env` values):
 
    ```bash
-   sudo -u wishboard DOCKER_HOST=unix:///run/user/$(id -u wishboard)/docker.sock bash -c 'cd /home/wishboard/wishboard && docker compose restart'
+   sudo -u wishboard DOCKER_HOST=unix:///run/user/$(id -u wishboard)/docker.sock bash -c 'cd /home/wishboard/wishboard && docker compose --env-file .env up -d'
    ```
 
 ---
