@@ -70,9 +70,13 @@ If you plan to deploy the serverless stack to AWS, you must configure GitHub Act
 1. Ensure you have the [AWS CLI](https://aws.amazon.com/cli/) installed and authenticated locally with administrative permissions.
 2. From the root of the repository, run the CLI tool:
    ```bash
-   npx wishboard oidc setup
+   node src/cli/wishboard.js oidc setup
    ```
 3. The tool will automatically provision an IAM role and identity provider in AWS, and it will configure the necessary `AWS_ROLE_TO_ASSUME` secret and `AWS_REGION` variable in your GitHub repository.
+4. **Release Deployment Targets (`SERVERLESS_PROFILES`):**
+   - By default (when the `SERVERLESS_PROFILES` repository variable is unset), merging a release PR automatically attempts to deploy **`["lifestyle", "professional"]`** — both with AI features disabled (`noop`).
+   - If your fork only deploys a single profile (e.g., `lifestyle`), set the `SERVERLESS_PROFILES` repository variable to `["lifestyle"]` so release workflows don't attempt to deploy unconfigured targets.
+   - To include an additional opt-in deployment target (such as a separate Cloud AI stack `"ai"` reusing the `lifestyle` taxonomy), add it to `SERVERLESS_PROFILES` (e.g., `["lifestyle", "professional", "ai"]`), give it its own isolated Turso database (`AI_DATABASE_URL`, `AI_DATABASE_AUTH_TOKEN_SSM`), stack (`AI_AWS_STACK_NAME`), domain (`AI_DOMAIN_NAME`), and set `AI_EVENT_PROFILE=lifestyle`. See the [Serverless Deployment Guide](../serverless-deployment/#github-actions-release--deployment-pipeline-recommended) for the full variable list.
 
 ## 3. Local Hardware Deployment (Kiosk SSH)
 

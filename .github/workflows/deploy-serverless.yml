@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       event_profile:
-        description: 'Event profile taxonomy (lifestyle or professional)'
+        description: 'Deployment target / event profile (lifestyle, professional, or ai)'
         required: true
         default: 'lifestyle'
         type: choice
         options:
           - lifestyle
           - professional
+          - ai
       mode:
         description: 'Deployment mode (dev or prod)'
         required: true
@@ -65,14 +66,13 @@ on:
   workflow_call:
     inputs:
       event_profile:
-        description: 'Event profile taxonomy (lifestyle or professional)'
+        description: 'Deployment target / event profile (e.g. lifestyle, professional, ai)'
         required: false
         default: 'lifestyle'
         type: string
       mode:
         description: 'Deployment mode (dev or prod)'
         required: false
-        default: 'dev'
         type: string
       domain_name:
         description: 'Custom domain name'
@@ -101,12 +101,10 @@ on:
       enable_ai_features:
         description: 'Enable AI features (true or false)'
         required: false
-        default: 'false'
         type: string
       ai_provider:
         description: 'AI provider (noop, local, or cloud)'
         required: false
-        default: 'noop'
         type: string
       ai_api_key_ssm:
         description: 'SSM parameter path for AI API key'
@@ -115,7 +113,6 @@ on:
       ai_model:
         description: 'AI model name'
         required: false
-        default: 'gemini-flash-latest'
         type: string
 
 permissions:
@@ -164,7 +161,7 @@ jobs:
           VARS_JSON: ${{ toJson(vars) }}
         run: |
           MODE="${{ inputs.mode || github.event.inputs.mode || '' }}"
-          EVENT_PROF="${{ inputs.event_profile || github.event.inputs.event_profile || 'lifestyle' }}"
+          TARGET_NAME="${{ inputs.event_profile || github.event.inputs.event_profile || 'lifestyle' }}"
           STACK_NAME="${{ inputs.stack_name || github.event.inputs.stack_name || '' }}"
           DOMAIN_NAME="${{ inputs.domain_name || github.event.inputs.domain_name || '' }}"
           DATABASE_URL="${{ inputs.database_url || '' }}"
@@ -176,7 +173,7 @@ jobs:
           AI_API_KEY_SSM="${{ inputs.ai_api_key_ssm || github.event.inputs.ai_api_key_ssm || '' }}"
           AI_MODEL="${{ inputs.ai_model || github.event.inputs.ai_model || '' }}"
 
-          PREFIX=$(echo "$EVENT_PROF" | tr '[:lower:]' '[:upper:]')
+          PREFIX=$(echo "$TARGET_NAME" | tr '[:lower:]' '[:upper:]')
 
           get_var() {
             local key="$1" explicit="$2" fallback="$3"
@@ -193,6 +190,9 @@ jobs:
             fi
           }
 
+          # Allow a deployment target (e.g. "ai") to reuse an existing taxonomy profile
+          # under profiles/ via <PREFIX>_EVENT_PROFILE (e.g. AI_EVENT_PROFILE=lifestyle).
+          EVENT_PROF=$(get_var "EVENT_PROFILE" "" "$TARGET_NAME")
           export STACK_NAME=$(get_var "AWS_STACK_NAME" "$STACK_NAME" "")
           export DOMAIN_NAME=$(get_var "DOMAIN_NAME" "$DOMAIN_NAME" "")
           export DATABASE_URL=$(get_var "DATABASE_URL" "$DATABASE_URL" "")

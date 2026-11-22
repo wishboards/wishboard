@@ -102,18 +102,20 @@ The fastest path to manual deployment is using the bundled deploy scripts. Howev
 
 Wishboard features automated serverless deployment triggered on **official release creation** (via `release-please`):
 
-1. **Automatic Release Deployment**:
-   When a release PR is merged into `main`, GitHub Actions automatically deploys two production stacks concurrently:
-   - **Lifestyle Profile**: `demo.wishboards.app` (uses standard repository variables: `DOMAIN_NAME`, `DATABASE_URL`, `DATABASE_AUTH_TOKEN_SSM`, `AWS_STACK_NAME`).
-   - **Professional Profile**: `conference.wishboards.app` (uses professional overrides: `PROFESSIONAL_DOMAIN_NAME`, `PROFESSIONAL_DATABASE_URL`, `PROFESSIONAL_DATABASE_AUTH_TOKEN_SSM`, `PROFESSIONAL_AWS_STACK_NAME`, `PROFESSIONAL_ACM_CERTIFICATE_ARN`).
+1. **Automatic Release Deployment (`SERVERLESS_PROFILES`)**:
+   When a release PR is merged into `main`, [`.github/workflows/release.yml`](https://github.com/wishboards/wishboard/blob/main/.github/workflows/release.yml) reads the optional `SERVERLESS_PROFILES` repository variable (a JSON array of deployment target names) and deploys each target concurrently:
+   - **Default (when `SERVERLESS_PROFILES` is unset):** `["lifestyle", "professional"]` — deploys the standard `lifestyle` and `professional` stacks with AI features disabled (`ENABLE_AI_FEATURES=false`, `AI_PROVIDER=noop`).
+   - **Opt-in targets (such as `ai`):** Because Cloud AI is opt-in, an AI-enabled stack is **not** deployed by default unless you explicitly add it to `SERVERLESS_PROFILES` (e.g. `["lifestyle", "professional", "ai"]`) and configure its `AI_*` variables (including `AI_EVENT_PROFILE=lifestyle` so it reuses an existing taxonomy under `profiles/`, plus its own dedicated Turso database and `AI_AWS_STACK_NAME`).
+   - The daily backup workflow (`.github/workflows/backup-serverless.yml`) also reads `SERVERLESS_PROFILES` (defaulting to `["lifestyle", "professional"]`) so any opted-in target with `<TARGET>_DATABASE_URL` configured is automatically backed up and verified.
 
 2. **Repository Variables Configuration**:
-   Configure GitHub Repository Variables to customize deployments:
-   - Standard / Lifestyle Stack: `DATABASE_URL`, `DATABASE_AUTH_TOKEN_SSM`, `DOMAIN_NAME` (`demo.wishboards.app`), `AWS_STACK_NAME`.
-   - Professional Stack Overrides: `PROFESSIONAL_DATABASE_URL`, `PROFESSIONAL_DATABASE_AUTH_TOKEN_SSM`, `PROFESSIONAL_DOMAIN_NAME` (`conference.wishboards.app`), `PROFESSIONAL_AWS_STACK_NAME`, `PROFESSIONAL_ACM_CERTIFICATE_ARN`.
+   Each target name in `SERVERLESS_PROFILES` maps to uppercased `<TARGET>_*` GitHub Repository Variables (e.g. `LIFESTYLE_*`, `PROFESSIONAL_*`, `AI_*`):
+   - **Core stack variables:** `<TARGET>_AWS_STACK_NAME`, `<TARGET>_DOMAIN_NAME`, `<TARGET>_DATABASE_URL`, `<TARGET>_DATABASE_AUTH_TOKEN_SSM`, `<TARGET>_MODE` (`dev` or `prod`), and optionally `<TARGET>_CERTIFICATE_DOMAIN_NAME` / `<TARGET>_ACM_CERTIFICATE_ARN`.
+   - **Taxonomy reuse (for non-taxonomy target names like `ai`):** `<TARGET>_EVENT_PROFILE` (e.g. `AI_EVENT_PROFILE=lifestyle`; defaults to `<target>` itself).
+   - **Opt-in Cloud AI variables:** `<TARGET>_ENABLE_AI_FEATURES=true`, `<TARGET>_AI_PROVIDER=cloud`, `<TARGET>_AI_API_KEY_SSM=/wishboard/ai/gemini-api-key`, and optionally `<TARGET>_AI_MODEL` (defaults to `gemini-flash-latest`).
 
 3. **Manual Triggering (Workflow Dispatch)**:
-   You can also manually trigger `Deploy Serverless` from the GitHub Actions tab, selecting the target `event_profile` (`lifestyle` or `professional`) and mode (`prod` or `dev`).
+   You can also manually trigger `Deploy Serverless` from the GitHub Actions tab, selecting a target (`lifestyle`, `professional`, or `ai`) and mode (`prod` or `dev`).
 
 ### Local CLI Deployment
 
