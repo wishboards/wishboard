@@ -10,6 +10,7 @@ import {
   requireAuth,
   requireAdmin,
   getTokenFromRequestHeader,
+  authorizeWishSubscription,
 } from './auth.js';
 import db from './db.js';
 
@@ -245,6 +246,66 @@ describe('Server Auth Helper Functions', () => {
       expect(next).toHaveBeenCalled();
       expect(req.user).toBeDefined();
       expect(req.user.id).toBe(userId);
+    });
+  });
+
+  describe('authorizeWishSubscription', () => {
+    it('authorizes wish owner via session token or passphrase secret and rejects non-owners', async () => {
+      expect(await authorizeWishSubscription()).toEqual({ authorized: false, userId: null });
+      expect(await authorizeWishSubscription({ wishId: '   ' })).toEqual({
+        authorized: false,
+        userId: null,
+      });
+      expect(await authorizeWishSubscription({ wishId: 'non-existent-wish' })).toEqual({
+        authorized: false,
+        userId: null,
+      });
+
+      const ownerId = `ws-owner-${Math.random().toString(36).slice(2, 8)}`;
+      const otherId = `ws-other-${Math.random().toString(36).slice(2, 8)}`;
+      const now = new Date().toISOString();
+      for (const uid of [ownerId, otherId]) {
+        await db
+          .prepare(
+            'INSERT INTO users (id, username, passphrase_hash, passphrase_salt, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+          )
+          .run(uid, uid, 'h', 's', 'user', now);
+      }
+      const ownerToken = await createSessionToken(ownerId);
+      const otherToken = await createSessionToken(otherId);
+
+      const salt = createSalt();
+      const hash = await hashPassphrase('correct-wish-secret', salt);
+      const wishId = `ws-wish-${Math.random().toString(36).slice(2, 8)}`;
+      await db
+        .prepare(
+          'INSERT INTO wishes (id, user_id, content, secret_hash, contacts, wishmail_enabled, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(wishId, ownerId, 'Test WS auth wish', `${salt}:${hash}`, '[]', 0, 1, now, now);
+
+      // Owner token succeeds
+      expect(await authorizeWishSubscription({ wishId, token: ownerToken })).toEqual({
+        authorized: true,
+        userId: ownerId,
+      });
+
+      // Other user token without secret fails
+      expect(await authorizeWishSubscription({ wishId, token: otherToken })).toEqual({
+        authorized: false,
+        userId: null,
+      });
+
+      // Valid passphrase secret succeeds
+      expect(await authorizeWishSubscription({ wishId, secret: 'correct-wish-secret' })).toEqual({
+        authorized: true,
+        userId: ownerId,
+      });
+
+      // Wrong passphrase secret fails
+      expect(await authorizeWishSubscription({ wishId, secret: 'wrong-secret' })).toEqual({
+        authorized: false,
+        userId: null,
+      });
     });
   });
 });

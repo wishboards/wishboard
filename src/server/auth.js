@@ -127,3 +127,34 @@ export const requireAdmin = async (req, res, next) => {
 };
 
 export const getTokenFromRequestHeader = getTokenFromRequest;
+
+export const authorizeWishSubscription = async ({ wishId, token, secret } = {}) => {
+  if (!wishId || typeof wishId !== 'string') {
+    return { authorized: false, userId: null };
+  }
+  const cleanId = wishId.trim();
+  if (!cleanId) {
+    return { authorized: false, userId: null };
+  }
+
+  const row = await db.prepare('SELECT user_id, secret_hash FROM wishes WHERE id = ?').get(cleanId);
+  if (!row) {
+    return { authorized: false, userId: null };
+  }
+
+  if (token && typeof token === 'string') {
+    const user = await getUserFromToken(token.trim());
+    if (user && row.user_id && user.id === row.user_id) {
+      return { authorized: true, userId: user.id };
+    }
+  }
+
+  if (secret && typeof secret === 'string' && row.secret_hash) {
+    const [salt, hash] = String(row.secret_hash).split(':');
+    if (salt && hash && (await verifyPassphrase(secret.trim(), salt, hash))) {
+      return { authorized: true, userId: row.user_id || null };
+    }
+  }
+
+  return { authorized: false, userId: null };
+};

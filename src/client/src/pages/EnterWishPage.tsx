@@ -24,6 +24,10 @@ import WishFormFields from '../components/WishFormFields';
 import PassphraseInput from '../components/PassphraseInput';
 import BottomSheet from '../components/common/BottomSheet';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { apiClient, bearerHeader } from '../api/client';
+import AiSuggestionBadge from '../components/AiSuggestionBadge';
+import AiSuggestionModal, { type AiSuggestionWishContext } from '../components/AiSuggestionModal';
 const WishScanner = React.lazy(() => import('../components/WishScanner'));
 // cardProcessor pulls in the ~15.6 MB @techstark/opencv-js blob. Import it
 // dynamically at the point of use (card upload / scan) so it is not fetched
@@ -145,7 +149,8 @@ export default function EnterWishPage() {
   const { token, user } = useAuth();
   const [content, setContent] = useState('');
   const [passphrase, setPassphrase] = useState('');
-  const { categories = [] } = useEventProfile();
+  const { categories = [], ai } = useEventProfile();
+  const { socket } = useWebSocket();
   const [creatorAttributes, setCreatorAttributes] = useState<Record<string, string>>({});
   const [desiredAttributes, setDesiredAttributes] = useState<Record<string, string>>({});
   const isMobile = useIsMobile();
@@ -216,7 +221,14 @@ export default function EnterWishPage() {
     }
   }
 
-  const [result, setResult] = useState<{ id: string; secret?: string } | null>(null);
+  const [result, setResult] = useState<{
+    id: string;
+    secret?: string;
+    wish?: AiSuggestionWishContext;
+  } | null>(null);
+  const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
+  const [checkingAiSuggestions, setCheckingAiSuggestions] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creatorConflicts, setCreatorConflicts] = useState<
     Array<{ message: string; target_attribute: string }>
@@ -224,6 +236,75 @@ export default function EnterWishPage() {
   const [desiredConflicts, setDesiredConflicts] = useState<
     Array<{ message: string; target_attribute: string }>
   >([]);
+
+  // Subscribe to creator-authorized real-time AI suggestion readiness for the newly created wish
+  useEffect(() => {
+    if (!result?.id) return;
+    const wishId = result.id;
+    const wishSecret = result.secret;
+    const channel = `wish:suggestions:${wishId}`;
+    let active = true;
+
+    const fetchSuggestionsCount = async () => {
+      try {
+        const queryParams: { secret?: string } = {};
+        if (wishSecret) {
+          queryParams.secret = wishSecret;
+        }
+        const { data, response } = await apiClient.GET('/api/wishes/{id}/suggestions', {
+          params: { path: { id: wishId }, query: queryParams },
+          headers: bearerHeader(token),
+        });
+        if (!active) return;
+        if (response.ok && Array.isArray(data)) {
+          const pendingCount = data.filter((s) => s.status === 'pending').length;
+          setPendingSuggestionsCount(pendingCount);
+          if (pendingCount > 0) {
+            setCheckingAiSuggestions(false);
+          }
+        }
+      } catch {
+        // Ignore transient errors
+      }
+    };
+
+    const handleSuggestionsReady = (payload?: { wish_id?: string }) => {
+      if (payload?.wish_id === wishId) {
+        setPendingSuggestionsCount((prev) => Math.max(prev, 1));
+        setCheckingAiSuggestions(false);
+      }
+    };
+
+    socket.on('wish:ai_suggestions_ready', handleSuggestionsReady);
+    socket.emit('subscribe', {
+      channel,
+      token: token || undefined,
+      secret: wishSecret || undefined,
+    });
+
+    const timers: ReturnType<typeof globalThis.setTimeout>[] = [];
+    if (ai?.enabled) {
+      for (const delayMs of [350, 2500, 6000]) {
+        timers.push(
+          globalThis.setTimeout(() => {
+            void fetchSuggestionsCount();
+          }, delayMs)
+        );
+      }
+      timers.push(
+        globalThis.setTimeout(() => {
+          if (active) setCheckingAiSuggestions(false);
+        }, 8000)
+      );
+    }
+
+    return () => {
+      active = false;
+      timers.forEach((t) => clearTimeout(t));
+      socket.off('wish:ai_suggestions_ready', handleSuggestionsReady);
+      socket.emit('unsubscribe', { channel });
+    };
+  }, [result?.id, result?.secret, token, ai?.enabled, socket]);
 
   // Debounced conflict checks for creator attributes
   useEffect(() => {
@@ -258,6 +339,9 @@ export default function EnterWishPage() {
     event.preventDefault();
     setError(null);
     setResult(null);
+    setPendingSuggestionsCount(0);
+    setCheckingAiSuggestions(false);
+    setShowAiModal(false);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) {
@@ -315,7 +399,32 @@ export default function EnterWishPage() {
       return;
     }
 
-    setResult({ id: data.id ?? '', secret: data.secret });
+    const createdId = data.id ?? '';
+    const savedCreatorAttrs: Record<string, string[]> = {};
+    const savedDesiredAttrs: Record<string, string[]> = {};
+    categories.forEach((cat) => {
+      if (creatorAttributes[cat.id]) {
+        savedCreatorAttrs[cat.id] = parseAttributesString(creatorAttributes[cat.id]);
+      }
+      if (desiredAttributes[cat.id]) {
+        savedDesiredAttrs[cat.id] = parseAttributesString(desiredAttributes[cat.id]);
+      }
+    });
+
+    setResult({
+      id: createdId,
+      secret: data.secret,
+      wish: {
+        id: createdId,
+        content,
+        creator_attributes: user?.attributes || savedCreatorAttrs,
+        desired_attributes: savedDesiredAttrs,
+        contacts: contacts.filter((c) => c.value.trim()),
+        wishmail_enabled: wishmailEnabled,
+        card_style: { paperColor, pinColor },
+      },
+    });
+    setCheckingAiSuggestions(Boolean(ai?.enabled));
     setContent('');
     setPassphrase('');
     setCreatorAttributes({});
@@ -678,6 +787,19 @@ export default function EnterWishPage() {
           <p>
             <strong>Wish saved! ID: {result.id}</strong>
           </p>
+          {pendingSuggestionsCount > 0 && (
+            <div style={{ margin: '12px 0' }}>
+              <AiSuggestionBadge
+                count={pendingSuggestionsCount}
+                onClick={() => setShowAiModal(true)}
+              />
+            </div>
+          )}
+          {checkingAiSuggestions && pendingSuggestionsCount === 0 && (
+            <p style={{ fontSize: '0.88em', margin: '8px 0' }}>
+              ✨ Checking for AI tag &amp; card suggestions...
+            </p>
+          )}
           {result.secret && (
             <>
               <p>
@@ -704,6 +826,16 @@ export default function EnterWishPage() {
             </>
           )}
         </div>
+      )}
+      {showAiModal && result && (
+        <AiSuggestionModal
+          wishId={result.id}
+          wish={result.wish}
+          secret={result.secret}
+          token={token}
+          onClose={() => setShowAiModal(false)}
+          onApplied={() => setPendingSuggestionsCount(0)}
+        />
       )}
       {error && <div className="message error">{error}</div>}
 

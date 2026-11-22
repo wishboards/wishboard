@@ -211,6 +211,7 @@ await ensureColumn('wish_ai_suggestions', 'suggested_content', 'TEXT');
 await ensureColumn('websocket_connections', 'user_id', 'TEXT');
 await ensureColumn('websocket_connections', 'sub_syslog', 'INTEGER DEFAULT 0');
 await ensureColumn('websocket_connections', 'sub_wishes', 'INTEGER DEFAULT 0');
+await ensureColumn('websocket_connections', 'sub_wish_id', 'TEXT');
 
 const defaultAdminUsername = process.env.WISHBOARD_ADMIN_USERNAME || 'admin';
 const defaultAdminSecret = process.env.WISHBOARD_ADMIN_SECRET || 'admin-board';

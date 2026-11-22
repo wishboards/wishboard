@@ -11,6 +11,7 @@ const mockLogger = {
 
 const mockServer = vi.fn();
 const mockGetUserFromToken = vi.fn();
+const mockAuthorizeWishSubscription = vi.fn();
 const mockDbPrepare = vi.fn();
 const mockSend = vi.fn();
 
@@ -29,6 +30,7 @@ vi.mock('./auth.js', async (importOriginal) => {
   return {
     ...original,
     getUserFromToken: mockGetUserFromToken,
+    authorizeWishSubscription: mockAuthorizeWishSubscription,
   };
 });
 
@@ -190,6 +192,43 @@ describe('socket.js', () => {
     socket.leave.mockClear();
     handlerFor('unsubscribe')({ channel: 'wish:*' });
     expect(socket.leave).toHaveBeenCalledWith('wishes');
+
+    // wish:suggestions:<id> only joins when authorizeWishSubscription returns authorized: true
+    socket.join.mockClear();
+    mockAuthorizeWishSubscription.mockResolvedValueOnce({ authorized: false, userId: null });
+    await handlerFor('subscribe')({ channel: 'wish:suggestions:w1', secret: 'bad' });
+    expect(socket.join).not.toHaveBeenCalled();
+
+    mockAuthorizeWishSubscription.mockResolvedValueOnce({ authorized: true, userId: 'u1' });
+    await handlerFor('subscribe')({ channel: 'wish:suggestions:w1', secret: 'good' });
+    expect(socket.join).toHaveBeenCalledWith('wish:suggestions:w1');
+
+    socket.leave.mockClear();
+    await handlerFor('unsubscribe')({ channel: 'wish:suggestions:w1' });
+    expect(socket.leave).toHaveBeenCalledWith('wish:suggestions:w1');
+
+    // user:suggestions joins user:suggestions:<userId> room when token is valid
+    socket.join.mockClear();
+    await handlerFor('subscribe')({ channel: 'user:suggestions', token: 'user-token' });
+    expect(socket.join).toHaveBeenCalledWith('user:suggestions:u1');
+
+    socket.rooms = new Set(['s1', 'user:suggestions:u1']);
+    socket.leave.mockClear();
+    await handlerFor('unsubscribe')({ channel: 'user:suggestions' });
+    expect(socket.leave).toHaveBeenCalledWith('user:suggestions:u1');
+
+    // emitAiSuggestionsReady scopes emit to wish:suggestions:<id> and user:suggestions:<userId>
+    const roomEmit = vi.fn();
+    const chainedTo = vi.fn(() => ({ emit: roomEmit, to: chainedTo }));
+    mockIo.to = chainedTo;
+    const { emitAiSuggestionsReady } = await import('./socket.js');
+    emitAiSuggestionsReady({ wish_id: 'w1', suggestion_id: 'sugg-1', user_id: 'u1' });
+    expect(chainedTo).toHaveBeenCalledWith('wish:suggestions:w1');
+    expect(chainedTo).toHaveBeenCalledWith('user:suggestions:u1');
+    expect(roomEmit).toHaveBeenCalledWith('wish:ai_suggestions_ready', {
+      wish_id: 'w1',
+      suggestion_id: 'sugg-1',
+    });
   });
 
   describe('API Gateway WebSocket mode', () => {
@@ -289,11 +328,13 @@ describe('socket.js', () => {
       await flushBroadcasts();
     });
 
-    it('sys:log broadcast queries sub_syslog; wish:* queries sub_wishes', async () => {
-      const mockAll = vi.fn().mockResolvedValue([]);
+    it('sys:log broadcast queries sub_syslog; wish:* queries sub_wishes; wish:ai_suggestions_ready queries sub_wish_id/user_id', async () => {
+      const mockAll = vi.fn().mockResolvedValue([{ connection_id: 'conn-owner' }]);
       mockDbPrepare.mockImplementation(() => ({ all: mockAll, run: vi.fn() }));
+      mockSend.mockResolvedValue({});
 
-      const { emitSystemLog, emitNewWish, flushBroadcasts } = await import('./socket.js');
+      const { emitSystemLog, emitNewWish, emitAiSuggestionsReady, flushBroadcasts } =
+        await import('./socket.js');
 
       emitSystemLog('log line');
       await flushBroadcasts();
@@ -306,6 +347,26 @@ describe('socket.js', () => {
       expect(mockDbPrepare).toHaveBeenCalledWith(
         'SELECT connection_id FROM websocket_connections WHERE sub_wishes = 1'
       );
+
+      mockSend.mockClear();
+      emitAiSuggestionsReady({ wish_id: 'w-anon', suggestion_id: 's1', user_id: null });
+      await flushBroadcasts();
+      expect(mockDbPrepare).toHaveBeenCalledWith(
+        'SELECT connection_id FROM websocket_connections WHERE sub_wish_id = ?'
+      );
+      expect(mockAll).toHaveBeenCalledWith('w-anon');
+
+      emitAiSuggestionsReady({ wish_id: 'w-owned', suggestion_id: 's2', user_id: 'u-owner' });
+      await flushBroadcasts();
+      expect(mockDbPrepare).toHaveBeenCalledWith(
+        'SELECT connection_id FROM websocket_connections WHERE sub_wish_id = ? OR user_id = ?'
+      );
+      expect(mockAll).toHaveBeenCalledWith('w-owned', 'u-owner');
+      const sentPayload = JSON.parse(mockSend.mock.calls.at(-1)[0].Data);
+      expect(sentPayload).toEqual({
+        event: 'wish:ai_suggestions_ready',
+        data: { wish_id: 'w-owned', suggestion_id: 's2' },
+      });
     });
   });
 });

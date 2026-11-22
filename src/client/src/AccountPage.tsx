@@ -15,6 +15,7 @@ import { useEventProfile, Category } from './EventProfileContext';
 import { apiClient, bearerHeader } from './api/client';
 import AiSuggestionBadge from './components/AiSuggestionBadge';
 import AiSuggestionModal from './components/AiSuggestionModal';
+import { useWebSocket } from './hooks/useWebSocket';
 
 // eslint-disable-next-line react-refresh/only-export-components -- Exported hook co-located with AccountPage for unit testing
 export function useUsernameExistence(username: string) {
@@ -671,6 +672,21 @@ function AuthenticatedAccountPage() {
   useEffect(() => {
     void loadWishes();
   }, [loadWishes]);
+
+  const { socket } = useWebSocket();
+
+  useEffect(() => {
+    if (!user || !token) return;
+    const handleSuggestionsReady = () => {
+      void loadWishes();
+    };
+    socket.on('wish:ai_suggestions_ready', handleSuggestionsReady);
+    socket.emit('subscribe', { channel: 'user:suggestions', token });
+    return () => {
+      socket.off('wish:ai_suggestions_ready', handleSuggestionsReady);
+      socket.emit('unsubscribe', { channel: 'user:suggestions' });
+    };
+  }, [user, token, socket, loadWishes]);
 
   useEffect(() => {
     void loadHiddenWishes();

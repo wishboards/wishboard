@@ -18,6 +18,7 @@ export const handler = async (event, context) => {
   // Handle asynchronous self-invoked AI tagging events outside the HTTP request path.
   if (event?.[ASYNC_TAGGING_EVENT_KEY] === 'aiTagging' && event.payload) {
     await processWishJob(event.payload);
+    await flushBroadcasts();
     return { statusCode: 200, ok: true };
   }
 

@@ -1,12 +1,15 @@
 import { Server } from 'socket.io';
 import db from './db.js';
 import logger from './logger.js';
-import { getUserFromToken } from './auth.js';
+import { authorizeWishSubscription, getUserFromToken } from './auth.js';
 
 let io = null;
 let apigwClient = null;
 
 const getProvider = () => process.env.REALTIME_PROVIDER || 'socketio';
+
+const WISH_SUGGESTIONS_PREFIX = 'wish:suggestions:';
+const USER_SUGGESTIONS_PREFIX = 'user:suggestions:';
 
 // On Lambda the invocation freezes the instant the HTTP response resolves, which
 // cuts off any un-awaited broadcast promise mid-flight — its `await db…all()` /
@@ -22,6 +25,41 @@ const track = (promise) => {
   return promise;
 };
 export const flushBroadcasts = () => Promise.allSettled(pendingBroadcasts);
+
+async function handleSocketSubscribe(socket, { channel, token, secret } = {}) {
+  if (channel === 'sys:log') {
+    const user = await getUserFromToken(token);
+    if (user?.role === 'admin') await socket.join('syslog');
+  } else if (channel === 'wish:*') {
+    await socket.join('wishes');
+  } else if (channel === 'user:suggestions') {
+    const user = await getUserFromToken(token);
+    if (user?.id) await socket.join(`${USER_SUGGESTIONS_PREFIX}${user.id}`);
+  } else if (typeof channel === 'string' && channel.startsWith(WISH_SUGGESTIONS_PREFIX)) {
+    const wishId = channel.slice(WISH_SUGGESTIONS_PREFIX.length).trim();
+    const { authorized } = await authorizeWishSubscription({ wishId, token, secret });
+    if (authorized) await socket.join(`${WISH_SUGGESTIONS_PREFIX}${wishId}`);
+  }
+}
+
+async function handleSocketUnsubscribe(socket, { channel } = {}) {
+  if (channel === 'sys:log') {
+    await socket.leave('syslog');
+  } else if (channel === 'wish:*') {
+    await socket.leave('wishes');
+  } else if (
+    typeof channel === 'string' &&
+    (channel.startsWith(WISH_SUGGESTIONS_PREFIX) || channel.startsWith(USER_SUGGESTIONS_PREFIX))
+  ) {
+    await socket.leave(channel);
+  } else if (channel === 'user:suggestions' && socket.rooms) {
+    for (const room of socket.rooms) {
+      if (room.startsWith(USER_SUGGESTIONS_PREFIX)) {
+        await socket.leave(room);
+      }
+    }
+  }
+}
 
 export const initSocket = (httpServer, corsOptions) => {
   if (getProvider() === 'apigateway') {
@@ -39,18 +77,12 @@ export const initSocket = (httpServer, corsOptions) => {
     // sys:log is an admin-only, opt-in channel: a client joins the 'syslog' room
     // only when it subscribes AND presents an admin token. Board events (wish:*)
     // require explicit subscription as well to save bandwidth for views that don't need them. See #189 / ADR 0003.
-    socket.on('subscribe', async ({ channel, token } = {}) => {
-      if (channel === 'sys:log') {
-        const user = await getUserFromToken(token);
-        if (user?.role === 'admin') await socket.join('syslog');
-      } else if (channel === 'wish:*') {
-        await socket.join('wishes');
-      }
+    socket.on('subscribe', async (payload = {}) => {
+      await handleSocketSubscribe(socket, payload);
     });
 
-    socket.on('unsubscribe', async ({ channel } = {}) => {
-      if (channel === 'sys:log') await socket.leave('syslog');
-      else if (channel === 'wish:*') await socket.leave('wishes');
+    socket.on('unsubscribe', async (payload = {}) => {
+      await handleSocketUnsubscribe(socket, payload);
     });
 
     socket.on('disconnect', () => {
@@ -92,11 +124,20 @@ const getApigwClient = async () => {
   return apigwClient;
 };
 
-const broadcastToApiGateway = async (event, data) => {
-  const endpoint = process.env.WEBSOCKET_API_ENDPOINT;
-  if (!endpoint) {
-    logger.warn('WEBSOCKET_API_ENDPOINT not configured, skipping broadcast.');
-    return;
+const selectTargetConnections = async (event, data) => {
+  if (event === 'wish:ai_suggestions_ready') {
+    const wishId = data?.wish_id || '';
+    const userId = data?.user_id || null;
+    if (userId) {
+      return db
+        .prepare(
+          'SELECT connection_id FROM websocket_connections WHERE sub_wish_id = ? OR user_id = ?'
+        )
+        .all(wishId, userId);
+    }
+    return db
+      .prepare('SELECT connection_id FROM websocket_connections WHERE sub_wish_id = ?')
+      .all(wishId);
   }
 
   // sys:log goes only to connections that subscribed to it (admins who opened the
@@ -108,9 +149,19 @@ const broadcastToApiGateway = async (event, data) => {
     condition = 'WHERE sub_wishes = 1';
   }
   const query = `SELECT connection_id FROM websocket_connections ${condition}`;
+  return db.prepare(query).all();
+};
+
+const broadcastToApiGateway = async (event, data) => {
+  const endpoint = process.env.WEBSOCKET_API_ENDPOINT;
+  if (!endpoint) {
+    logger.warn('WEBSOCKET_API_ENDPOINT not configured, skipping broadcast.');
+    return;
+  }
+
   let rows;
   try {
-    rows = await db.prepare(query).all();
+    rows = await selectTargetConnections(event, data);
   } catch (err) {
     logger.error('Failed to fetch websocket connections from DB:', err.message);
     return;
@@ -127,7 +178,11 @@ const broadcastToApiGateway = async (event, data) => {
   }
 
   const { PostToConnectionCommand } = await import('@aws-sdk/client-apigatewaymanagementapi');
-  const payload = JSON.stringify({ event, data });
+  const wireData =
+    event === 'wish:ai_suggestions_ready' && data
+      ? { wish_id: data.wish_id, suggestion_id: data.suggestion_id }
+      : data;
+  const payload = JSON.stringify({ event, data: wireData });
   logger.debug(`Broadcasting ${event} to ${rows.length} connections...`);
 
   const promises = rows.map(async (row) => {
@@ -194,6 +249,25 @@ export const emitWishReactivated = (wish) => {
     track(broadcastToApiGateway('wish:reactivated', wish));
   } else if (io) {
     io.to('wishes').emit('wish:reactivated', wish);
+  }
+};
+
+export const emitAiSuggestionsReady = ({ wish_id, suggestion_id, user_id } = {}) => {
+  if (!wish_id) return;
+  const clientPayload = { wish_id, suggestion_id };
+  if (getProvider() === 'apigateway') {
+    track(
+      broadcastToApiGateway('wish:ai_suggestions_ready', {
+        ...clientPayload,
+        user_id: user_id || null,
+      })
+    );
+  } else if (io) {
+    let target = io.to(`${WISH_SUGGESTIONS_PREFIX}${wish_id}`);
+    if (user_id) {
+      target = target.to(`${USER_SUGGESTIONS_PREFIX}${user_id}`);
+    }
+    target.emit('wish:ai_suggestions_ready', clientPayload);
   }
 };
 

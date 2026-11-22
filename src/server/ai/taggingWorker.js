@@ -3,7 +3,7 @@ import db from '../db.js';
 import logger from '../logger.js';
 import { getEventProfile } from '../configManager.js';
 import { getInferenceProvider, getEmbeddingProvider, isAiEnabled } from './index.js';
-import { getIO } from '../socket.js';
+import { emitAiSuggestionsReady } from '../socket.js';
 
 let pendingTasks = [];
 let customLambdaDispatcher = null;
@@ -115,17 +115,16 @@ export function queueWishForTagging({
   });
 }
 
-function notifyAiSuggestionsReady(wishId, suggestionId) {
+async function notifyAiSuggestionsReady(wishId, suggestionId) {
   try {
-    const io = getIO();
-    if (io) {
-      io.emit('wish:ai_suggestions_ready', {
-        wish_id: wishId,
-        suggestion_id: suggestionId,
-      });
-    }
+    const wishRow = await db.prepare('SELECT user_id FROM wishes WHERE id = ?').get(wishId);
+    emitAiSuggestionsReady({
+      wish_id: wishId,
+      suggestion_id: suggestionId,
+      user_id: wishRow?.user_id || null,
+    });
   } catch {
-    // Socket may not be initialized in non-socket environments (e.g. serverless)
+    // Socket may not be initialized in non-socket environments
   }
 }
 
@@ -193,7 +192,7 @@ async function processInferenceJob(wishId, provider, params) {
     has_streamlined_content: Boolean(suggestedContent),
   });
 
-  notifyAiSuggestionsReady(wishId, suggestionId);
+  await notifyAiSuggestionsReady(wishId, suggestionId);
 }
 
 async function processEmbeddingJob(wishId, provider, content) {

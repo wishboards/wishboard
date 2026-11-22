@@ -628,4 +628,75 @@ describe('EnterWishPage', () => {
     expect(advancedFieldset?.style.background).toContain('var(--wb-bg-surface');
     expect(advancedFieldset?.style.border).toContain('var(--wb-border-subtle');
   });
+
+  it('subscribes to wish:suggestions:<id> after wish creation and dynamically reveals AI suggestions badge and modal when ready', async () => {
+    const { io } = await import('socket.io-client');
+    const socket = (
+      io as unknown as () => {
+        on: ReturnType<typeof vi.fn>;
+        off: ReturnType<typeof vi.fn>;
+        emit: ReturnType<typeof vi.fn>;
+      }
+    )();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/suggestions')) {
+          return new Response(
+            JSON.stringify([
+              {
+                id: 'sugg-created',
+                wish_id: 'wish-rt-1',
+                suggested_creator_attributes: { role: ['Switch'] },
+                suggested_desired_attributes: {},
+                status: 'pending',
+                created_at: new Date().toISOString(),
+              },
+            ]),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        return {
+          ok: true,
+          json: async () => ({ id: 'wish-rt-1', secret: 'rt-secret' }),
+        } as Response;
+      }) as typeof globalThis.fetch)
+    );
+
+    render(<EnterWishPage />);
+
+    fireEvent.change(screen.getByPlaceholderText(/Type your wish here/i), {
+      target: { value: 'Hey all, 30yo switch looking for tabletop games!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Submit Wish/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Wish saved! ID: wish-rt-1/i)).toBeInTheDocument();
+    });
+
+    expect(socket.emit).toHaveBeenCalledWith('subscribe', {
+      channel: 'wish:suggestions:wish-rt-1',
+      token: undefined,
+      secret: 'rt-secret',
+    });
+
+    const readyHandler = socket.on.mock.calls.find(
+      ([evt]: [string]) => evt === 'wish:ai_suggestions_ready'
+    )?.[1];
+    expect(readyHandler).toBeTypeOf('function');
+
+    act(() => {
+      readyHandler({ wish_id: 'wish-rt-1', suggestion_id: 'sugg-created' });
+    });
+
+    const aiBadge = await screen.findByRole('button', { name: /View 1 AI suggestion/i });
+    expect(aiBadge).toBeInTheDocument();
+
+    fireEvent.click(aiBadge);
+    await waitFor(() => {
+      expect(screen.getByText(/Review AI Suggestions/i)).toBeInTheDocument();
+    });
+  });
 });
