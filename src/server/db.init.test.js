@@ -302,12 +302,18 @@ describe('db init: pragmas, WAL, and schema', () => {
       'ALTER TABLE websocket_connections ADD COLUMN user_id TEXT',
       'ALTER TABLE websocket_connections ADD COLUMN sub_syslog INTEGER DEFAULT 0',
       'ALTER TABLE websocket_connections ADD COLUMN sub_wishes INTEGER DEFAULT 0',
+      'ALTER TABLE websocket_connections ADD COLUMN sub_wish_id TEXT',
     ]);
   });
 
   it('skips the ALTER for a column that already exists', async () => {
     process.env.NODE_ENV = 'test';
-    h.tableInfoRows = { users: [{ name: 'contacts' }], wishes: [], wish_ai_suggestions: [], websocket_connections: [] };
+    h.tableInfoRows = {
+      users: [{ name: 'contacts' }],
+      wishes: [],
+      wish_ai_suggestions: [],
+      websocket_connections: [],
+    };
     await importDb();
     const alters = executedSql().filter((s) => s.startsWith('ALTER TABLE'));
     expect(alters).not.toContain('ALTER TABLE users ADD COLUMN contacts TEXT');

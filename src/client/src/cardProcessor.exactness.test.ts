@@ -31,9 +31,10 @@ describe('cardProcessor exact geometry', () => {
     expect(
       getElementDimensions({ videoWidth: '100', naturalWidth: 640, naturalHeight: 480 } as never)
     ).toEqual({ width: 640, height: 480 });
-    expect(
-      getElementDimensions({ naturalWidth: 'x', width: 320, height: 240 } as never)
-    ).toEqual({ width: 320, height: 240 });
+    expect(getElementDimensions({ naturalWidth: 'x', width: 320, height: 240 } as never)).toEqual({
+      width: 320,
+      height: 240,
+    });
   });
 
   it('isFramePixelBuffer requires a Uint8ClampedArray data field', () => {
@@ -285,7 +286,10 @@ describe('detectDocumentContour with a scripted OpenCV', () => {
       contourArea: vi.fn((cnt: { spec: { area: number } }) => cnt.spec.area),
       arcLength: vi.fn(() => 400),
       approxPolyDP: vi.fn(
-        (cnt: { spec: { rows: number; points: number[] } }, approx: { rows: number; data32S: number[] }) => {
+        (
+          cnt: { spec: { rows: number; points: number[] } },
+          approx: { rows: number; data32S: number[] }
+        ) => {
           approx.rows = cnt.spec.rows;
           approx.data32S = cnt.spec.points;
         }
