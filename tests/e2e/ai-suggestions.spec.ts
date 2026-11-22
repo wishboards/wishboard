@@ -25,7 +25,7 @@ async function createWishAndMockSuggestions(page: Page) {
   });
 
   let postBody: Record<string, unknown> | null = null;
-  await page.route(`**/api/wishes/${wishId}/suggestions*`, async (route) => {
+  await page.route(new RegExp(`/api/wishes/${wishId}/suggestions`), async (route) => {
     const req = route.request();
     if (req.method() === 'POST') {
       postBody = req.postDataJSON();
