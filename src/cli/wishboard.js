@@ -82,6 +82,14 @@ program
   .option('--skip-oidc', 'Skip AWS OIDC role provisioning')
   .option('--skip-secrets', 'Skip setting CI/CD scanner secrets (Sonar, Stryker, Gitleaks)')
   .option('--skip-db', 'Skip Turso database and SSM setup')
+  .option('--ai-api-key <key>', 'Google Gemini or OpenAI API key for AI features')
+  .option(
+    '--ai-api-key-ssm <name>',
+    'SSM parameter name for the AI API key (default: /<repo>/ai/gemini-api-key)'
+  )
+  .option('--enable-ai', 'Enable AI features for this deployment')
+  .option('--ai-provider <provider>', 'AI provider: cloud, local, or noop')
+  .option('--skip-ai', 'Skip AI API key and SSM setup')
   .action(async (options, command) => {
     try {
       const { runBootstrap } = await import('./commands/bootstrap.js');

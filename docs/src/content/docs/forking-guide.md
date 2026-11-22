@@ -97,4 +97,4 @@ If you are deploying Wishboard to local hardware (like a Raspberry Pi), you need
 AI features are entirely optional and require **zero external setup by default** (`ENABLE_AI_FEATURES=false`, $0.00/mo). If you wish to activate AI tag suggestions and semantic search on your fork:
 
 - **Local Kiosks / Offline**: Set `ENABLE_AI_FEATURES=true` and `AI_PROVIDER=local` in your kiosk `.env`. This runs offline taxonomy heuristics and feature-hashing embeddings on the CPU with zero external API calls or costs.
-- **Cloud / Serverless**: Set `ENABLE_AI_FEATURES=true`, `AI_PROVIDER=cloud`, and configure `AI_API_KEY` (e.g. using Google AI Studio / Gemini API free tier) in your Lambda environment variables or AWS SSM. See the [Optional AI Features & Semantic Search Guide](../ai-features/) for complete details.
+- **Cloud / Serverless**: Run `npx wishboard bootstrap --ai-api-key <your-gemini-key> --enable-ai --ai-provider cloud` to automatically encrypt the key into AWS SSM Parameter Store and configure GitHub Actions deployment variables. See the [Optional AI Features & Semantic Search Guide](../ai-features/) for complete details.

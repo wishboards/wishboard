@@ -72,6 +72,26 @@ Turso tokens are all valid concurrently, but there is **no per-token revoke** �
 - **Proactive roll (no leak):** `turso db tokens create`, then `aws ssm put-parameter --overwrite` the new value. New Lambda cold starts pick it up; warm ones keep working on the old (still-valid) token — zero downtime.
 - **Compromise:** `turso db tokens invalidate` (kills all) → `turso db tokens create` → put the fresh token in SSM → force new cold starts (redeploy). Brief window while it propagates.
 
+### AI Features & SSM Configuration (Optional)
+
+If enabling AI tag suggestions and semantic search (`EnableAiFeatures=true`), the Lambda function reads the API key lazily from AWS SSM Parameter Store:
+
+1. **Obtain API Key**: Generate a free Gemini API key from [Google AI Studio](https://aistudio.google.com).
+2. **Store in AWS SSM**:
+   - Via Turnkey CLI Bootstrap:
+     ```bash
+     npx wishboard bootstrap --ai-api-key "<your-gemini-key>" --enable-ai --ai-provider cloud
+     ```
+   - Or directly via AWS CLI:
+     ```bash
+     aws ssm put-parameter \
+       --name "/wishboard/ai/gemini-api-key" \
+       --type "SecureString" \
+       --value "<your-gemini-key>" \
+       --region us-east-1
+     ```
+3. Set `AI_API_KEY_SSM=/wishboard/ai/gemini-api-key`, `ENABLE_AI_FEATURES=true`, and `AI_PROVIDER=cloud` in your repository variables or SAM parameter overrides.
+
 ---
 
 ## Quick Deploy (Scripted)

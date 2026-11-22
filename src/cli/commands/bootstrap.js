@@ -138,7 +138,7 @@ export async function runBootstrap(options = {}, deps = {}) {
 
   // 1. External Quality & Security Scanners
   if (!options.skipSecrets) {
-    logStep('[1/3] Configuring CI/CD quality and security secrets...');
+    logStep('[1/4] Configuring CI/CD quality and security secrets...');
     const sonarToken = options.sonarToken || process.env.SONAR_TOKEN;
     const strykerKey = options.strykerKey || process.env.STRYKER_DASHBOARD_API_KEY;
     const gitleaksLicense = options.gitleaksLicense || process.env.GITLEAKS_LICENSE;
@@ -179,12 +179,12 @@ export async function runBootstrap(options = {}, deps = {}) {
       logInfo('Skipping GitHub secret registration (gh not authenticated).');
     }
   } else {
-    logStep('[1/3] Skipping CI/CD scanner secrets (--skip-secrets).');
+    logStep('[1/4] Skipping CI/CD scanner secrets (--skip-secrets).');
   }
 
   // 2. AWS OIDC Role Provisioning
   if (!options.skipOidc) {
-    logStep('[2/3] Provisioning AWS GitHub Actions OIDC deployment role...');
+    logStep('[2/4] Provisioning AWS GitHub Actions OIDC deployment role...');
     try {
       const oidcSetupFn = deps.setupOidc || setupOidc;
       await oidcSetupFn({ org, repo, region, dryRun });
@@ -194,12 +194,12 @@ export async function runBootstrap(options = {}, deps = {}) {
       logWarn(`AWS OIDC setup encountered an error: ${err.message}`);
     }
   } else {
-    logStep('[2/3] Skipping AWS OIDC role provisioning (--skip-oidc).');
+    logStep('[2/4] Skipping AWS OIDC role provisioning (--skip-oidc).');
   }
 
   // 3. Turso Database & SSM SecureString Setup
   if (!options.skipDb) {
-    logStep('[3/3] Setting up Turso database and AWS SSM parameter store...');
+    logStep('[3/4] Setting up Turso database and AWS SSM parameter store...');
     const defaultDbName = `${repo}-${eventProfile}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
     const dbName = options.tursoDb || defaultDbName;
     const ssmParamName =
@@ -252,7 +252,57 @@ export async function runBootstrap(options = {}, deps = {}) {
       logWarn(`Database/SSM setup encountered an error: ${err.message}`);
     }
   } else {
-    logStep('[3/3] Skipping Turso database and SSM setup (--skip-db).');
+    logStep('[3/4] Skipping Turso database and SSM setup (--skip-db).');
+  }
+
+  // 4. AI Features & SSM SecureString Setup
+  if (!options.skipAi) {
+    const aiApiKey = options.aiApiKey || process.env.AI_API_KEY || process.env.GEMINI_API_KEY;
+    const aiApiKeySsm =
+      options.aiApiKeySsm || process.env.AI_API_KEY_SSM || `/${repo}/ai/gemini-api-key`;
+    const enableAi = options.enableAi !== undefined ? Boolean(options.enableAi) : Boolean(aiApiKey);
+    const aiProvider = options.aiProvider || (aiApiKey ? 'cloud' : 'noop');
+
+    if (aiApiKey) {
+      logStep('[4/4] Setting up AI API key in AWS SSM Parameter Store...');
+      logInfo(`Storing AI API key in AWS SSM Parameter Store (${aiApiKeySsm})...`);
+      const ssmFn = deps.setSsmToken || setSsmToken;
+      const ok = await ssmFn(aiApiKeySsm, aiApiKey, { region, dryRun }, logInfo, logError);
+      if (ok) {
+        logInfo(`SSM parameter '${aiApiKeySsm}' configured successfully.`);
+        configured.secrets.push('AI_API_KEY');
+      }
+
+      if (ghAuthed) {
+        logInfo('Setting AI configuration variables in GitHub repository...');
+        if (setGh('variable', 'AI_API_KEY_SSM', aiApiKeySsm, dryRun)) {
+          configured.variables.push('AI_API_KEY_SSM');
+        }
+        if (setGh('variable', 'ENABLE_AI_FEATURES', String(enableAi), dryRun)) {
+          configured.variables.push('ENABLE_AI_FEATURES');
+        }
+        if (setGh('variable', 'AI_PROVIDER', aiProvider, dryRun)) {
+          configured.variables.push('AI_PROVIDER');
+        }
+        if (eventProfile) {
+          setGh('variable', `${profilePrefix}_AI_API_KEY_SSM`, aiApiKeySsm, dryRun);
+          setGh('variable', `${profilePrefix}_ENABLE_AI_FEATURES`, String(enableAi), dryRun);
+          setGh('variable', `${profilePrefix}_AI_PROVIDER`, aiProvider, dryRun);
+          configured.variables.push(
+            `${profilePrefix}_AI_API_KEY_SSM`,
+            `${profilePrefix}_ENABLE_AI_FEATURES`,
+            `${profilePrefix}_AI_PROVIDER`
+          );
+        }
+      }
+    } else {
+      logStep('[4/4] Skipping AI API key setup (no key provided).');
+      logInfo(
+        'AI API key omitted (pass --ai-api-key or set $AI_API_KEY / $GEMINI_API_KEY to configure serverless AI).'
+      );
+    }
+  } else {
+    logStep('[4/4] Skipping AI setup (--skip-ai).');
   }
 
   console.log('\n\x1b[32m=== Bootstrap Summary ===\x1b[0m');
