@@ -1,11 +1,13 @@
 import db from '../src/server/db.js';
 import logger from '../src/server/logger.js';
-import { getUserFromToken } from '../src/server/auth.js';
+import { authorizeWishSubscription, getUserFromToken } from '../src/server/auth.js';
+
+const WISH_SUGGESTIONS_PREFIX = 'wish:suggestions:';
 
 async function handleSubscribe(event, connectionId) {
   // sys:log is admin-only: honor the subscription only if the presented
   // session token belongs to an admin. See #189 / ADR 0003.
-  const { channel, token } = JSON.parse(event.body || '{}');
+  const { channel, token, secret } = JSON.parse(event.body || '{}');
   if (channel === 'sys:log') {
     const user = await getUserFromToken(token);
     if (user?.role === 'admin') {
@@ -23,6 +25,31 @@ async function handleSubscribe(event, connectionId) {
       .prepare('UPDATE websocket_connections SET sub_wishes = 1 WHERE connection_id = ?')
       .run(connectionId);
     logger.info(`Connection ${connectionId} subscribed to wish:*`);
+  } else if (channel === 'user:suggestions') {
+    const user = await getUserFromToken(token);
+    if (user?.id) {
+      await db
+        .prepare('UPDATE websocket_connections SET user_id = ? WHERE connection_id = ?')
+        .run(user.id, connectionId);
+      logger.info(`Connection ${connectionId} subscribed to user:suggestions (${user.id})`);
+    } else {
+      logger.warn(`Rejected user:suggestions subscribe from ${connectionId}: invalid token`);
+    }
+  } else if (typeof channel === 'string' && channel.startsWith(WISH_SUGGESTIONS_PREFIX)) {
+    const wishId = channel.slice(WISH_SUGGESTIONS_PREFIX.length).trim();
+    const { authorized, userId } = await authorizeWishSubscription({ wishId, token, secret });
+    if (authorized) {
+      await db
+        .prepare(
+          'UPDATE websocket_connections SET sub_wish_id = ?, user_id = COALESCE(?, user_id) WHERE connection_id = ?'
+        )
+        .run(wishId, userId, connectionId);
+      logger.info(`Connection ${connectionId} subscribed to wish:suggestions:${wishId}`);
+    } else {
+      logger.warn(
+        `Rejected wish:suggestions:${wishId} subscribe from ${connectionId}: unauthorized`
+      );
+    }
   }
 }
 
@@ -35,6 +62,16 @@ async function handleUnsubscribe(event, connectionId) {
   } else if (channel === 'wish:*') {
     await db
       .prepare('UPDATE websocket_connections SET sub_wishes = 0 WHERE connection_id = ?')
+      .run(connectionId);
+  } else if (typeof channel === 'string' && channel.startsWith(WISH_SUGGESTIONS_PREFIX)) {
+    await db
+      .prepare('UPDATE websocket_connections SET sub_wish_id = NULL WHERE connection_id = ?')
+      .run(connectionId);
+  } else if (channel === 'user:suggestions') {
+    await db
+      .prepare(
+        'UPDATE websocket_connections SET user_id = NULL WHERE connection_id = ? AND sub_syslog = 0'
+      )
       .run(connectionId);
   }
 }

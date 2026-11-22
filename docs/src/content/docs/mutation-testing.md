@@ -35,10 +35,18 @@ If you are working on a specific feature or file and want to see how robust your
    npm run build
    ```
 
-2. **Run Stryker on a Specific File**: We highly recommend running Stryker on specific files using the `-m` (mutate) flag to save time.
+2. **Run Stryker on a Specific File or Line Range (Paired with `-t` Test Files)**:
+   Always pair `-m` (`--mutate`, which supports `:startLine-endLine` ranges) with `-t` (`--testFiles`) when validating a feature locally. Without `-t`, Stryker's initial dry run executes all 140+ test files in the repository before testing the first mutant; with `-t`, targeted runs finish in under a minute and stream progress live:
 
    ```bash
-   npx stryker run -m src/server/db.js
+   # Mutate an entire file against its dedicated unit tests
+   npx stryker run -m src/server/db.js -t src/server/db.test.js
+
+   # Mutate specific modified line ranges across multiple files
+   npx stryker run \
+     -m "src/server/auth.js:131-149,src/server/socket.js:24-60" \
+     -t "src/server/auth.test.js,src/server/socket.test.js" \
+     --reporters clear-text,progress
    ```
 
 3. **Run Stryker on a Directory**:
@@ -47,7 +55,7 @@ If you are working on a specific feature or file and want to see how robust your
    npx stryker run -m src/server/routes
    ```
 
-4. **View Local Results**: Once complete, Stryker will generate a local HTML report in `reports/mutation/html/index.html` which you can open in your browser.
+4. **View Local Results**: Once complete, Stryker will generate a local HTML report in `reports/mutation/index.html` which you can open in your browser.
 
 ## Configuration & Architecture
 

@@ -22,8 +22,10 @@ vi.mock('../src/server/logger.js', () => {
 });
 
 const mockGetUserFromToken = vi.fn();
+const mockAuthorizeWishSubscription = vi.fn();
 vi.mock('../src/server/auth.js', () => ({
   getUserFromToken: (...args) => mockGetUserFromToken(...args),
+  authorizeWishSubscription: (...args) => mockAuthorizeWishSubscription(...args),
 }));
 
 describe('websocket.mjs', () => {
@@ -129,5 +131,55 @@ describe('websocket.mjs', () => {
     // UPDATE … SET sub_wishes = 0 WHERE connection_id = ?
     expect(mockRun).toHaveBeenCalledWith('conn-1');
     expect(res.statusCode).toBe(200);
+  });
+
+  it('subscribes and unsubscribes wish:suggestions:<id> only when authorized', async () => {
+    const ws = await import('./websocket.mjs');
+
+    mockAuthorizeWishSubscription.mockResolvedValueOnce({ authorized: false, userId: null });
+    await ws.handler({
+      requestContext: { connectionId: 'conn-1', routeKey: 'subscribe' },
+      body: JSON.stringify({ channel: 'wish:suggestions:w1', secret: 'wrong' }),
+    });
+    expect(mockRun).not.toHaveBeenCalled();
+
+    mockAuthorizeWishSubscription.mockResolvedValueOnce({ authorized: true, userId: 'u-owner' });
+    await ws.handler({
+      requestContext: { connectionId: 'conn-1', routeKey: 'subscribe' },
+      body: JSON.stringify({ channel: 'wish:suggestions:w1', secret: 'correct' }),
+    });
+    expect(mockRun).toHaveBeenCalledWith('w1', 'u-owner', 'conn-1');
+
+    mockRun.mockClear();
+    await ws.handler({
+      requestContext: { connectionId: 'conn-1', routeKey: 'unsubscribe' },
+      body: JSON.stringify({ channel: 'wish:suggestions:w1' }),
+    });
+    expect(mockRun).toHaveBeenCalledWith('conn-1');
+  });
+
+  it('subscribes and unsubscribes user:suggestions with token verification', async () => {
+    const ws = await import('./websocket.mjs');
+
+    mockGetUserFromToken.mockResolvedValueOnce(null);
+    await ws.handler({
+      requestContext: { connectionId: 'conn-1', routeKey: 'subscribe' },
+      body: JSON.stringify({ channel: 'user:suggestions', token: 'invalid' }),
+    });
+    expect(mockRun).not.toHaveBeenCalled();
+
+    mockGetUserFromToken.mockResolvedValueOnce({ id: 'u1', role: 'user' });
+    await ws.handler({
+      requestContext: { connectionId: 'conn-1', routeKey: 'subscribe' },
+      body: JSON.stringify({ channel: 'user:suggestions', token: 'valid' }),
+    });
+    expect(mockRun).toHaveBeenCalledWith('u1', 'conn-1');
+
+    mockRun.mockClear();
+    await ws.handler({
+      requestContext: { connectionId: 'conn-1', routeKey: 'unsubscribe' },
+      body: JSON.stringify({ channel: 'user:suggestions' }),
+    });
+    expect(mockRun).toHaveBeenCalledWith('conn-1');
   });
 });

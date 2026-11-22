@@ -829,6 +829,11 @@ describe('AI Module', () => {
           .get(testWishId);
         expect(embRow).toBeDefined();
 
+        const noSuggRow = await db
+          .prepare('SELECT * FROM wish_ai_suggestions WHERE wish_id = ?')
+          .get(testWishId);
+        expect(noSuggRow).toBeUndefined();
+
         await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(testWishId);
         await db.prepare('DELETE FROM wishes WHERE id = ?').run(testWishId);
       } finally {
@@ -836,7 +841,7 @@ describe('AI Module', () => {
       }
     });
 
-    it('stages suggestion when only suggestedContent is returned and skips inference when skipInference is true', async () => {
+    it('stages suggestion when only suggestedContent or only desiredAttributes are returned and skips inference when skipInference is true', async () => {
       process.env.ENABLE_AI_FEATURES = 'true';
       process.env.AI_PROVIDER = 'local';
 
@@ -866,6 +871,22 @@ describe('AI Module', () => {
         .get(testWishId);
       expect(suggestion).toBeDefined();
       expect(suggestion.suggested_content).toBe('Grabbing coffee in the main lobby!');
+
+      // Also verify staging when ONLY desired attributes are returned (no creator attributes, no suggestedContent)
+      await db.prepare('DELETE FROM wish_ai_suggestions WHERE wish_id = ?').run(testWishId);
+      queueWishForTagging({
+        wishId: testWishId,
+        content: 'Looking for a switch partner for tabletop games',
+      });
+      await drainQueue();
+
+      const desiredOnlySugg = await db
+        .prepare('SELECT * FROM wish_ai_suggestions WHERE wish_id = ?')
+        .get(testWishId);
+      expect(desiredOnlySugg).toBeDefined();
+      expect(JSON.parse(desiredOnlySugg.suggested_creator_attributes)).toEqual({});
+      expect(JSON.parse(desiredOnlySugg.suggested_desired_attributes).role).toContain('Switch');
+      expect(desiredOnlySugg.suggested_content).toBeNull();
 
       // Delete suggestion, then run with skipInference: true — should refresh embedding only
       await db.prepare('DELETE FROM wish_ai_suggestions WHERE wish_id = ?').run(testWishId);

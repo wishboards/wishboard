@@ -9,6 +9,7 @@ import PassphraseInput from '../components/PassphraseInput';
 import { apiClient, bearerHeader } from '../api/client';
 import AiSuggestionBadge from '../components/AiSuggestionBadge';
 import AiSuggestionModal from '../components/AiSuggestionModal';
+import { useWishSuggestionsRealtime } from '../hooks/useWishSuggestionsRealtime';
 
 function formatAttributeMapToStrings(
   attrs?: Record<string, string[] | string>
@@ -155,6 +156,13 @@ export default function ManageWishPage() {
 
     return () => controller.abort();
   }, [initialParams.wishId, initialParams.initialError, loadWish]);
+
+  useWishSuggestionsRealtime({
+    wishId: wish?.id,
+    secret,
+    token,
+    onPendingCountChange: setPendingSuggestionsCount,
+  });
 
   const handleUpdate = async (e: React.SyntheticEvent) => {
     e.preventDefault();

@@ -8,9 +8,8 @@ import { fileURLToPath } from 'node:url';
 const request = (await import('supertest')).default;
 const appModule = await import('../index.js');
 const db = (await import('../db.js')).default;
-const { parseCardStyle, CARD_PAPER_COLORS, CARD_PIN_COLORS, DEFAULT_CARD_STYLE } = await import(
-  './wishes.js'
-);
+const { parseCardStyle, CARD_PAPER_COLORS, CARD_PIN_COLORS, DEFAULT_CARD_STYLE } =
+  await import('./wishes.js');
 const app = appModule.default;
 
 const imagesDir = path.resolve(
@@ -85,7 +84,9 @@ describe('POST /api/wishes: exact persistence', () => {
     expect(Object.keys(res.body).sort()).toEqual(['id', 'secret']);
     expect(res.body.secret).toBe('my pass');
     const row = await db
-      .prepare('SELECT user_id, content, secret_hash, contacts, wishmail_enabled FROM wishes WHERE id = ?')
+      .prepare(
+        'SELECT user_id, content, secret_hash, contacts, wishmail_enabled FROM wishes WHERE id = ?'
+      )
       .get(res.body.id);
     expect(row.user_id).toBeNull();
     expect(row.content).toBe('A padded wish');
@@ -123,7 +124,9 @@ describe('POST /api/wishes: exact persistence', () => {
     expect(res.status).toBe(201);
     expect(res.body.secret).toBeNull();
     const row = await db
-      .prepare('SELECT user_id, secret_hash, creator_attributes, card_style FROM wishes WHERE id = ?')
+      .prepare(
+        'SELECT user_id, secret_hash, creator_attributes, card_style FROM wishes WHERE id = ?'
+      )
       .get(res.body.id);
     expect(row.user_id).toBe(reg.body.id);
     expect(row.secret_hash).toBeNull();
@@ -156,22 +159,30 @@ describe('POST /api/wishes: exact persistence', () => {
       .send({ content: 'Conflict wish', creator_attributes: { orientation: ['gay', 'straight'] } });
     expect(creator.status).toBe(400);
     expect(creator.body).toEqual({
-      error: 'Validation failed: Creator attributes conflict. "gay" and "straight" are mutually exclusive.',
+      error:
+        'Validation failed: Creator attributes conflict. "gay" and "straight" are mutually exclusive.',
     });
 
     const desired = await request(app)
       .post('/api/wishes')
-      .send({ content: 'Conflict wish 2', desired_attributes: { orientation: ['gay', 'straight'] } });
+      .send({
+        content: 'Conflict wish 2',
+        desired_attributes: { orientation: ['gay', 'straight'] },
+      });
     expect(desired.status).toBe(400);
     expect(desired.body).toEqual({
-      error: 'Validation failed: Desired criteria conflict. "gay" and "straight" are mutually exclusive.',
+      error:
+        'Validation failed: Desired criteria conflict. "gay" and "straight" are mutually exclusive.',
     });
   });
 });
 
 describe('POST /api/wishes: image upload rules', () => {
   const upload = (buffer, filename) =>
-    request(app).post('/api/wishes').attach('image', buffer, filename).field('content', 'Upload wish');
+    request(app)
+      .post('/api/wishes')
+      .attach('image', buffer, filename)
+      .field('content', 'Upload wish');
 
   it.each(['.png', '.jpg', '.jpeg', '.webp'])('accepts a %s upload', async (ext) => {
     const res = await upload(PNG_1PX, `photo${ext}`);
@@ -294,13 +305,17 @@ describe('GET /api/wishes: search parameter semantics', () => {
       .get('/api/wishes')
       .query({ q: 'wish', exclude: ` ${a} , ,` });
     expect(contents(excluded)).toEqual(['Straight Woman wish']);
-    const only = await request(app).get('/api/wishes').query({ ids: ` ${b} ` });
+    const only = await request(app)
+      .get('/api/wishes')
+      .query({ ids: ` ${b} ` });
     expect(contents(only)).toEqual(['Straight Woman wish']);
-    const both = await request(app).get('/api/wishes').query({ ids: `${a},${b}` });
+    const both = await request(app)
+      .get('/api/wishes')
+      .query({ ids: `${a},${b}` });
     expect(contents(both).sort()).toEqual(['Lesbian wish', 'Straight Woman wish']);
   });
 
-  it('a signed-in user\'s exclusions hide wishes unless include_excluded is set', async () => {
+  it("a signed-in user's exclusions hide wishes unless include_excluded is set", async () => {
     const { a, b } = await seedPair();
     const reg = await request(app)
       .post('/api/users/register')

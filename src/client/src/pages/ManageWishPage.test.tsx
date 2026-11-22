@@ -251,4 +251,67 @@ describe('ManageWishPage', () => {
       expect(sentBody.desired_attributes).toEqual({ role: 'Rigger, Top' });
     });
   });
+
+  it('subscribes to wish:suggestions:<id> and dynamically shows AI badge when wish:ai_suggestions_ready arrives', async () => {
+    const { io } = await import('socket.io-client');
+    const socket = (
+      io as unknown as () => {
+        on: ReturnType<typeof vi.fn>;
+        off: ReturnType<typeof vi.fn>;
+        emit: ReturnType<typeof vi.fn>;
+      }
+    )();
+
+    globalThis.window.location.hash = '#manage-wish?id=w-live&secret=live-sec';
+    vi.mocked(globalThis.fetch).mockImplementation((async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/suggestions')) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 'sugg-live',
+              wish_id: 'w-live',
+              suggested_creator_attributes: { role: ['Switch'] },
+              suggested_desired_attributes: {},
+              status: 'pending',
+              created_at: new Date().toISOString(),
+            },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          id: 'w-live',
+          content: 'Live AI wish',
+          is_active: true,
+          pending_suggestions_count: 0,
+        }),
+      } as Response;
+    }) as typeof globalThis.fetch);
+
+    render(<ManageWishPage />);
+
+    await waitFor(() => {
+      expect(socket.emit).toHaveBeenCalledWith('subscribe', {
+        channel: 'wish:suggestions:w-live',
+        token: undefined,
+        secret: 'live-sec',
+      });
+    });
+
+    expect(screen.queryByRole('button', { name: /View 1 AI suggestion/i })).not.toBeInTheDocument();
+
+    const readyHandler = socket.on.mock.calls.find(
+      ([evt]: [string]) => evt === 'wish:ai_suggestions_ready'
+    )?.[1];
+    expect(readyHandler).toBeTypeOf('function');
+
+    readyHandler({ wish_id: 'w-live', suggestion_id: 'sugg-live' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /View 1 AI suggestion/i })).toBeInTheDocument();
+    });
+  });
 });

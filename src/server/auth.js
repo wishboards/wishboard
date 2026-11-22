@@ -127,3 +127,22 @@ export const requireAdmin = async (req, res, next) => {
 };
 
 export const getTokenFromRequestHeader = getTokenFromRequest;
+
+export const authorizeWishSubscription = async ({ wishId, token, secret } = {}) => {
+  const row = await db
+    .prepare('SELECT user_id, secret_hash FROM wishes WHERE id = ?')
+    .get(wishId ?? '');
+  if (!row) {
+    return { authorized: false, userId: null };
+  }
+  const user = await getUserFromToken(token);
+  if (user?.id === row.user_id) {
+    return { authorized: true, userId: user.id };
+  }
+  if (secret && row.secret_hash) {
+    if (await verifyPassphrase(secret, ...row.secret_hash.split(':'))) {
+      return { authorized: true, userId: row.user_id };
+    }
+  }
+  return { authorized: false, userId: null };
+};
