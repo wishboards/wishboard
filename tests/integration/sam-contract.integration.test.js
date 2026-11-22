@@ -40,4 +40,18 @@ describe('integration: SAM template contract', () => {
     expect(content).toContain('PathPattern: /api-docs*');
     expect(content).toContain('PathPattern: /openapi.json');
   });
+
+  it('declares parameters and environment variables for optional AI features', async () => {
+    const fs = await import('node:fs');
+    const content = fs.readFileSync(template, 'utf8');
+
+    expect(content).toContain('EnableAiFeatures:');
+    expect(content).toContain('AiProvider:');
+    expect(content).toContain('AiApiKeySsm:');
+    expect(content).toContain('AiModel:');
+    expect(content).toContain('ENABLE_AI_FEATURES: !Ref EnableAiFeatures');
+    expect(content).toContain('AI_PROVIDER: !Ref AiProvider');
+    expect(content).toContain('AI_API_KEY_SSM: !Ref AiApiKeySsm');
+    expect(content).toContain('AI_MODEL: !Ref AiModel');
+  });
 });

@@ -264,6 +264,40 @@ function buildParameterOverrides(options, mode) {
     'DatabaseAuthTokenSsm',
     tomlOverrides
   );
+  const enableAiFeatures = String(
+    resolveOverride(
+      options,
+      'enableAi',
+      'ENABLE_AI_FEATURES',
+      'EnableAiFeatures',
+      tomlOverrides,
+      'false'
+    )
+  );
+  const aiProvider = resolveOverride(
+    options,
+    'aiProvider',
+    'AI_PROVIDER',
+    'AiProvider',
+    tomlOverrides,
+    'noop'
+  );
+  const aiApiKeySsm = resolveOverride(
+    options,
+    'aiApiKeySsm',
+    'AI_API_KEY_SSM',
+    'AiApiKeySsm',
+    tomlOverrides,
+    ''
+  );
+  const aiModel = resolveOverride(
+    options,
+    'aiModel',
+    'AI_MODEL',
+    'AiModel',
+    tomlOverrides,
+    'gemini-2.0-flash'
+  );
 
   assertSafeParam('ProjectName', projectName);
   assertSafeParam('DomainName', domainName);
@@ -272,6 +306,10 @@ function buildParameterOverrides(options, mode) {
   assertSafeParam('AcmCertificateArn', acmCertificateArn);
   assertSafeParam('DatabaseUrl', databaseUrl);
   assertSafeParam('DatabaseAuthTokenSsm', databaseAuthTokenSsm);
+  assertSafeParam('EnableAiFeatures', enableAiFeatures);
+  assertSafeParam('AiProvider', aiProvider);
+  assertSafeParam('AiApiKeySsm', aiApiKeySsm);
+  assertSafeParam('AiModel', aiModel);
 
   // Never silently blank a param that samconfig explicitly sets (would delete the
   // custom domain / cert). An env override still wins; this only guards accidents.
@@ -296,7 +334,9 @@ function buildParameterOverrides(options, mode) {
     `CertificateDomainName='${certDomain}' ` +
     `HostedZoneId='${hostedZoneId}' AcmCertificateArn='${acmCertificateArn}' ` +
     `NodeEnv='${nodeEnv}' DatabaseUrl='${databaseUrl}' ` +
-    `DatabaseAuthTokenSsm='${databaseAuthTokenSsm}'`
+    `DatabaseAuthTokenSsm='${databaseAuthTokenSsm}' ` +
+    `EnableAiFeatures='${enableAiFeatures}' AiProvider='${aiProvider}' ` +
+    `AiApiKeySsm='${aiApiKeySsm}' AiModel='${aiModel}'`
   );
 }
 

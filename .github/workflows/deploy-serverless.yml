@@ -43,6 +43,25 @@ on:
         description: 'Existing ACM Certificate ARN'
         required: false
         type: string
+      enable_ai_features:
+        description: 'Enable AI features (true or false)'
+        required: false
+        default: 'false'
+        type: string
+      ai_provider:
+        description: 'AI provider (noop, local, or cloud)'
+        required: false
+        default: 'noop'
+        type: string
+      ai_api_key_ssm:
+        description: 'SSM parameter path for AI API key (e.g. /wishboard/ai/gemini-api-key)'
+        required: false
+        type: string
+      ai_model:
+        description: 'AI model name (e.g. gemini-2.0-flash)'
+        required: false
+        default: 'gemini-2.0-flash'
+        type: string
   workflow_call:
     inputs:
       event_profile:
@@ -79,6 +98,25 @@ on:
         description: 'ACM Certificate ARN'
         required: false
         type: string
+      enable_ai_features:
+        description: 'Enable AI features (true or false)'
+        required: false
+        default: 'false'
+        type: string
+      ai_provider:
+        description: 'AI provider (noop, local, or cloud)'
+        required: false
+        default: 'noop'
+        type: string
+      ai_api_key_ssm:
+        description: 'SSM parameter path for AI API key'
+        required: false
+        type: string
+      ai_model:
+        description: 'AI model name'
+        required: false
+        default: 'gemini-2.0-flash'
+        type: string
 
 permissions:
   id-token: write
@@ -96,6 +134,10 @@ jobs:
       CERTIFICATE_DOMAIN_NAME: ${{ inputs.certificate_domain_name }}
       ACM_CERTIFICATE_ARN: ${{ inputs.acm_certificate_arn }}
       HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
+      ENABLE_AI_FEATURES: ${{ inputs.enable_ai_features || github.event.inputs.enable_ai_features }}
+      AI_PROVIDER: ${{ inputs.ai_provider || github.event.inputs.ai_provider }}
+      AI_API_KEY_SSM: ${{ inputs.ai_api_key_ssm || github.event.inputs.ai_api_key_ssm }}
+      AI_MODEL: ${{ inputs.ai_model || github.event.inputs.ai_model }}
 
     steps:
       - name: Checkout repository
@@ -129,6 +171,10 @@ jobs:
           DATABASE_AUTH_TOKEN_SSM="${{ inputs.database_auth_token_ssm || '' }}"
           CERTIFICATE_DOMAIN_NAME="${{ inputs.certificate_domain_name || '' }}"
           ACM_CERTIFICATE_ARN="${{ inputs.acm_certificate_arn || '' }}"
+          ENABLE_AI_FEATURES="${{ inputs.enable_ai_features || github.event.inputs.enable_ai_features || '' }}"
+          AI_PROVIDER="${{ inputs.ai_provider || github.event.inputs.ai_provider || '' }}"
+          AI_API_KEY_SSM="${{ inputs.ai_api_key_ssm || github.event.inputs.ai_api_key_ssm || '' }}"
+          AI_MODEL="${{ inputs.ai_model || github.event.inputs.ai_model || '' }}"
 
           PREFIX=$(echo "$EVENT_PROF" | tr '[:lower:]' '[:upper:]')
 
@@ -153,11 +199,27 @@ jobs:
           export DATABASE_AUTH_TOKEN_SSM=$(get_var "DATABASE_AUTH_TOKEN_SSM" "$DATABASE_AUTH_TOKEN_SSM" "")
           export CERTIFICATE_DOMAIN_NAME=$(get_var "CERTIFICATE_DOMAIN_NAME" "$CERTIFICATE_DOMAIN_NAME" "")
           export ACM_CERTIFICATE_ARN=$(get_var "ACM_CERTIFICATE_ARN" "$ACM_CERTIFICATE_ARN" "")
+          export ENABLE_AI_FEATURES=$(get_var "ENABLE_AI_FEATURES" "$ENABLE_AI_FEATURES" "false")
+          export AI_PROVIDER=$(get_var "AI_PROVIDER" "$AI_PROVIDER" "noop")
+          export AI_API_KEY_SSM=$(get_var "AI_API_KEY_SSM" "$AI_API_KEY_SSM" "")
+          export AI_MODEL=$(get_var "AI_MODEL" "$AI_MODEL" "gemini-2.0-flash")
           MODE=$(get_var "MODE" "$MODE" "dev")
 
           CMD="node src/cli/wishboard.js serverless deploy --mode $MODE --event-profile $EVENT_PROF"
           if [ -n "$STACK_NAME" ]; then
             CMD="$CMD --stack-name $STACK_NAME"
+          fi
+          if [ "$ENABLE_AI_FEATURES" = "true" ]; then
+            CMD="$CMD --enable-ai"
+          fi
+          if [ -n "$AI_PROVIDER" ]; then
+            CMD="$CMD --ai-provider $AI_PROVIDER"
+          fi
+          if [ -n "$AI_API_KEY_SSM" ]; then
+            CMD="$CMD --ai-api-key-ssm $AI_API_KEY_SSM"
+          fi
+          if [ -n "$AI_MODEL" ]; then
+            CMD="$CMD --ai-model $AI_MODEL"
           fi
 
           eval $CMD
