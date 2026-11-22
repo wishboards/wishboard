@@ -406,6 +406,38 @@
           "wishmail_enabled": {
             "type": "boolean"
           },
+          "creator_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "desired_attributes": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
           "new_passphrase": {
             "type": "string",
             "example": "ocean-sun-meadow"
@@ -1158,6 +1190,28 @@
           }
         }
       },
+      "AiStatus": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "example": false
+          },
+          "provider": {
+            "type": "string",
+            "example": "noop"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true,
+            "example": "gemini-flash-latest"
+          }
+        },
+        "required": [
+          "enabled",
+          "provider"
+        ]
+      },
       "ConfigResponse": {
         "type": "object",
         "properties": {
@@ -1187,6 +1241,9 @@
           },
           "branding": {
             "$ref": "#/components/schemas/Branding"
+          },
+          "ai": {
+            "$ref": "#/components/schemas/AiStatus"
           }
         },
         "required": [

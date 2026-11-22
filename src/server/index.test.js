@@ -41,6 +41,9 @@ describe('Server index.js', () => {
     expect(res.body.apiVersion).toMatch(/^\d+\.\d+\.\d+/);
     expect(res.body).toHaveProperty('appVersion');
     expect(res.body.appVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(res.body).toHaveProperty('ai');
+    expect(res.body.ai).toHaveProperty('enabled');
+    expect(res.body.ai).toHaveProperty('provider');
   });
 
   it('serves the configured WISHBOARD_DOMAIN on /api/config', async () => {

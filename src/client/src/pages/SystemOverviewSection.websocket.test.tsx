@@ -413,4 +413,43 @@ describe('SystemOverviewSection WebSocket', () => {
     const socket = getMockSocket();
     expect(socket.emit).toHaveBeenCalledWith('subscribe', { channel: 'sys:log', token: '' });
   });
+
+  it('displays AI Engine status badge for enabled cloud, enabled local, and disabled noop configs', async () => {
+    mockFetch({
+      '/api/config': {
+        realtimeProvider: 'apigateway',
+        ai: { enabled: true, provider: 'cloud', model: 'gemini-flash-latest' },
+      },
+    });
+    const { unmount } = render(<SystemOverviewSection {...defaultProps} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('ai-engine-status')).toHaveTextContent(
+        'AI Engine: Enabled — cloud (gemini-flash-latest)'
+      )
+    );
+    unmount();
+
+    mockFetch({
+      '/api/config': {
+        realtimeProvider: 'socketio',
+        ai: { enabled: true, provider: 'local', model: null },
+      },
+    });
+    const { unmount: unmount2 } = render(<SystemOverviewSection {...defaultProps} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('ai-engine-status')).toHaveTextContent('AI Engine: Enabled — local')
+    );
+    unmount2();
+
+    mockFetch({
+      '/api/config': {
+        realtimeProvider: 'socketio',
+        ai: { enabled: false, provider: 'noop', model: null },
+      },
+    });
+    render(<SystemOverviewSection {...defaultProps} />);
+    await waitFor(() =>
+      expect(screen.getByTestId('ai-engine-status')).toHaveTextContent('AI Engine: Disabled (noop)')
+    );
+  });
 });

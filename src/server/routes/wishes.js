@@ -392,7 +392,7 @@ function mergeSearcherAttributes(searcher, manualAttributes) {
 
 async function applyQuerySearch({ sql, args, query, mode }) {
   if (!query) {
-    return { sql, args };
+    return { sql, args, rankedIds: null };
   }
 
   if (mode === 'semantic') {
@@ -403,8 +403,11 @@ async function applyQuerySearch({ sql, args, query, mode }) {
         const candidateRows = await db
           .prepare('SELECT wish_id, embedding FROM wish_embeddings')
           .all();
+        // Dense neural embeddings (e.g. Gemini 3072-dim) have a higher cosine baseline
+        // than sparse 64-dim local feature hashes; scale the floor accordingly.
+        const minScore = queryEmb.length > 128 ? 0.58 : 0.15;
         const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
-          minScore: 0.15,
+          minScore,
           limit: 50,
         });
         if (ranked.length > 0) {
@@ -412,6 +415,7 @@ async function applyQuerySearch({ sql, args, query, mode }) {
           return {
             sql: `${sql} AND w.id IN (SELECT value FROM json_each(?))`,
             args: [...args, JSON.stringify(rankedIds)],
+            rankedIds,
           };
         }
       }
@@ -421,6 +425,7 @@ async function applyQuerySearch({ sql, args, query, mode }) {
   return {
     sql: `${sql} AND w.content LIKE ?`,
     args: [...args, `%${query}%`],
+    rankedIds: null,
   };
 }
 
@@ -446,8 +451,9 @@ router.get('/', async (req, res) => {
   let sql =
     'SELECT w.id, w.content, w.creator_attributes, w.desired_attributes, w.contacts, w.wishmail_enabled, w.image_id, w.card_style FROM wishes w LEFT JOIN users u ON w.user_id = u.id WHERE w.is_active = 1 AND (u.id IS NULL OR u.is_active = 1)';
   let args = [];
+  let rankedIds;
 
-  ({ sql, args } = await applyQuerySearch({ sql, args, query, mode: req.query.mode }));
+  ({ sql, args, rankedIds } = await applyQuerySearch({ sql, args, query, mode: req.query.mode }));
 
   if (req.query.ids) {
     const filterIds = parseQueryIds(req.query.ids);
@@ -474,9 +480,15 @@ router.get('/', async (req, res) => {
   const rows = await db.prepare(sql).all(...args);
 
   const rules = getRules();
-  const filtered = ignoreAttributes
+  let filtered = ignoreAttributes
     ? rows
     : rows.filter((wish) => isCompatible(wish, searcherProfile, rules));
+  if (rankedIds) {
+    const rankOrder = new Map(rankedIds.map((id, idx) => [id, idx]));
+    filtered = [...filtered].sort(
+      (a, b) => (rankOrder.get(a.id) ?? Infinity) - (rankOrder.get(b.id) ?? Infinity)
+    );
+  }
   res.json(
     filtered.map((wish) => ({
       id: wish.id,
@@ -573,13 +585,15 @@ router.get('/:id', async (req, res) => {
   const { id } = req.params;
   const row = await db
     .prepare(
-      "SELECT id, content, flagged, contacts, wishmail_enabled, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wish_ai_suggestions was WHERE was.wish_id = wishes.id AND was.status = 'pending') AS pending_suggestions_count FROM wishes WHERE id = ?"
+      "SELECT id, content, flagged, contacts, wishmail_enabled, creator_attributes, desired_attributes, created_at, updated_at, is_active, image_id, card_style, (SELECT COUNT(*) FROM wish_ai_suggestions was WHERE was.wish_id = wishes.id AND was.status = 'pending') AS pending_suggestions_count FROM wishes WHERE id = ?"
     )
     .get(id);
   if (!row) {
     return res.status(404).json({ error: 'Wish not found.' });
   }
   row.contacts = parseJsonArray(row.contacts);
+  row.creator_attributes = parseJsonSafe(row.creator_attributes);
+  row.desired_attributes = parseJsonSafe(row.desired_attributes);
   row.wishmail_enabled = Boolean(row.wishmail_enabled);
   row.is_active = Boolean(row.is_active);
   row.card_style = parseCardStyle(row.card_style);
@@ -645,6 +659,20 @@ router.post('/:id/manage', async (req, res) => {
     const wme = wishmail_enabled ? 1 : 0;
     const now = new Date().toISOString();
 
+    const updatedCreatorAttrs =
+      req.body.creator_attributes === undefined
+        ? parseJsonSafe(row.creator_attributes)
+        : parseAttributesInput(req.body.creator_attributes);
+    const updatedDesiredAttrs =
+      req.body.desired_attributes === undefined
+        ? parseJsonSafe(row.desired_attributes)
+        : parseAttributesInput(req.body.desired_attributes);
+
+    const conflictErr = validateAttributesConflicts(updatedCreatorAttrs, updatedDesiredAttrs);
+    if (conflictErr) {
+      return res.status(400).json({ error: conflictErr });
+    }
+
     let secretHashToUpdate = row.secret_hash;
     let newSecret = null;
     if (row.secret_hash && new_passphrase?.trim()) {
@@ -656,15 +684,24 @@ router.post('/:id/manage', async (req, res) => {
 
     await db
       .prepare(
-        'UPDATE wishes SET content = ?, contacts = ?, wishmail_enabled = ?, secret_hash = ?, updated_at = ? WHERE id = ?'
+        'UPDATE wishes SET content = ?, contacts = ?, wishmail_enabled = ?, creator_attributes = ?, desired_attributes = ?, secret_hash = ?, updated_at = ? WHERE id = ?'
       )
-      .run(content.trim(), JSON.stringify(parsedContacts), wme, secretHashToUpdate, now, id);
+      .run(
+        content.trim(),
+        JSON.stringify(parsedContacts),
+        wme,
+        JSON.stringify(updatedCreatorAttrs),
+        JSON.stringify(updatedDesiredAttrs),
+        secretHashToUpdate,
+        now,
+        id
+      );
 
     queueWishForTagging({
       wishId: id,
       content: content.trim(),
-      creatorAttributes: parseJsonSafe(row.creator_attributes),
-      desiredAttributes: parseJsonSafe(row.desired_attributes),
+      creatorAttributes: updatedCreatorAttrs,
+      desiredAttributes: updatedDesiredAttrs,
     });
 
     return res.json({ success: true, newSecret });

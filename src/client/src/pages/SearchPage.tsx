@@ -31,6 +31,7 @@ interface SearchParamInput {
   useProfileAttributes: boolean;
   manualAttributes: Record<string, string>;
   excludedIds: string[];
+  semantic?: boolean;
 }
 
 function applyCompatibilityParams(
@@ -63,11 +64,15 @@ function buildSearchParams({
   useProfileAttributes,
   manualAttributes,
   excludedIds,
+  semantic = false,
 }: Readonly<SearchParamInput>): URLSearchParams {
   const params = new URLSearchParams();
   const qTrim = query.trim();
   if (qTrim) {
     params.set('q', qTrim);
+    if (semantic) {
+      params.set('mode', 'semantic');
+    }
   }
 
   applyCompatibilityParams(params, user, useProfileAttributes, manualAttributes);
@@ -92,6 +97,8 @@ export default function SearchPage() {
   const [manualAttributes, setManualAttributes] = useState<Record<string, string>>({});
   const isMobile = useIsMobile();
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [useSemanticSearch, setUseSemanticSearch] = useState(false);
+  const [semanticFallbackActive, setSemanticFallbackActive] = useState(false);
 
   const filterCount = React.useMemo(() => {
     return Object.values(manualAttributes).reduce(
@@ -104,7 +111,8 @@ export default function SearchPage() {
     setPrevUserId(currentUserId);
     setUseProfileAttributes(Boolean(user));
   }
-  const { categories } = useEventProfile();
+  const { categories, ai } = useEventProfile();
+  const aiEnabled = Boolean(ai?.enabled);
   const [mailWishId, setMailWishId] = useState<string | null>(null);
   const [lastSearchParams, setLastSearchParams] = useState<string | null>(null);
   const { socket } = useWebSocket();
@@ -151,13 +159,16 @@ export default function SearchPage() {
   const search = async (event: React.SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSemanticFallbackActive(false);
 
+    const requestSemantic = aiEnabled && useSemanticSearch;
     const params = buildSearchParams({
       query,
       user,
       useProfileAttributes,
       manualAttributes,
       excludedIds,
+      semantic: requestSemantic,
     });
 
     const paramsStr = params.toString();
@@ -168,6 +179,38 @@ export default function SearchPage() {
     if (!response.ok) {
       setError('Unable to perform search.');
       return;
+    }
+
+    if (
+      aiEnabled &&
+      !requestSemantic &&
+      query.trim().length > 0 &&
+      Array.isArray(data) &&
+      data.length === 0
+    ) {
+      const semanticParams = buildSearchParams({
+        query,
+        user,
+        useProfileAttributes,
+        manualAttributes,
+        excludedIds,
+        semantic: true,
+      });
+      const semanticParamsStr = semanticParams.toString();
+      try {
+        const semanticResponse = await fetch(`/api/wishes?${semanticParamsStr}`);
+        if (semanticResponse.ok) {
+          const semanticData = await semanticResponse.json();
+          if (Array.isArray(semanticData) && semanticData.length > 0) {
+            setLastSearchParams(semanticParamsStr);
+            setSemanticFallbackActive(true);
+            setResults(semanticData);
+            return;
+          }
+        }
+      } catch {
+        // Keep empty standard results if semantic follow-up fails
+      }
     }
 
     setResults(data);
@@ -242,6 +285,34 @@ export default function SearchPage() {
             placeholder="Search existing wishes"
           />
         </label>
+
+        {aiEnabled && (
+          <div className="label-with-info" style={{ marginTop: '8px' }}>
+            <label
+              className="checkbox-label"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                margin: 0,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={useSemanticSearch}
+                onChange={(e) => setUseSemanticSearch(e.target.checked)}
+              />{' '}
+              ✨ Semantic Search (AI)
+            </label>
+            <InfoToggle>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#556275' }}>
+                Matches wishes by meaning rather than exact keywords using AI embeddings. Even when
+                unchecked, empty keyword searches will automatically check for AI semantic matches.
+              </p>
+            </InfoToggle>
+          </div>
+        )}
 
         {user ? (
           <div className="label-with-info" style={{ marginTop: '8px' }}>
@@ -381,6 +452,24 @@ export default function SearchPage() {
 
         <button type="submit">Search</button>
       </form>
+
+      {semanticFallbackActive && (
+        <output
+          className="ai-semantic-fallback-banner"
+          style={{
+            display: 'block',
+            maxWidth: '800px',
+            margin: '0 auto 16px',
+            padding: '10px 14px',
+            borderRadius: '10px',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            backgroundColor: 'rgba(139, 92, 246, 0.12)',
+            fontSize: '0.92rem',
+          }}
+        >
+          ✨ No exact keyword matches — showing AI semantic matches for &ldquo;{query.trim()}&rdquo;
+        </output>
+      )}
 
       <div className="wish-grid">
         {results

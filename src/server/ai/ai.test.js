@@ -11,13 +11,19 @@ import {
   cosineSimilarity,
   rankWishesBySimilarity,
   isAiEnabled,
+  getAiStatus,
   getInferenceProvider,
   getEmbeddingProvider,
   setInferenceProvider,
   setEmbeddingProvider,
   resetProviders,
 } from './index.js';
-import { queueWishForTagging, drainQueue } from './taggingWorker.js';
+import {
+  queueWishForTagging,
+  drainQueue,
+  setLambdaDispatcher,
+  resetLambdaDispatcher,
+} from './taggingWorker.js';
 import db from '../db.js';
 import {
   resolveAiApiKey,
@@ -284,6 +290,47 @@ describe('AI Module', () => {
       const res = await provider.suggestAttributes({ content: 'Switch looking for friends' });
       expect(res.suggestedCreatorAttributes).toEqual({ roles: ['switch'] });
       expect(res.reasoning).toBe('Fenced response');
+
+      // Verify reasoning_effort: 'low' is passed for Gemini models
+      const sentBody = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1].body);
+      expect(sentBody.reasoning_effort).toBe('low');
+    });
+
+    it('CloudInferenceProvider accepts creatorAttributes/desiredAttributes fallback keys and handles empty content', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  creatorAttributes: { gender: ['Woman'] },
+                  desiredAttributes: { role: ['Rigger'] },
+                  reasoning: 'Shorter keys',
+                }),
+              },
+            },
+          ],
+        }),
+      });
+
+      const provider = new CloudInferenceProvider({ apiKey: 'test-key', model: 'gpt-4o-mini' });
+      const res = await provider.suggestAttributes({ content: 'Woman seeking rigger' });
+      expect(res.suggestedCreatorAttributes).toEqual({ gender: ['Woman'] });
+      expect(res.suggestedDesiredAttributes).toEqual({ role: ['Rigger'] });
+      const sentBody = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1].body);
+      expect(sentBody.reasoning_effort).toBeUndefined();
+
+      // Empty content (e.g., safety filter)
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [{ finish_reason: 'content_filter', message: { content: '' } }],
+        }),
+      });
+      const emptyRes = await provider.suggestAttributes({ content: 'Filtered text' });
+      expect(emptyRes.suggestedCreatorAttributes).toEqual({});
+      expect(emptyRes.reasoning).toContain('content_filter');
     });
 
     it('CloudInferenceProvider degrades gracefully when API key is missing', async () => {
@@ -431,6 +478,30 @@ describe('AI Module', () => {
       expect(getEmbeddingProvider()).toBeInstanceOf(LocalEmbeddingProvider);
     });
 
+    it('getAiStatus reports disabled, local, and cloud runtime configuration safely', () => {
+      process.env.ENABLE_AI_FEATURES = 'false';
+      expect(getAiStatus()).toEqual({ enabled: false, provider: 'noop', model: null });
+
+      process.env.ENABLE_AI_FEATURES = 'true';
+      process.env.AI_PROVIDER = 'local';
+      expect(getAiStatus()).toEqual({ enabled: true, provider: 'local', model: null });
+
+      process.env.AI_PROVIDER = 'cloud';
+      delete process.env.AI_MODEL;
+      expect(getAiStatus()).toEqual({
+        enabled: true,
+        provider: 'cloud',
+        model: DEFAULT_GEMINI_MODEL,
+      });
+
+      process.env.AI_MODEL = 'gemini-3.8-flash';
+      expect(getAiStatus()).toEqual({
+        enabled: true,
+        provider: 'cloud',
+        model: 'gemini-3.8-flash',
+      });
+    });
+
     it('resolves CloudProvider when AI_PROVIDER is cloud', () => {
       process.env.ENABLE_AI_FEATURES = 'true';
       process.env.AI_PROVIDER = 'cloud';
@@ -506,6 +577,62 @@ describe('AI Module', () => {
       await db.prepare('DELETE FROM wish_ai_suggestions WHERE wish_id = ?').run(testWishId);
       await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(testWishId);
       await db.prepare('DELETE FROM wishes WHERE id = ?').run(testWishId);
+    });
+
+    it('dispatches async Lambda event when AWS_LAMBDA_FUNCTION_NAME is set and falls back on dispatch error', async () => {
+      process.env.ENABLE_AI_FEATURES = 'true';
+      process.env.AI_PROVIDER = 'local';
+      process.env.AWS_LAMBDA_FUNCTION_NAME = 'wishboard-ai-dev-express-api';
+
+      const mockDispatch = vi.fn().mockResolvedValue(undefined);
+      setLambdaDispatcher(mockDispatch);
+      try {
+        queueWishForTagging({
+          wishId: 'lambda-async-1',
+          content: 'Looking for tabletop games',
+        });
+        await drainQueue();
+
+        expect(mockDispatch).toHaveBeenCalledWith('wishboard-ai-dev-express-api', {
+          __wishboardAsyncTask: 'aiTagging',
+          payload: {
+            wishId: 'lambda-async-1',
+            content: 'Looking for tabletop games',
+            creatorAttributes: {},
+            desiredAttributes: {},
+          },
+        });
+
+        // Fallback when async dispatch fails
+        mockDispatch.mockRejectedValueOnce(new Error('AccessDenied'));
+        const testWishId = 'lambda-fallback-1';
+        await db
+          .prepare(
+            'INSERT OR REPLACE INTO wishes (id, content, contacts, wishmail_enabled, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          )
+          .run(
+            testWishId,
+            'Just grabbing coffee',
+            '[]',
+            0,
+            1,
+            new Date().toISOString(),
+            new Date().toISOString()
+          );
+
+        queueWishForTagging({ wishId: testWishId, content: 'Just grabbing coffee' });
+        await drainQueue();
+
+        const embRow = await db
+          .prepare('SELECT * FROM wish_embeddings WHERE wish_id = ?')
+          .get(testWishId);
+        expect(embRow).toBeDefined();
+
+        await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(testWishId);
+        await db.prepare('DELETE FROM wishes WHERE id = ?').run(testWishId);
+      } finally {
+        resetLambdaDispatcher();
+      }
     });
   });
 });

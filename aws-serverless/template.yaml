@@ -323,6 +323,11 @@ Resources:
                 - logs:FilterLogEvents
                 - logs:DescribeLogGroups
               Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-express-api'
       Events:
         ApiRoute:
           Type: HttpApi
@@ -377,6 +382,7 @@ Resources:
         # the artifact so Lambda can load it at runtime.
         External:
           - '@libsql/linux-x64-gnu'
+          - '@aws-sdk/client-lambda'
         EntryPoints:
           - aws-serverless/lambda.mjs
 
@@ -428,6 +434,7 @@ Resources:
         # (same strategy as ApiFunction). See that script for details.
         External:
           - '@libsql/linux-x64-gnu'
+          - '@aws-sdk/client-lambda'
         EntryPoints:
           - aws-serverless/websocket.mjs
 

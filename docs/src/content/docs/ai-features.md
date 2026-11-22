@@ -101,10 +101,13 @@ For AWS Serverless deployments, plaintext API keys in environment variables are 
 
 ---
 
-## 4. How Semantic Search Works
+## 4. How Semantic Search & Async Tagging Work
 
-When AI features are enabled and embeddings are generated for wishes, users can perform semantic queries:
+When AI features are enabled (`ENABLE_AI_FEATURES=true` and `AI_PROVIDER` is `local` or `cloud`), `/api/config` exposes public runtime status (`ai: { enabled, provider, model }`) so the UI automatically surfaces AI capabilities (including an **AI Engine** status badge in **Admin → System Overview**):
 
+- **Search UI (`SearchPage`):**
+  - Displays a **`✨ Semantic Search (AI)`** toggle when AI is enabled (hidden when disabled).
+  - Even when the toggle is unchecked, if a standard keyword search returns **0 exact matches**, the Search page automatically performs a semantic follow-up query and shows results (with a clear AI matches banner) **only** if semantically similar wishes are found.
 - **API Request**:
   ```http
   GET /api/wishes?q=looking+for+switch+gamers&mode=semantic
@@ -112,8 +115,11 @@ When AI features are enabled and embeddings are generated for wishes, users can 
 - **Execution Flow**:
   1. The server generates an embedding vector for the search query using the configured `EmbeddingProvider`.
   2. It computes cosine similarities against candidate wish vectors stored in the `wish_embeddings` table.
-  3. Candidates exceeding a similarity threshold (`0.15`) are ranked and returned in order.
+  3. Candidates exceeding the similarity threshold (`0.58` for dense neural embeddings > 128 dimensions; `0.15` for 64-dim local feature hashes) are ranked and returned in similarity order.
   4. If no vector matches are found or the embedding provider is unavailable, the query falls back to `content LIKE ?`.
+- **Asynchronous Tagging on AWS Lambda**:
+  - On single-node kiosks, `queueWishForTagging()` runs in the background Node event loop after HTTP 201 is returned.
+  - On AWS Serverless, `queueWishForTagging()` dispatches an asynchronous Lambda self-invocation (`InvocationType: 'Event'`) so `POST /api/wishes` returns immediately while inference and embedding run concurrently outside the HTTP request path.
 
 ---
 

@@ -1,6 +1,10 @@
 import { NoopInferenceProvider, NoopEmbeddingProvider } from './NoopProvider.js';
 import { LocalInferenceProvider, LocalEmbeddingProvider } from './LocalProvider.js';
-import { CloudInferenceProvider, CloudEmbeddingProvider } from './CloudProvider.js';
+import {
+  CloudInferenceProvider,
+  CloudEmbeddingProvider,
+  DEFAULT_GEMINI_MODEL,
+} from './CloudProvider.js';
 
 let customInferenceProvider = null;
 let customEmbeddingProvider = null;
@@ -10,6 +14,20 @@ let customEmbeddingProvider = null;
  */
 export function isAiEnabled() {
   return process.env.ENABLE_AI_FEATURES === 'true';
+}
+
+/**
+ * Returns public, non-secret AI runtime status for /api/config and Admin System Overview.
+ */
+export function getAiStatus() {
+  const enabled = isAiEnabled();
+  const provider = enabled ? (process.env.AI_PROVIDER || 'noop').toLowerCase() : 'noop';
+  const model = provider === 'cloud' ? process.env.AI_MODEL || DEFAULT_GEMINI_MODEL : null;
+  return {
+    enabled: enabled && provider !== 'noop',
+    provider,
+    model,
+  };
 }
 
 /**

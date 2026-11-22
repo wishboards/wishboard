@@ -22,12 +22,19 @@ export interface BrandingConfig {
   boardBgUrl?: string | null;
 }
 
+export interface AiStatus {
+  enabled: boolean;
+  provider: string;
+  model?: string | null;
+}
+
 export interface EventProfile {
   profile: string;
   title?: string;
   contact_methods: string[];
   categories: Category[];
   branding?: BrandingConfig;
+  ai?: AiStatus;
   stickers?: Record<
     string,
     Record<
@@ -61,6 +68,11 @@ const emptyProfile: EventProfile = {
     boardTexture: 'cork',
     logoUrl: null,
     boardBgUrl: null,
+  },
+  ai: {
+    enabled: false,
+    provider: 'noop',
+    model: null,
   },
   realtimeProvider: 'socketio',
   apIp: '',

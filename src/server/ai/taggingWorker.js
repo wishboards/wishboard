@@ -6,9 +6,51 @@ import { getInferenceProvider, getEmbeddingProvider, isAiEnabled } from './index
 import { getIO } from '../socket.js';
 
 let pendingTasks = [];
+let customLambdaDispatcher = null;
+
+export const ASYNC_TAGGING_EVENT_KEY = '__wishboardAsyncTask';
+
+export function setLambdaDispatcher(fn) {
+  customLambdaDispatcher = fn;
+}
+
+export function resetLambdaDispatcher() {
+  customLambdaDispatcher = null;
+}
+
+async function dispatchAsyncLambdaTagging(payload) {
+  const functionName = process.env.AWS_LAMBDA_FUNCTION_NAME;
+  if (!functionName) {
+    return false;
+  }
+
+  const eventPayload = {
+    [ASYNC_TAGGING_EVENT_KEY]: 'aiTagging',
+    payload,
+  };
+
+  if (customLambdaDispatcher) {
+    await customLambdaDispatcher(functionName, eventPayload);
+    return true;
+  }
+
+  const lambdaSdkModule = '@aws-sdk/client-lambda';
+  const { LambdaClient, InvokeCommand } = await import(/* @vite-ignore */ lambdaSdkModule);
+  const client = new LambdaClient({ region: process.env.AWS_REGION || 'us-east-1' });
+  await client.send(
+    new InvokeCommand({
+      FunctionName: functionName,
+      InvocationType: 'Event',
+      Payload: Buffer.from(JSON.stringify(eventPayload)),
+    })
+  );
+  return true;
+}
 
 /**
  * Queues a wish for asynchronous AI analysis, attribute suggestion, and vector embedding.
+ * On AWS Lambda, dispatches an asynchronous self-invocation (InvocationType: 'Event') so
+ * POST /api/wishes returns immediately without waiting for outbound LLM inference.
  * Does not block caller or throw on background errors.
  *
  * @param {Object} wishData
@@ -23,16 +65,39 @@ export function queueWishForTagging({
   creatorAttributes = {},
   desiredAttributes = {},
 }) {
-  if (!wishId || !content?.trim()) {
+  if (!wishId || !content?.trim() || !isAiEnabled()) {
     return;
   }
 
-  const taskPromise = processWishJob({
+  const payload = {
     wishId,
     content: content.trim(),
     creatorAttributes,
     desiredAttributes,
-  }).catch((err) => {
+  };
+
+  const runTask = async () => {
+    if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      try {
+        const dispatched = await dispatchAsyncLambdaTagging(payload);
+        if (dispatched) {
+          logger.info('Dispatched async Lambda AI tagging job for wish', { wish_id: wishId });
+          return;
+        }
+      } catch (err) {
+        logger.warn(
+          'Failed to dispatch async Lambda AI job; falling back to in-process execution',
+          {
+            wish_id: wishId,
+            error: err.message,
+          }
+        );
+      }
+    }
+    await processWishJob(payload);
+  };
+
+  const taskPromise = runTask().catch((err) => {
     logger.warn('Failed background AI tagging job for wish', {
       wish_id: wishId,
       error: err.message,
@@ -77,6 +142,11 @@ async function processInferenceJob(wishId, provider, params) {
   );
 
   if (!hasCreatorSuggestions && !hasDesiredSuggestions) {
+    logger.info('Completed AI inference for wish with no new attribute suggestions', {
+      wish_id: wishId,
+      model: provider.model || null,
+      reasoning,
+    });
     return;
   }
 
@@ -105,6 +175,7 @@ async function processInferenceJob(wishId, provider, params) {
   logger.info('Generated AI suggestions for wish', {
     wish_id: wishId,
     suggestion_id: suggestionId,
+    model: provider.model || null,
   });
 
   notifyAiSuggestionsReady(wishId, suggestionId);
@@ -133,9 +204,9 @@ async function processEmbeddingJob(wishId, provider, content) {
 }
 
 /**
- * Processes an individual wish tagging job.
+ * Processes an individual wish tagging job (inference + vector embedding in parallel).
  */
-async function processWishJob({ wishId, content, creatorAttributes, desiredAttributes }) {
+export async function processWishJob({ wishId, content, creatorAttributes, desiredAttributes }) {
   if (!isAiEnabled()) {
     return;
   }
@@ -150,14 +221,15 @@ async function processWishJob({ wishId, content, creatorAttributes, desiredAttri
   const profile = getEventProfile() || {};
   const taxonomy = profile.categories || [];
 
-  await processInferenceJob(wishId, inferenceProvider, {
-    content,
-    existingCreatorAttributes: creatorAttributes,
-    existingDesiredAttributes: desiredAttributes,
-    taxonomy,
-  });
-
-  await processEmbeddingJob(wishId, embeddingProvider, content);
+  await Promise.allSettled([
+    processInferenceJob(wishId, inferenceProvider, {
+      content,
+      existingCreatorAttributes: creatorAttributes,
+      existingDesiredAttributes: desiredAttributes,
+      taxonomy,
+    }),
+    processEmbeddingJob(wishId, embeddingProvider, content),
+  ]);
 }
 
 /**

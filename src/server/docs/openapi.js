@@ -166,6 +166,8 @@ export const ManageWishInputSchema = registry.register(
     content: z.string().max(500).optional().openapi({ example: 'Updated wish text' }),
     contacts: z.any().optional(),
     wishmail_enabled: z.boolean().optional(),
+    creator_attributes: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
+    desired_attributes: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
     new_passphrase: z.string().optional().openapi({ example: 'ocean-sun-meadow' }),
   })
 );
@@ -517,6 +519,15 @@ export const UpdateBrandingInputSchema = registry.register(
   })
 );
 
+export const AiStatusSchema = registry.register(
+  'AiStatus',
+  z.object({
+    enabled: z.boolean().openapi({ example: false }),
+    provider: z.string().openapi({ example: 'noop' }),
+    model: z.string().nullable().optional().openapi({ example: 'gemini-flash-latest' }),
+  })
+);
+
 export const ConfigResponseSchema = registry.register(
   'ConfigResponse',
   z.object({
@@ -527,6 +538,7 @@ export const ConfigResponseSchema = registry.register(
     apiVersion: z.string().openapi({ example: '1.0.0' }),
     appVersion: z.string().openapi({ example: '1.32.1' }),
     branding: BrandingSchema.optional(),
+    ai: AiStatusSchema.optional(),
   })
 );
 

@@ -2,11 +2,42 @@ import React, { useCallback, useEffect, useState } from 'react';
 import InfoToggle from '../components/InfoToggle';
 import WishPreview from '../components/WishPreview';
 import WishFormFields from '../components/WishFormFields';
+import AttributeInput from '../components/AttributeInput';
 import { useAuth } from '../AuthContext';
+import { useEventProfile } from '../EventProfileContext';
 import PassphraseInput from '../components/PassphraseInput';
 import { apiClient, bearerHeader } from '../api/client';
 import AiSuggestionBadge from '../components/AiSuggestionBadge';
 import AiSuggestionModal from '../components/AiSuggestionModal';
+
+function formatAttributeMapToStrings(
+  attrs?: Record<string, string[] | string>
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  if (!attrs) return result;
+  for (const [key, val] of Object.entries(attrs)) {
+    if (Array.isArray(val)) {
+      result[key] = val.join(', ');
+    } else if (typeof val === 'string') {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
+function parseAttributeStringsToArrays(attrs: Record<string, string>): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const [key, val] of Object.entries(attrs)) {
+    const items = val
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (items.length > 0) {
+      result[key] = items;
+    }
+  }
+  return result;
+}
 
 function parseInitialManageParams(): {
   initialError: string | null;
@@ -39,12 +70,15 @@ function parseInitialManageParams(): {
 
 export default function ManageWishPage() {
   const { token, user } = useAuth();
+  const { categories } = useEventProfile();
   const [initialParams] = useState(parseInitialManageParams);
   const [wish, setWish] = useState<{
     id: string;
     content: string;
     contacts: Array<{ type?: string; value?: string }>;
     wishmail_enabled: boolean;
+    creator_attributes?: Record<string, string[]>;
+    desired_attributes?: Record<string, string[]>;
     created_at: string;
     is_active: boolean;
     image_url?: string;
@@ -53,6 +87,9 @@ export default function ManageWishPage() {
   const [content, setContent] = useState('');
   const [contacts, setContacts] = useState<{ type: string; value: string }[]>([]);
   const [wishmailEnabled, setWishmailEnabled] = useState(false);
+  const [creatorAttributes, setCreatorAttributes] = useState<Record<string, string>>({});
+  const [desiredAttributes, setDesiredAttributes] = useState<Record<string, string>>({});
+  const [attributesDirty, setAttributesDirty] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [secret, setSecret] = useState(initialParams.secret);
   const [newPassphrase, setNewPassphrase] = useState(initialParams.secret);
@@ -60,6 +97,26 @@ export default function ManageWishPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
   const [showAiModal, setShowAiModal] = useState(false);
+
+  const loadWish = useCallback(async (id: string, signal?: AbortSignal) => {
+    const req = fetch(`/api/wishes/${encodeURIComponent(id)}`, signal ? { signal } : undefined);
+    if (!req?.then) return;
+    const res = await req;
+    if (!res.ok) {
+      throw new Error('Wish not found');
+    }
+    const data = await res.json();
+    setWish(data);
+    setContent(data.content);
+    setContacts(data.contacts || []);
+    setWishmailEnabled(data.wishmail_enabled || false);
+    setCreatorAttributes(formatAttributeMapToStrings(data.creator_attributes));
+    setDesiredAttributes(formatAttributeMapToStrings(data.desired_attributes));
+    setAttributesDirty(false);
+    if (typeof data.pending_suggestions_count === 'number') {
+      setPendingSuggestionsCount(data.pending_suggestions_count);
+    }
+  }, []);
 
   const checkAiSuggestions = useCallback(
     async (id: string, currentSecret: string) => {
@@ -90,34 +147,14 @@ export default function ManageWishPage() {
 
     const controller = new AbortController();
 
-    const req = fetch(`/api/wishes/${encodeURIComponent(initialParams.wishId)}`, {
-      signal: controller.signal,
+    loadWish(initialParams.wishId, controller.signal).catch((err) => {
+      if (err.name !== 'AbortError') {
+        setError(err.message);
+      }
     });
 
-    if (req?.then) {
-      req
-        .then((res) => {
-          if (res.ok) return res.json();
-          throw new Error('Wish not found');
-        })
-        .then((data) => {
-          setWish(data);
-          setContent(data.content);
-          setContacts(data.contacts || []);
-          setWishmailEnabled(data.wishmail_enabled || false);
-          if (typeof data.pending_suggestions_count === 'number') {
-            setPendingSuggestionsCount(data.pending_suggestions_count);
-          }
-        })
-        .catch((err) => {
-          if (err.name !== 'AbortError') {
-            setError(err.message);
-          }
-        });
-    }
-
     return () => controller.abort();
-  }, [initialParams.wishId, initialParams.initialError]);
+  }, [initialParams.wishId, initialParams.initialError, loadWish]);
 
   const handleUpdate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -130,23 +167,42 @@ export default function ManageWishPage() {
       headers.Authorization = `Bearer ${token}`;
     }
 
+    const payload: Record<string, unknown> = {
+      secret,
+      content,
+      contacts,
+      wishmail_enabled: wishmailEnabled,
+      new_passphrase: newPassphrase,
+      action: 'update',
+    };
+
+    if (attributesDirty) {
+      payload.creator_attributes = creatorAttributes;
+      payload.desired_attributes = desiredAttributes;
+    }
+
     const response = await fetch(`/api/wishes/${encodeURIComponent(wish.id)}/manage`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        secret,
-        content,
-        contacts,
-        wishmail_enabled: wishmailEnabled,
-        new_passphrase: newPassphrase,
-        action: 'update',
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (response.ok) {
       const data = await response.json();
       setMessage('Wish updated successfully!');
-      setWish({ ...wish, content, contacts, wishmail_enabled: wishmailEnabled });
+      setWish({
+        ...wish,
+        content,
+        contacts,
+        wishmail_enabled: wishmailEnabled,
+        creator_attributes: attributesDirty
+          ? parseAttributeStringsToArrays(creatorAttributes)
+          : wish.creator_attributes,
+        desired_attributes: attributesDirty
+          ? parseAttributeStringsToArrays(desiredAttributes)
+          : wish.desired_attributes,
+      });
+      setAttributesDirty(false);
       if (data.newSecret) {
         setSecret(data.newSecret);
         setNewPassphrase('');
@@ -234,9 +290,15 @@ export default function ManageWishPage() {
     return <section>Loading...</section>;
   }
 
+  const parsedCreatorAttributes = parseAttributeStringsToArrays(creatorAttributes);
+
   const previewWish = {
     id: wish.id,
     content: content,
+    creator_attributes:
+      Object.keys(parsedCreatorAttributes).length > 0
+        ? parsedCreatorAttributes
+        : wish.creator_attributes,
     contacts: contacts.filter((c) => c.value.trim()),
     wishmail_enabled: wishmailEnabled,
     image_url: wish.image_url,
@@ -295,6 +357,83 @@ export default function ManageWishPage() {
             setWishmailEnabled={setWishmailEnabled}
             isOverflowing={isOverflowing}
           />
+
+          {categories.length > 0 && (
+            <fieldset
+              style={{
+                border: '1px solid var(--wb-border-subtle, #cbd5e1)',
+                borderRadius: '10px',
+                padding: '14px 16px',
+                display: 'grid',
+                gap: '14px',
+              }}
+            >
+              <legend style={{ fontWeight: 700, padding: '0 6px' }}>
+                Wish Attribute Overrides &amp; Match Criteria
+              </legend>
+              <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--wb-text-muted, #64748b)' }}>
+                {user
+                  ? 'Signed-in wishes inherit your Account Profile attributes by default. Edit below to set or review per-wish attribute overrides (including accepted AI suggestions) for this wish.'
+                  : 'Edit the attributes describing yourself and who you are looking to match with for this wish.'}
+              </p>
+
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <strong style={{ fontSize: '0.92rem' }}>Your Attributes (This Wish)</strong>
+                {categories.map((cat) => {
+                  const suggs = cat.suggestions || [];
+                  return (
+                    <div key={`manage-creator-${cat.id}`}>
+                      <label
+                        htmlFor={`manage-creator-${cat.id}`}
+                        style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem' }}
+                      >
+                        Your {cat.label}(s)
+                      </label>
+                      <AttributeInput
+                        id={`manage-creator-${cat.id}`}
+                        category={cat.id}
+                        value={creatorAttributes[cat.id] || ''}
+                        onChange={(val) => {
+                          setCreatorAttributes((prev) => ({ ...prev, [cat.id]: val }));
+                          setAttributesDirty(true);
+                        }}
+                        placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+                        suggestions={suggs}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <strong style={{ fontSize: '0.92rem' }}>Looking For (Match Criteria)</strong>
+                {categories.map((cat) => {
+                  const suggs = cat.suggestions || [];
+                  return (
+                    <div key={`manage-desired-${cat.id}`}>
+                      <label
+                        htmlFor={`manage-desired-${cat.id}`}
+                        style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem' }}
+                      >
+                        Desired {cat.label}(s)
+                      </label>
+                      <AttributeInput
+                        id={`manage-desired-${cat.id}`}
+                        category={cat.id}
+                        value={desiredAttributes[cat.id] || ''}
+                        onChange={(val) => {
+                          setDesiredAttributes((prev) => ({ ...prev, [cat.id]: val }));
+                          setAttributesDirty(true);
+                        }}
+                        placeholder={suggs.length > 0 ? `e.g. ${suggs.slice(0, 2).join(', ')}` : ''}
+                        suggestions={suggs}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
 
           {!user && (
             <div style={{ display: 'grid', gap: '8px' }}>
@@ -359,6 +498,7 @@ export default function ManageWishPage() {
           onClose={() => setShowAiModal(false)}
           onApplied={() => {
             void checkAiSuggestions(wish.id, secret);
+            void loadWish(wish.id);
           }}
         />
       )}
