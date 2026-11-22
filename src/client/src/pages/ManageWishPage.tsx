@@ -493,6 +493,7 @@ export default function ManageWishPage() {
       {showAiModal && wish && (
         <AiSuggestionModal
           wishId={wish.id}
+          wish={wish}
           secret={secret}
           token={token}
           onClose={() => setShowAiModal(false)}

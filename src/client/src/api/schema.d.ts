@@ -3187,10 +3187,10 @@ export interface components {
       wish_id: string;
       /**
        * @example {
-       *       "genders": [
+       *       "gender": [
        *         "woman"
        *       ],
-       *       "roles": [
+       *       "role": [
        *         "switch"
        *       ]
        *     }
@@ -3200,10 +3200,10 @@ export interface components {
       };
       /**
        * @example {
-       *       "genders": [
+       *       "gender": [
        *         "man"
        *       ],
-       *       "roles": [
+       *       "role": [
        *         "top"
        *       ]
        *     }
@@ -3211,6 +3211,8 @@ export interface components {
       suggested_desired_attributes: {
         [key: string]: unknown;
       };
+      /** @example Extracted self-described role from wish text. */
+      reasoning?: string | null;
       /**
        * @example pending
        * @enum {string}
@@ -3218,6 +3220,8 @@ export interface components {
       status: 'pending' | 'accepted' | 'rejected' | 'modified';
       /** @example 2026-10-13T20:00:00.000Z */
       created_at: string;
+      /** @example 2026-10-13T20:00:00.000Z */
+      updated_at?: string;
       /** @example null */
       reviewed_at?: string | null;
     };
@@ -3519,6 +3523,7 @@ export interface components {
       appVersion: string;
       branding?: components['schemas']['Branding'];
       ai?: components['schemas']['AiStatus'];
+      rules?: components['schemas']['MatchmakingRule'][];
     };
     CaptivePortalStatus: {
       /** @example false */

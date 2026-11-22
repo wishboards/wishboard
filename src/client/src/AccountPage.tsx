@@ -1264,6 +1264,7 @@ function AuthenticatedAccountPage() {
       {aiSuggestionWishId && (
         <AiSuggestionModal
           wishId={aiSuggestionWishId}
+          wish={wishes.find((w) => w.id === aiSuggestionWishId)}
           token={token}
           onClose={() => setAiSuggestionWishId(null)}
           onApplied={() => {

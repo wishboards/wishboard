@@ -738,9 +738,18 @@ router.get('/:id/suggestions', async (req, res) => {
 function mergeSuggestionAttributes(existing, suggested) {
   const result = { ...existing };
   for (const [cat, vals] of Object.entries(suggested)) {
-    if (Array.isArray(vals) && vals.length > 0) {
-      result[cat] = Array.from(new Set([...(result[cat] || []), ...vals]));
+    if (!Array.isArray(vals) || vals.length === 0) continue;
+    const base = Array.isArray(result[cat]) ? [...result[cat]] : [];
+    const seen = new Set(base.map((v) => String(v).trim().toLowerCase()));
+    for (const val of vals) {
+      const trimmed = String(val).trim();
+      const key = trimmed.toLowerCase();
+      if (trimmed && !seen.has(key)) {
+        seen.add(key);
+        base.push(trimmed);
+      }
     }
+    result[cat] = base;
   }
   return result;
 }
@@ -759,10 +768,10 @@ function resolveReviewedAttributes(action, wishRow, suggestion, body) {
       parseJsonObject(suggestion.suggested_desired_attributes)
     );
   } else if (action === 'modify') {
-    if (body.creator_attributes) {
+    if (body.creator_attributes !== undefined) {
       creator = parseAttributesInput(body.creator_attributes);
     }
-    if (body.desired_attributes) {
+    if (body.desired_attributes !== undefined) {
       desired = parseAttributesInput(body.desired_attributes);
     }
   }

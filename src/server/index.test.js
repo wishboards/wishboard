@@ -44,6 +44,7 @@ describe('Server index.js', () => {
     expect(res.body).toHaveProperty('ai');
     expect(res.body.ai).toHaveProperty('enabled');
     expect(res.body.ai).toHaveProperty('provider');
+    expect(Array.isArray(res.body.rules)).toBe(true);
   });
 
   it('serves the configured WISHBOARD_DOMAIN on /api/config', async () => {
