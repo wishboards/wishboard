@@ -324,6 +324,44 @@ function WishTopActions({
   );
 }
 
+function parseCardStyle(raw: unknown): Partial<CardStyle> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  return typeof raw === 'object' ? (raw as Partial<CardStyle>) : {};
+}
+
+function buildWishCardClassName({
+  cardClass,
+  hasImage,
+  isExcluded,
+  isOverflowing,
+  isEditorPreview,
+  hasPinClick,
+}: {
+  cardClass: string;
+  hasImage: boolean;
+  isExcluded: boolean;
+  isOverflowing: boolean;
+  isEditorPreview: boolean;
+  hasPinClick: boolean;
+}): string {
+  return [
+    cardClass,
+    hasImage ? 'card-has-image' : '',
+    isExcluded ? 'is-excluded' : '',
+    isOverflowing && isEditorPreview ? 'text-overflow-hint' : '',
+    hasPinClick ? 'has-interactive-pin' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
 export default function WishCard({
   wish,
   cardClass = 'wish-card',
@@ -343,20 +381,7 @@ export default function WishCard({
   onPinClick,
   onPaperColorChange,
 }: Readonly<WishCardProps>) {
-  const parsedStyle: Partial<CardStyle> = React.useMemo(() => {
-    if (!wish.card_style) return {};
-    if (typeof wish.card_style === 'string') {
-      try {
-        return JSON.parse(wish.card_style);
-      } catch {
-        return {};
-      }
-    }
-    if (typeof wish.card_style === 'object') {
-      return wish.card_style;
-    }
-    return {};
-  }, [wish.card_style]);
+  const parsedStyle = React.useMemo(() => parseCardStyle(wish.card_style), [wish.card_style]);
 
   const paperColor: CardPaperColor = isValidPaperColor(parsedStyle.paperColor)
     ? parsedStyle.paperColor
@@ -397,10 +422,18 @@ export default function WishCard({
   }, [isOverflowing, onOverflowChange]);
 
   const hasImage = Boolean(wish.image_url || wish.image_id);
+  const articleClassName = buildWishCardClassName({
+    cardClass,
+    hasImage,
+    isExcluded,
+    isOverflowing,
+    isEditorPreview,
+    hasPinClick: Boolean(onPinClick),
+  });
 
   return (
     <article
-      className={`${cardClass} ${hasImage ? 'card-has-image' : ''} ${isExcluded ? 'is-excluded' : ''} ${isOverflowing && isEditorPreview ? 'text-overflow-hint' : ''} ${onPinClick ? 'has-interactive-pin' : ''}`}
+      className={articleClassName}
       key={wish.id}
       data-card-paper={paperColor}
       data-card-pin={pinColor}

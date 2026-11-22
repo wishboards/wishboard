@@ -144,6 +144,81 @@ function MobileAttributeSheetBody({
   );
 }
 
+function countSelectedAttributes(attrs: Record<string, string>): number {
+  return Object.values(attrs).reduce(
+    (acc, val) => acc + (val ? val.split(',').filter((s) => s.trim().length > 0).length : 0),
+    0
+  );
+}
+
+function resolvePaperColor(raw: unknown, fallback: CardPaperColor): CardPaperColor {
+  return typeof raw === 'string' && (PAPER_COLORS as readonly string[]).includes(raw)
+    ? (raw as CardPaperColor)
+    : fallback;
+}
+
+function resolvePinColor(raw: unknown, fallback: CardPinColor): CardPinColor {
+  return typeof raw === 'string' && (PIN_COLORS as readonly string[]).includes(raw)
+    ? (raw as CardPinColor)
+    : fallback;
+}
+
+function buildWishRequestInit({
+  token,
+  imageBlob,
+  content,
+  passphrase,
+  creatorAttributes,
+  desiredAttributes,
+  contacts,
+  wishmailEnabled,
+  paperColor,
+  pinColor,
+}: {
+  token: string | null;
+  imageBlob: Blob | null;
+  content: string;
+  passphrase: string;
+  creatorAttributes: Record<string, string>;
+  desiredAttributes: Record<string, string>;
+  contacts: { type: string; value: string }[];
+  wishmailEnabled: boolean;
+  paperColor: CardPaperColor;
+  pinColor: CardPinColor;
+}): { headers: Record<string, string>; body: BodyInit } {
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (imageBlob) {
+    const formData = new FormData();
+    formData.append('content', content);
+    if (passphrase) formData.append('passphrase', passphrase);
+    formData.append('creator_attributes', JSON.stringify(creatorAttributes));
+    formData.append('desired_attributes', JSON.stringify(desiredAttributes));
+    formData.append('contacts', JSON.stringify(contacts));
+    formData.append('wishmail_enabled', wishmailEnabled ? 'true' : '');
+    formData.append('card_style', JSON.stringify({ paperColor, pinColor }));
+    formData.append('image', imageBlob, 'wish.jpg');
+    return { headers, body: formData };
+  }
+
+  headers['Content-Type'] = 'application/json';
+  return {
+    headers,
+    body: JSON.stringify({
+      content,
+      passphrase: passphrase || undefined,
+      creator_attributes: creatorAttributes,
+      desired_attributes: desiredAttributes,
+      contacts,
+      wishmail_enabled: wishmailEnabled,
+      card_style: { paperColor, pinColor },
+    }),
+  };
+}
+
 export default function EnterWishPage() {
   const { token, user } = useAuth();
   const [content, setContent] = useState('');
@@ -154,19 +229,15 @@ export default function EnterWishPage() {
   const isMobile = useIsMobile();
   const [activeSheet, setActiveSheet] = useState<'creator' | 'desired' | null>(null);
 
-  const creatorCount = useMemo(() => {
-    return Object.values(creatorAttributes).reduce(
-      (acc, val) => acc + (val ? val.split(',').filter((s) => s.trim().length > 0).length : 0),
-      0
-    );
-  }, [creatorAttributes]);
+  const creatorCount = useMemo(
+    () => countSelectedAttributes(creatorAttributes),
+    [creatorAttributes]
+  );
 
-  const desiredCount = useMemo(() => {
-    return Object.values(desiredAttributes).reduce(
-      (acc, val) => acc + (val ? val.split(',').filter((s) => s.trim().length > 0).length : 0),
-      0
-    );
-  }, [desiredAttributes]);
+  const desiredCount = useMemo(
+    () => countSelectedAttributes(desiredAttributes),
+    [desiredAttributes]
+  );
 
   const currentUserId = user?.id ?? user?.username ?? null;
   const [prevUserId, setPrevUserId] = useState(currentUserId);
@@ -183,17 +254,10 @@ export default function EnterWishPage() {
 
   const getPreferredColors = React.useCallback(() => {
     const prefs = user?.ui_preferences || getStoredPreferences();
-    const p =
-      typeof prefs?.defaultCardColor === 'string' &&
-      (PAPER_COLORS as readonly string[]).includes(prefs.defaultCardColor)
-        ? (prefs.defaultCardColor as CardPaperColor)
-        : DEFAULT_PAPER_COLOR;
-    const pin =
-      typeof prefs?.defaultPinColor === 'string' &&
-      (PIN_COLORS as readonly string[]).includes(prefs.defaultPinColor)
-        ? (prefs.defaultPinColor as CardPinColor)
-        : DEFAULT_PIN_COLOR;
-    return { paper: p, pin };
+    return {
+      paper: resolvePaperColor(prefs?.defaultCardColor, DEFAULT_PAPER_COLOR),
+      pin: resolvePinColor(prefs?.defaultPinColor, DEFAULT_PIN_COLOR),
+    };
   }, [user?.ui_preferences]);
 
   const [paperColor, setPaperColor] = useState<CardPaperColor>(() => getPreferredColors().paper);
@@ -204,18 +268,8 @@ export default function EnterWishPage() {
     if (user) {
       setContacts(user.contacts || []);
       setWishmailEnabled(user.wishmail_enabled || false);
-      if (
-        typeof user.ui_preferences?.defaultCardColor === 'string' &&
-        (PAPER_COLORS as readonly string[]).includes(user.ui_preferences.defaultCardColor)
-      ) {
-        setPaperColor(user.ui_preferences.defaultCardColor as CardPaperColor);
-      }
-      if (
-        typeof user.ui_preferences?.defaultPinColor === 'string' &&
-        (PIN_COLORS as readonly string[]).includes(user.ui_preferences.defaultPinColor)
-      ) {
-        setPinColor(user.ui_preferences.defaultPinColor as CardPinColor);
-      }
+      setPaperColor((prev) => resolvePaperColor(user.ui_preferences?.defaultCardColor, prev));
+      setPinColor((prev) => resolvePinColor(user.ui_preferences?.defaultPinColor, prev));
     }
   }
 
@@ -283,35 +337,18 @@ export default function EnterWishPage() {
     setCheckingAiSuggestions(false);
     setShowAiModal(false);
 
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    let body: BodyInit;
-    if (imageBlob) {
-      delete headers['Content-Type'];
-      const formData = new FormData();
-      formData.append('content', content);
-      if (passphrase) formData.append('passphrase', passphrase);
-      formData.append('creator_attributes', JSON.stringify(creatorAttributes));
-      formData.append('desired_attributes', JSON.stringify(desiredAttributes));
-      formData.append('contacts', JSON.stringify(contacts));
-      formData.append('wishmail_enabled', wishmailEnabled ? 'true' : '');
-      formData.append('card_style', JSON.stringify({ paperColor, pinColor }));
-      formData.append('image', imageBlob, 'wish.jpg');
-      body = formData;
-    } else {
-      body = JSON.stringify({
-        content,
-        passphrase: passphrase || undefined,
-        creator_attributes: creatorAttributes,
-        desired_attributes: desiredAttributes,
-        contacts,
-        wishmail_enabled: wishmailEnabled,
-        card_style: { paperColor, pinColor },
-      });
-    }
+    const { headers, body } = buildWishRequestInit({
+      token,
+      imageBlob,
+      content,
+      passphrase,
+      creatorAttributes,
+      desiredAttributes,
+      contacts,
+      wishmailEnabled,
+      paperColor,
+      pinColor,
+    });
 
     let response: Response;
     try {

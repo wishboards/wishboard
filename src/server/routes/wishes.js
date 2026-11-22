@@ -390,36 +390,39 @@ function mergeSearcherAttributes(searcher, manualAttributes) {
   return searcherAttributes;
 }
 
+async function trySemanticSearch({ sql, args, query }) {
+  const embeddingProvider = getEmbeddingProvider();
+  if (!embeddingProvider.isAvailable()) return null;
+
+  const queryEmb = await embeddingProvider.generateEmbedding(query);
+  if (!Array.isArray(queryEmb) || queryEmb.length === 0) return null;
+
+  const candidateRows = await db.prepare('SELECT wish_id, embedding FROM wish_embeddings').all();
+  // Dense neural embeddings (e.g. Gemini 3072-dim) have a higher cosine baseline
+  // than sparse 64-dim local feature hashes; scale the floor accordingly.
+  const minScore = queryEmb.length > 128 ? 0.58 : 0.15;
+  const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
+    minScore,
+    limit: 50,
+  });
+  if (ranked.length === 0) return null;
+
+  const rankedIds = ranked.map((r) => r.wish_id);
+  return {
+    sql: `${sql} AND w.id IN (SELECT value FROM json_each(?))`,
+    args: [...args, JSON.stringify(rankedIds)],
+    rankedIds,
+  };
+}
+
 async function applyQuerySearch({ sql, args, query, mode }) {
   if (!query) {
     return { sql, args, rankedIds: null };
   }
 
   if (mode === 'semantic') {
-    const embeddingProvider = getEmbeddingProvider();
-    if (embeddingProvider.isAvailable()) {
-      const queryEmb = await embeddingProvider.generateEmbedding(query);
-      if (Array.isArray(queryEmb) && queryEmb.length > 0) {
-        const candidateRows = await db
-          .prepare('SELECT wish_id, embedding FROM wish_embeddings')
-          .all();
-        // Dense neural embeddings (e.g. Gemini 3072-dim) have a higher cosine baseline
-        // than sparse 64-dim local feature hashes; scale the floor accordingly.
-        const minScore = queryEmb.length > 128 ? 0.58 : 0.15;
-        const ranked = rankWishesBySimilarity(queryEmb, candidateRows, {
-          minScore,
-          limit: 50,
-        });
-        if (ranked.length > 0) {
-          const rankedIds = ranked.map((r) => r.wish_id);
-          return {
-            sql: `${sql} AND w.id IN (SELECT value FROM json_each(?))`,
-            args: [...args, JSON.stringify(rankedIds)],
-            rankedIds,
-          };
-        }
-      }
-    }
+    const semanticResult = await trySemanticSearch({ sql, args, query });
+    if (semanticResult) return semanticResult;
   }
 
   return {
@@ -833,6 +836,40 @@ function resolveProfileUpdate({ updateProfile, auth, wishRow, action, suggestion
   return { error: null, status: 200, profileAttrs };
 }
 
+function parseReviewedContent(body) {
+  if (body?.content === undefined) {
+    return { error: null, updatedContent: null };
+  }
+  const trimmedContent = typeof body.content === 'string' ? body.content.trim() : '';
+  if (!trimmedContent || trimmedContent.length > 500) {
+    return { error: 'Wish content must be between 1 and 500 characters.', updatedContent: null };
+  }
+  return { error: null, updatedContent: trimmedContent };
+}
+
+async function persistReviewedWishUpdate({ id, updatedContent, creator, desired, now }) {
+  if (updatedContent !== null) {
+    await db
+      .prepare(
+        'UPDATE wishes SET content = ?, creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
+      )
+      .run(updatedContent, JSON.stringify(creator), JSON.stringify(desired), now, id);
+    queueWishForTagging({
+      wishId: id,
+      content: updatedContent,
+      creatorAttributes: creator,
+      desiredAttributes: desired,
+      skipInference: true,
+    });
+    return;
+  }
+  await db
+    .prepare(
+      'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
+    )
+    .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
+}
+
 router.post('/:id/suggestions/:action', async (req, res) => {
   const { action, id } = req.params;
   if (!['accept', 'reject', 'modify'].includes(action)) {
@@ -884,13 +921,9 @@ router.post('/:id/suggestions/:action', async (req, res) => {
     return res.status(profileResult.status).json({ error: profileResult.error });
   }
 
-  let updatedContent = null;
-  if (req.body?.content !== undefined) {
-    const trimmedContent = typeof req.body.content === 'string' ? req.body.content.trim() : '';
-    if (!trimmedContent || trimmedContent.length > 500) {
-      return res.status(400).json({ error: 'Wish content must be between 1 and 500 characters.' });
-    }
-    updatedContent = trimmedContent;
+  const { error: contentError, updatedContent } = parseReviewedContent(req.body);
+  if (contentError) {
+    return res.status(400).json({ error: contentError });
   }
 
   const statusVal = action === 'accept' ? 'accepted' : 'modified';
@@ -898,26 +931,7 @@ router.post('/:id/suggestions/:action', async (req, res) => {
     .prepare('UPDATE wish_ai_suggestions SET status = ?, updated_at = ? WHERE id = ?')
     .run(statusVal, now, suggestion.id);
 
-  if (updatedContent !== null) {
-    await db
-      .prepare(
-        'UPDATE wishes SET content = ?, creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
-      )
-      .run(updatedContent, JSON.stringify(creator), JSON.stringify(desired), now, id);
-    queueWishForTagging({
-      wishId: id,
-      content: updatedContent,
-      creatorAttributes: creator,
-      desiredAttributes: desired,
-      skipInference: true,
-    });
-  } else {
-    await db
-      .prepare(
-        'UPDATE wishes SET creator_attributes = ?, desired_attributes = ?, updated_at = ? WHERE id = ?'
-      )
-      .run(JSON.stringify(creator), JSON.stringify(desired), now, id);
-  }
+  await persistReviewedWishUpdate({ id, updatedContent, creator, desired, now });
 
   if (updateProfile && profileResult.profileAttrs) {
     await db

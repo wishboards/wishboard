@@ -277,6 +277,32 @@ function normalizeS3Prefix(prefix = S3_BACKUPS_PREFIX) {
   return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
 }
 
+async function pruneOldS3Backups(s3, bucket, normPrefix, keep, log) {
+  const count = parseKeepCount(keep);
+  if (count === null || !s3.del) return;
+
+  const keys = await s3.list(bucket, normPrefix);
+  const byBackup = new Map();
+  for (const key of keys) {
+    const rel = key.slice(normPrefix.length);
+    const [dirName] = rel.split('/');
+    if (dirName?.startsWith(BACKUP_DIR_PREFIX)) {
+      if (!byBackup.has(dirName)) byBackup.set(dirName, []);
+      byBackup.get(dirName).push(key);
+    }
+  }
+  const sortedNames = [...byBackup.keys()].sort((a, b) => a.localeCompare(b));
+  if (sortedNames.length <= count) return;
+
+  const pruned = sortedNames.slice(0, sortedNames.length - count);
+  for (const oldName of pruned) {
+    for (const key of byBackup.get(oldName)) {
+      await s3.del(bucket, key);
+    }
+    log(`Pruned old S3 backup: s3://${bucket}/${normPrefix}${oldName}/`);
+  }
+}
+
 /**
  * Upload a verified backup directory to S3 under `<prefix><backup_dir_name>/` and optionally
  * prune older backup prefixes beyond `keep`.
@@ -304,29 +330,7 @@ export async function archiveBackupToS3(
   }
   log(`Archived backup to s3://${bucket}/${baseKey}/`);
 
-  const count = parseKeepCount(keep);
-  if (count !== null && s3.del) {
-    const keys = await s3.list(bucket, normPrefix);
-    const byBackup = new Map();
-    for (const key of keys) {
-      const rel = key.slice(normPrefix.length);
-      const [dirName] = rel.split('/');
-      if (dirName?.startsWith(BACKUP_DIR_PREFIX)) {
-        if (!byBackup.has(dirName)) byBackup.set(dirName, []);
-        byBackup.get(dirName).push(key);
-      }
-    }
-    const sortedNames = [...byBackup.keys()].sort((a, b) => a.localeCompare(b));
-    if (sortedNames.length > count) {
-      const pruned = sortedNames.slice(0, sortedNames.length - count);
-      for (const oldName of pruned) {
-        for (const key of byBackup.get(oldName)) {
-          await s3.del(bucket, key);
-        }
-        log(`Pruned old S3 backup: s3://${bucket}/${normPrefix}${oldName}/`);
-      }
-    }
-  }
+  await pruneOldS3Backups(s3, bucket, normPrefix, keep, log);
 }
 
 /* ----------------------------------------------------------------- backup */
@@ -351,11 +355,10 @@ export async function createBackup(
   const keep = parseKeepCount(opts.keep);
   const out = path.resolve(opts.out || 'backups');
   if (opts.dryRun) {
-    const dbTarget = opts.databaseUrl || process.env.DATABASE_URL || '(no database url)';
-    const imagesTarget = opts.s3Bucket
-      ? `s3://${opts.s3Bucket}/${S3_IMAGES_PREFIX}`
-      : opts.imagesDir || '(no images dir)';
-    log(`[DRY RUN] Would back up ${dbTarget} and images from ${imagesTarget} into ${out}.`);
+    log(
+      `[DRY RUN] Would back up ${opts.databaseUrl || process.env.DATABASE_URL || '(no database url)'} ` +
+        `and images from ${opts.s3Bucket ? `s3://${opts.s3Bucket}/${S3_IMAGES_PREFIX}` : opts.imagesDir || '(no images dir)'} into ${out}.`
+    );
     return { dir: out, manifest: null };
   }
 
@@ -456,6 +459,54 @@ function readBackup(dir) {
   return { manifest, databaseJson, dump: JSON.parse(databaseJson) };
 }
 
+function verifyBackupChecksums(targetDir, manifest, databaseJson, errors) {
+  if (sha256(databaseJson) !== manifest.databaseSha256) {
+    errors.push(`${DATABASE_FILE} checksum mismatch (backup is corrupt or was modified).`);
+  }
+  for (const [name, expected] of Object.entries(manifest.images)) {
+    const file = path.join(targetDir, IMAGES_DIR, name);
+    if (!fs.existsSync(file)) errors.push(`Image missing from backup: ${name}`);
+    else if (sha256File(file) !== expected) errors.push(`Image checksum mismatch: ${name}`);
+  }
+}
+
+async function verifyRestoredDatabase({ client, manifest, dump, tables, errors, warnings }) {
+  await loadDatabase(client, dump);
+  for (const [name, expected] of Object.entries(manifest.tables)) {
+    const rs = await client.execute(`SELECT COUNT(*) AS n FROM ${quoteIdent(name)}`);
+    tables[name] = Number(rs.rows[0].n);
+    if (tables[name] !== expected) {
+      errors.push(
+        `Row count mismatch in '${name}': expected ${expected}, restored ${tables[name]}.`
+      );
+    }
+  }
+  const integrity = await client.execute('PRAGMA integrity_check');
+  const integrityVal = integrity.rows[0][0];
+  const integrityText =
+    typeof integrityVal === 'string' ? integrityVal : JSON.stringify(integrityVal);
+  if (integrityText !== 'ok') {
+    errors.push(`SQLite integrity_check failed: ${integrityText}`);
+  }
+  const fk = await client.execute('PRAGMA foreign_key_check');
+  if (fk.rows.length > 0) {
+    errors.push(`${fk.rows.length} foreign key violation(s) after restore.`);
+  }
+  if (manifest.tables.wishes !== undefined) {
+    const refs = await client.execute(
+      "SELECT id, image_id FROM wishes WHERE image_id IS NOT NULL AND image_id != ''"
+    );
+    for (const row of refs.rows) {
+      const rawImageId = typeof row.image_id === 'string' ? row.image_id : '';
+      const name = path.basename(rawImageId);
+      if (!(name in manifest.images)) {
+        const wishId = typeof row.id === 'string' || typeof row.id === 'number' ? row.id : '?';
+        warnings.push(`Wish ${wishId} references image '${name}' that is not in the backup.`);
+      }
+    }
+  }
+}
+
 /**
  * Recovery test (#314): prove a backup is intact AND restorable by loading it into a throwaway
  * database, then checking checksums, row counts, SQLite integrity, FK integrity, and that every
@@ -468,53 +519,13 @@ export async function verifyBackup(dir, opts = {}, log = console.log, deps = {})
   const targetDir = resolveTargetBackupDir(dir, Boolean(opts.latest));
   const { manifest, databaseJson, dump } = readBackup(targetDir);
 
-  if (sha256(databaseJson) !== manifest.databaseSha256) {
-    errors.push(`${DATABASE_FILE} checksum mismatch (backup is corrupt or was modified).`);
-  }
-  for (const [name, expected] of Object.entries(manifest.images)) {
-    const file = path.join(targetDir, IMAGES_DIR, name);
-    if (!fs.existsSync(file)) errors.push(`Image missing from backup: ${name}`);
-    else if (sha256File(file) !== expected) errors.push(`Image checksum mismatch: ${name}`);
-  }
+  verifyBackupChecksums(targetDir, manifest, databaseJson, errors);
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wishboard-verify-'));
   const client = openClient({ url: `file:${path.join(tmp, 'verify.db')}` }, deps.createClient);
   const tables = {};
   try {
-    await loadDatabase(client, dump);
-    for (const [name, expected] of Object.entries(manifest.tables)) {
-      const rs = await client.execute(`SELECT COUNT(*) AS n FROM ${quoteIdent(name)}`);
-      tables[name] = Number(rs.rows[0].n);
-      if (tables[name] !== expected) {
-        errors.push(
-          `Row count mismatch in '${name}': expected ${expected}, restored ${tables[name]}.`
-        );
-      }
-    }
-    const integrity = await client.execute('PRAGMA integrity_check');
-    const integrityVal = integrity.rows[0][0];
-    const integrityText =
-      typeof integrityVal === 'string' ? integrityVal : JSON.stringify(integrityVal);
-    if (integrityText !== 'ok') {
-      errors.push(`SQLite integrity_check failed: ${integrityText}`);
-    }
-    const fk = await client.execute('PRAGMA foreign_key_check');
-    if (fk.rows.length > 0) {
-      errors.push(`${fk.rows.length} foreign key violation(s) after restore.`);
-    }
-    if (manifest.tables.wishes !== undefined) {
-      const refs = await client.execute(
-        "SELECT id, image_id FROM wishes WHERE image_id IS NOT NULL AND image_id != ''"
-      );
-      for (const row of refs.rows) {
-        const rawImageId = typeof row.image_id === 'string' ? row.image_id : '';
-        const name = path.basename(rawImageId);
-        if (!(name in manifest.images)) {
-          const wishId = typeof row.id === 'string' || typeof row.id === 'number' ? row.id : '?';
-          warnings.push(`Wish ${wishId} references image '${name}' that is not in the backup.`);
-        }
-      }
-    }
+    await verifyRestoredDatabase({ client, manifest, dump, tables, errors, warnings });
   } catch (err) {
     errors.push(`Restore into temporary database failed: ${err.message}`);
   } finally {
