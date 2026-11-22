@@ -251,16 +251,6 @@ describe('Server Auth Helper Functions', () => {
 
   describe('authorizeWishSubscription', () => {
     it('authorizes wish owner via session token or passphrase secret and rejects non-owners', async () => {
-      expect(await authorizeWishSubscription()).toEqual({ authorized: false, userId: null });
-      expect(await authorizeWishSubscription({ wishId: '   ' })).toEqual({
-        authorized: false,
-        userId: null,
-      });
-      expect(await authorizeWishSubscription({ wishId: 'non-existent-wish' })).toEqual({
-        authorized: false,
-        userId: null,
-      });
-
       const ownerId = `ws-owner-${Math.random().toString(36).slice(2, 8)}`;
       const otherId = `ws-other-${Math.random().toString(36).slice(2, 8)}`;
       const now = new Date().toISOString();
@@ -274,6 +264,18 @@ describe('Server Auth Helper Functions', () => {
       const ownerToken = await createSessionToken(ownerId);
       const otherToken = await createSessionToken(otherId);
 
+      expect(await authorizeWishSubscription()).toEqual({ authorized: false, userId: null });
+      expect(
+        await authorizeWishSubscription({
+          wishId: 'non-existent-wish',
+          token: ownerToken,
+          secret: 'any-secret',
+        })
+      ).toEqual({
+        authorized: false,
+        userId: null,
+      });
+
       const salt = createSalt();
       const hash = await hashPassphrase('correct-wish-secret', salt);
       const wishId = `ws-wish-${Math.random().toString(36).slice(2, 8)}`;
@@ -282,6 +284,20 @@ describe('Server Auth Helper Functions', () => {
           'INSERT INTO wishes (id, user_id, content, secret_hash, contacts, wishmail_enabled, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )
         .run(wishId, ownerId, 'Test WS auth wish', `${salt}:${hash}`, '[]', 0, 1, now, now);
+
+      const anonWishId = `ws-anon-${Math.random().toString(36).slice(2, 8)}`;
+      await db
+        .prepare(
+          'INSERT INTO wishes (id, user_id, content, secret_hash, contacts, wishmail_enabled, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(anonWishId, null, 'Anon WS wish', `${salt}:${hash}`, '[]', 0, 1, now, now);
+
+      const noSecretWishId = `ws-nosec-${Math.random().toString(36).slice(2, 8)}`;
+      await db
+        .prepare(
+          'INSERT INTO wishes (id, user_id, content, secret_hash, contacts, wishmail_enabled, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .run(noSecretWishId, ownerId, 'No secret WS wish', null, '[]', 0, 1, now, now);
 
       // Owner token succeeds
       expect(await authorizeWishSubscription({ wishId, token: ownerToken })).toEqual({
@@ -295,14 +311,26 @@ describe('Server Auth Helper Functions', () => {
         userId: null,
       });
 
-      // Valid passphrase secret succeeds
+      // Valid passphrase secret succeeds on both owned and anonymous wishes
       expect(await authorizeWishSubscription({ wishId, secret: 'correct-wish-secret' })).toEqual({
         authorized: true,
         userId: ownerId,
       });
+      expect(
+        await authorizeWishSubscription({ wishId: anonWishId, secret: 'correct-wish-secret' })
+      ).toEqual({
+        authorized: true,
+        userId: null,
+      });
 
-      // Wrong passphrase secret fails
+      // Wrong passphrase secret or secret on a wish with null secret_hash fails
       expect(await authorizeWishSubscription({ wishId, secret: 'wrong-secret' })).toEqual({
+        authorized: false,
+        userId: null,
+      });
+      expect(
+        await authorizeWishSubscription({ wishId: noSecretWishId, secret: 'correct-wish-secret' })
+      ).toEqual({
         authorized: false,
         userId: null,
       });

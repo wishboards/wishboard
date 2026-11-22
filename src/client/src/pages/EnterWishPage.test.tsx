@@ -7,6 +7,7 @@ import * as AuthContext from '../AuthContext';
 
 vi.mock('../AuthContext', () => ({
   useAuth: vi.fn(() => ({ token: null })),
+  useOptionalAuth: vi.fn(() => null),
 }));
 
 vi.mock('../components/WishScanner', () => ({

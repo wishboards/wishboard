@@ -24,8 +24,7 @@ import WishFormFields from '../components/WishFormFields';
 import PassphraseInput from '../components/PassphraseInput';
 import BottomSheet from '../components/common/BottomSheet';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { apiClient, bearerHeader } from '../api/client';
+import { useWishSuggestionsRealtime } from '../hooks/useWishSuggestionsRealtime';
 import AiSuggestionBadge from '../components/AiSuggestionBadge';
 import AiSuggestionModal, { type AiSuggestionWishContext } from '../components/AiSuggestionModal';
 const WishScanner = React.lazy(() => import('../components/WishScanner'));
@@ -150,7 +149,6 @@ export default function EnterWishPage() {
   const [content, setContent] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const { categories = [], ai } = useEventProfile();
-  const { socket } = useWebSocket();
   const [creatorAttributes, setCreatorAttributes] = useState<Record<string, string>>({});
   const [desiredAttributes, setDesiredAttributes] = useState<Record<string, string>>({});
   const isMobile = useIsMobile();
@@ -237,74 +235,16 @@ export default function EnterWishPage() {
     Array<{ message: string; target_attribute: string }>
   >([]);
 
-  // Subscribe to creator-authorized real-time AI suggestion readiness for the newly created wish
-  useEffect(() => {
-    if (!result?.id) return;
-    const wishId = result.id;
-    const wishSecret = result.secret;
-    const channel = `wish:suggestions:${wishId}`;
-    let active = true;
+  const handleCheckingDone = React.useCallback(() => setCheckingAiSuggestions(false), []);
 
-    const fetchSuggestionsCount = async () => {
-      try {
-        const queryParams: { secret?: string } = {};
-        if (wishSecret) {
-          queryParams.secret = wishSecret;
-        }
-        const { data, response } = await apiClient.GET('/api/wishes/{id}/suggestions', {
-          params: { path: { id: wishId }, query: queryParams },
-          headers: bearerHeader(token),
-        });
-        if (!active) return;
-        if (response.ok && Array.isArray(data)) {
-          const pendingCount = data.filter((s) => s.status === 'pending').length;
-          setPendingSuggestionsCount(pendingCount);
-          if (pendingCount > 0) {
-            setCheckingAiSuggestions(false);
-          }
-        }
-      } catch {
-        // Ignore transient errors
-      }
-    };
-
-    const handleSuggestionsReady = (payload?: { wish_id?: string }) => {
-      if (payload?.wish_id === wishId) {
-        setPendingSuggestionsCount((prev) => Math.max(prev, 1));
-        setCheckingAiSuggestions(false);
-      }
-    };
-
-    socket.on('wish:ai_suggestions_ready', handleSuggestionsReady);
-    socket.emit('subscribe', {
-      channel,
-      token: token || undefined,
-      secret: wishSecret || undefined,
-    });
-
-    const timers: ReturnType<typeof globalThis.setTimeout>[] = [];
-    if (ai?.enabled) {
-      for (const delayMs of [350, 2500, 6000]) {
-        timers.push(
-          globalThis.setTimeout(() => {
-            void fetchSuggestionsCount();
-          }, delayMs)
-        );
-      }
-      timers.push(
-        globalThis.setTimeout(() => {
-          if (active) setCheckingAiSuggestions(false);
-        }, 8000)
-      );
-    }
-
-    return () => {
-      active = false;
-      timers.forEach((t) => clearTimeout(t));
-      socket.off('wish:ai_suggestions_ready', handleSuggestionsReady);
-      socket.emit('unsubscribe', { channel });
-    };
-  }, [result?.id, result?.secret, token, ai?.enabled, socket]);
+  useWishSuggestionsRealtime({
+    wishId: result?.id,
+    secret: result?.secret,
+    token,
+    aiEnabled: Boolean(ai?.enabled),
+    onPendingCountChange: setPendingSuggestionsCount,
+    onCheckingDone: handleCheckingDone,
+  });
 
   // Debounced conflict checks for creator attributes
   useEffect(() => {

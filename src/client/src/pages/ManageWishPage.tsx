@@ -9,7 +9,7 @@ import PassphraseInput from '../components/PassphraseInput';
 import { apiClient, bearerHeader } from '../api/client';
 import AiSuggestionBadge from '../components/AiSuggestionBadge';
 import AiSuggestionModal from '../components/AiSuggestionModal';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { useWishSuggestionsRealtime } from '../hooks/useWishSuggestionsRealtime';
 
 function formatAttributeMapToStrings(
   attrs?: Record<string, string[] | string>
@@ -72,7 +72,6 @@ function parseInitialManageParams(): {
 export default function ManageWishPage() {
   const { token, user } = useAuth();
   const { categories } = useEventProfile();
-  const { socket } = useWebSocket();
   const [initialParams] = useState(parseInitialManageParams);
   const [wish, setWish] = useState<{
     id: string;
@@ -158,30 +157,12 @@ export default function ManageWishPage() {
     return () => controller.abort();
   }, [initialParams.wishId, initialParams.initialError, loadWish]);
 
-  useEffect(() => {
-    if (!wish?.id) return;
-    const wishId = wish.id;
-    const channel = `wish:suggestions:${wishId}`;
-
-    const handleSuggestionsReady = (payload?: { wish_id?: string }) => {
-      if (payload?.wish_id === wishId) {
-        setPendingSuggestionsCount((prev) => Math.max(prev, 1));
-        void checkAiSuggestions(wishId, secret);
-      }
-    };
-
-    socket.on('wish:ai_suggestions_ready', handleSuggestionsReady);
-    socket.emit('subscribe', {
-      channel,
-      token: token || undefined,
-      secret: secret || undefined,
-    });
-
-    return () => {
-      socket.off('wish:ai_suggestions_ready', handleSuggestionsReady);
-      socket.emit('unsubscribe', { channel });
-    };
-  }, [wish?.id, secret, token, socket, checkAiSuggestions]);
+  useWishSuggestionsRealtime({
+    wishId: wish?.id,
+    secret,
+    token,
+    onPendingCountChange: setPendingSuggestionsCount,
+  });
 
   const handleUpdate = async (e: React.SyntheticEvent) => {
     e.preventDefault();

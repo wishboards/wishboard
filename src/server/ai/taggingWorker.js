@@ -136,14 +136,7 @@ async function processInferenceJob(wishId, provider, params) {
   const inferenceResult = await provider.suggestAttributes(params);
   const suggestedCreator = inferenceResult?.suggestedCreatorAttributes || {};
   const suggestedDesired = inferenceResult?.suggestedDesiredAttributes || {};
-  const rawSuggestedContent =
-    typeof inferenceResult?.suggestedContent === 'string'
-      ? inferenceResult.suggestedContent.trim().slice(0, 500)
-      : null;
-  const suggestedContent =
-    rawSuggestedContent && rawSuggestedContent !== params.content.trim()
-      ? rawSuggestedContent
-      : null;
+  const suggestedContent = inferenceResult?.suggestedContent || null;
   const reasoning = inferenceResult?.reasoning || '';
 
   const hasCreatorSuggestions = Object.keys(suggestedCreator).some(

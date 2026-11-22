@@ -1879,5 +1879,116 @@ describe('AccountPage', () => {
       expect((currentInput as HTMLInputElement).value).toBe('');
       expect((newInput as HTMLInputElement).value).toBe('');
     });
+
+    it('subscribes to user:suggestions when authenticated, reloads wishes on wish:ai_suggestions_ready, and unsubscribes on unmount', async () => {
+      const { io } = await import('socket.io-client');
+      const socket = (
+        io as unknown as () => {
+          on: ReturnType<typeof vi.fn>;
+          off: ReturnType<typeof vi.fn>;
+          emit: ReturnType<typeof vi.fn>;
+        }
+      )();
+      vi.mocked(socket.on).mockClear();
+      vi.mocked(socket.off).mockClear();
+      vi.mocked(socket.emit).mockClear();
+
+      let wishesCallCount = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL) => {
+          const url = extractUrl(input);
+          if (url.includes('/api/users/me/wishes')) {
+            wishesCallCount += 1;
+            return Promise.resolve(
+              new Response(
+                JSON.stringify(
+                  wishesCallCount === 1
+                    ? [{ id: 'w-acct-1', content: 'Pending wish', pending_suggestions_count: 0 }]
+                    : [
+                        {
+                          id: 'w-acct-1',
+                          content: 'Pending wish',
+                          pending_suggestions_count: 1,
+                          has_ai_suggestions: true,
+                        },
+                      ]
+                ),
+                { status: 200, headers: { 'Content-Type': 'application/json' } }
+              )
+            );
+          }
+          return Promise.resolve(
+            new Response(JSON.stringify([]), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          );
+        })
+      );
+
+      // Without token, does not subscribe
+      useAuthMock.mockReturnValue({
+        user: {
+          id: 'u-ws',
+          username: 'wsuser',
+          contacts: [],
+          wishmail_enabled: false,
+          attributes: {},
+        },
+        token: null,
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+      const { rerender, unmount } = render(<AccountPage />);
+      expect(socket.emit).not.toHaveBeenCalledWith('subscribe', expect.anything());
+
+      // With token, subscribes to user:suggestions
+      useAuthMock.mockReturnValue({
+        user: {
+          id: 'u-ws',
+          username: 'wsuser',
+          contacts: [],
+          wishmail_enabled: false,
+          attributes: {},
+        },
+        token: 'ws-acct-token',
+        login: vi.fn(),
+        register: vi.fn(),
+        logout: vi.fn(),
+        refreshUser: vi.fn(),
+      });
+      rerender(<AccountPage />);
+
+      await waitFor(() => {
+        expect(socket.emit).toHaveBeenCalledWith('subscribe', {
+          channel: 'user:suggestions',
+          token: 'ws-acct-token',
+        });
+      });
+
+      const readyHandler = socket.on.mock.calls.find(
+        ([evt]: [string]) => evt === 'wish:ai_suggestions_ready'
+      )?.[1];
+      expect(readyHandler).toBeTypeOf('function');
+
+      const callsBeforeEvent = wishesCallCount;
+      await act(async () => {
+        readyHandler({ wish_id: 'w-acct-1', suggestion_id: 's-1' });
+      });
+
+      expect(wishesCallCount).toBeGreaterThan(callsBeforeEvent);
+      expect(
+        await screen.findByRole('button', { name: /View 1 AI suggestion/i })
+      ).toBeInTheDocument();
+
+      unmount();
+      expect(socket.off).toHaveBeenCalledWith('wish:ai_suggestions_ready', readyHandler);
+      expect(socket.emit).toHaveBeenCalledWith('unsubscribe', {
+        channel: 'user:suggestions',
+      });
+    });
   });
 });

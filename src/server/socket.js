@@ -35,8 +35,8 @@ async function handleSocketSubscribe(socket, { channel, token, secret } = {}) {
   } else if (channel === 'user:suggestions') {
     const user = await getUserFromToken(token);
     if (user?.id) await socket.join(`${USER_SUGGESTIONS_PREFIX}${user.id}`);
-  } else if (typeof channel === 'string' && channel.startsWith(WISH_SUGGESTIONS_PREFIX)) {
-    const wishId = channel.slice(WISH_SUGGESTIONS_PREFIX.length).trim();
+  } else if (channel?.startsWith(WISH_SUGGESTIONS_PREFIX)) {
+    const wishId = channel.slice(WISH_SUGGESTIONS_PREFIX.length);
     const { authorized } = await authorizeWishSubscription({ wishId, token, secret });
     if (authorized) await socket.join(`${WISH_SUGGESTIONS_PREFIX}${wishId}`);
   }
@@ -47,10 +47,7 @@ async function handleSocketUnsubscribe(socket, { channel } = {}) {
     await socket.leave('syslog');
   } else if (channel === 'wish:*') {
     await socket.leave('wishes');
-  } else if (
-    typeof channel === 'string' &&
-    (channel.startsWith(WISH_SUGGESTIONS_PREFIX) || channel.startsWith(USER_SUGGESTIONS_PREFIX))
-  ) {
+  } else if (channel?.startsWith(WISH_SUGGESTIONS_PREFIX)) {
     await socket.leave(channel);
   } else if (channel === 'user:suggestions' && socket.rooms) {
     for (const room of socket.rooms) {
@@ -77,11 +74,11 @@ export const initSocket = (httpServer, corsOptions) => {
     // sys:log is an admin-only, opt-in channel: a client joins the 'syslog' room
     // only when it subscribes AND presents an admin token. Board events (wish:*)
     // require explicit subscription as well to save bandwidth for views that don't need them. See #189 / ADR 0003.
-    socket.on('subscribe', async (payload = {}) => {
+    socket.on('subscribe', async (payload) => {
       await handleSocketSubscribe(socket, payload);
     });
 
-    socket.on('unsubscribe', async (payload = {}) => {
+    socket.on('unsubscribe', async (payload) => {
       await handleSocketUnsubscribe(socket, payload);
     });
 
@@ -126,18 +123,16 @@ const getApigwClient = async () => {
 
 const selectTargetConnections = async (event, data) => {
   if (event === 'wish:ai_suggestions_ready') {
-    const wishId = data?.wish_id || '';
-    const userId = data?.user_id || null;
-    if (userId) {
+    if (data.user_id) {
       return db
         .prepare(
           'SELECT connection_id FROM websocket_connections WHERE sub_wish_id = ? OR user_id = ?'
         )
-        .all(wishId, userId);
+        .all(data.wish_id, data.user_id);
     }
     return db
       .prepare('SELECT connection_id FROM websocket_connections WHERE sub_wish_id = ?')
-      .all(wishId);
+      .all(data.wish_id);
   }
 
   // sys:log goes only to connections that subscribed to it (admins who opened the
@@ -179,7 +174,7 @@ const broadcastToApiGateway = async (event, data) => {
 
   const { PostToConnectionCommand } = await import('@aws-sdk/client-apigatewaymanagementapi');
   const wireData =
-    event === 'wish:ai_suggestions_ready' && data
+    event === 'wish:ai_suggestions_ready'
       ? { wish_id: data.wish_id, suggestion_id: data.suggestion_id }
       : data;
   const payload = JSON.stringify({ event, data: wireData });

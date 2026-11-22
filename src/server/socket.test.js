@@ -104,13 +104,14 @@ describe('socket.js', () => {
   it('emit helpers silently no-op when io is not initialized', async () => {
     mockServer.mockImplementation(() => null);
 
-    const { emitNewWish, emitWishFlagged, emitWishDeleted, emitSystemLog } =
+    const { emitNewWish, emitWishFlagged, emitWishDeleted, emitAiSuggestionsReady, emitSystemLog } =
       await import('./socket.js');
 
     // None of these should throw
     expect(() => emitNewWish({ id: '1', content: 'test' })).not.toThrow();
     expect(() => emitWishFlagged({ id: '1' })).not.toThrow();
     expect(() => emitWishDeleted('1')).not.toThrow();
+    expect(() => emitAiSuggestionsReady({ wish_id: '1', suggestion_id: 's1' })).not.toThrow();
     expect(() => emitSystemLog('log line')).not.toThrow();
   });
 
@@ -196,32 +197,61 @@ describe('socket.js', () => {
     // wish:suggestions:<id> only joins when authorizeWishSubscription returns authorized: true
     socket.join.mockClear();
     mockAuthorizeWishSubscription.mockResolvedValueOnce({ authorized: false, userId: null });
-    await handlerFor('subscribe')({ channel: 'wish:suggestions:w1', secret: 'bad' });
+    await handlerFor('subscribe')({ channel: 'wish:suggestions:w1', token: 't1', secret: 'bad' });
+    expect(mockAuthorizeWishSubscription).toHaveBeenCalledWith({
+      wishId: 'w1',
+      token: 't1',
+      secret: 'bad',
+    });
     expect(socket.join).not.toHaveBeenCalled();
 
     mockAuthorizeWishSubscription.mockResolvedValueOnce({ authorized: true, userId: 'u1' });
-    await handlerFor('subscribe')({ channel: 'wish:suggestions:w1', secret: 'good' });
+    await handlerFor('subscribe')({ channel: 'wish:suggestions:w1', token: 't1', secret: 'good' });
     expect(socket.join).toHaveBeenCalledWith('wish:suggestions:w1');
+
+    // Unknown or empty subscribe channel is ignored
+    socket.join.mockClear();
+    await handlerFor('subscribe')({});
+    await handlerFor('subscribe')({ channel: 'unknown:channel' });
+    expect(socket.join).not.toHaveBeenCalled();
 
     socket.leave.mockClear();
     await handlerFor('unsubscribe')({ channel: 'wish:suggestions:w1' });
     expect(socket.leave).toHaveBeenCalledWith('wish:suggestions:w1');
 
-    // user:suggestions joins user:suggestions:<userId> room when token is valid
+    // user:suggestions joins user:suggestions:<userId> room only when token resolves a user
     socket.join.mockClear();
+    mockGetUserFromToken.mockResolvedValueOnce(null);
+    await handlerFor('subscribe')({ channel: 'user:suggestions', token: 'bad-token' });
+    expect(socket.join).not.toHaveBeenCalled();
+
     await handlerFor('subscribe')({ channel: 'user:suggestions', token: 'user-token' });
     expect(socket.join).toHaveBeenCalledWith('user:suggestions:u1');
 
     socket.rooms = new Set(['s1', 'user:suggestions:u1']);
     socket.leave.mockClear();
+    await handlerFor('unsubscribe')({});
+    await handlerFor('unsubscribe')({ channel: 'unknown:channel' });
+    expect(socket.leave).not.toHaveBeenCalled();
+
     await handlerFor('unsubscribe')({ channel: 'user:suggestions' });
+    expect(socket.leave).toHaveBeenCalledTimes(1);
     expect(socket.leave).toHaveBeenCalledWith('user:suggestions:u1');
 
-    // emitAiSuggestionsReady scopes emit to wish:suggestions:<id> and user:suggestions:<userId>
+    // emitAiSuggestionsReady scopes emit to wish:suggestions:<id> and optionally user:suggestions:<userId>
     const roomEmit = vi.fn();
     const chainedTo = vi.fn(() => ({ emit: roomEmit, to: chainedTo }));
     mockIo.to = chainedTo;
     const { emitAiSuggestionsReady } = await import('./socket.js');
+
+    emitAiSuggestionsReady({});
+    expect(chainedTo).not.toHaveBeenCalled();
+
+    emitAiSuggestionsReady({ wish_id: 'w-anon', suggestion_id: 'sugg-0' });
+    expect(chainedTo).toHaveBeenCalledTimes(1);
+    expect(chainedTo).toHaveBeenCalledWith('wish:suggestions:w-anon');
+
+    chainedTo.mockClear();
     emitAiSuggestionsReady({ wish_id: 'w1', suggestion_id: 'sugg-1', user_id: 'u1' });
     expect(chainedTo).toHaveBeenCalledWith('wish:suggestions:w1');
     expect(chainedTo).toHaveBeenCalledWith('user:suggestions:u1');
@@ -347,6 +377,10 @@ describe('socket.js', () => {
       expect(mockDbPrepare).toHaveBeenCalledWith(
         'SELECT connection_id FROM websocket_connections WHERE sub_wishes = 1'
       );
+      expect(JSON.parse(mockSend.mock.calls.at(-1)[0].Data)).toEqual({
+        event: 'wish:created',
+        data: { id: 'w1' },
+      });
 
       mockSend.mockClear();
       emitAiSuggestionsReady({ wish_id: 'w-anon', suggestion_id: 's1', user_id: null });
