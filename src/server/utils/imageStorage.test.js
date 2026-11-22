@@ -2,8 +2,11 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   fileFilter,
   ALLOWED_RASTER_EXTENSIONS,
+  MAX_IMAGE_SIZE_BYTES,
   createUploadMiddleware,
   processUploadedImage,
+  imagesDir,
+  isS3Mode,
 } from './imageStorage.js';
 
 describe('imageStorage utility', () => {
@@ -36,8 +39,28 @@ describe('imageStorage utility', () => {
         expect(err).toBeInstanceOf(Error);
         expect(err.status).toBe(400);
         expect(err.expose).toBe(true);
-        expect(err.message).toContain('Only PNG, JPG, and WEBP are allowed');
+        expect(err.message).toBe('Invalid file type. Only PNG, JPG, and WEBP are allowed.');
       }
+    });
+
+    it('rejects files with no extension', () => {
+      const cb = vi.fn();
+      fileFilter({}, { originalname: 'noextension' }, cb);
+      const [err, accepted] = cb.mock.calls[0];
+      expect(accepted).toBe(false);
+      expect(err.status).toBe(400);
+    });
+  });
+
+  describe('constants and local mode', () => {
+    it('caps images at exactly 5 MB', () => {
+      expect(MAX_IMAGE_SIZE_BYTES).toBe(5 * 1024 * 1024);
+      expect(MAX_IMAGE_SIZE_BYTES).toBe(5242880);
+    });
+
+    it('is in local mode without AWS_S3_BUCKET, storing under data/images', () => {
+      expect(isS3Mode).toBe(false);
+      expect(imagesDir).toMatch(/data[/\\]images$/);
     });
   });
 
@@ -46,6 +69,40 @@ describe('imageStorage utility', () => {
       const upload = createUploadMiddleware('custom-prefix', 1024 * 1024);
       expect(upload).toBeDefined();
       expect(typeof upload.single).toBe('function');
+    });
+
+    it('applies the requested size limit, defaulting to MAX_IMAGE_SIZE_BYTES', () => {
+      expect(createUploadMiddleware('p', 12345).limits.fileSize).toBe(12345);
+      expect(createUploadMiddleware().limits.fileSize).toBe(MAX_IMAGE_SIZE_BYTES);
+      expect(createUploadMiddleware().fileFilter).toBe(fileFilter);
+    });
+
+    it('stores files in imagesDir', async () => {
+      const upload = createUploadMiddleware();
+      const dest = await new Promise((resolve, reject) =>
+        upload.storage.getDestination({}, {}, (err, d) => (err ? reject(err) : resolve(d)))
+      );
+      expect(dest).toBe(imagesDir);
+    });
+
+    it('generates prefixed filenames with a lowercased extension', async () => {
+      const upload = createUploadMiddleware('custom-prefix');
+      const name = await new Promise((resolve, reject) =>
+        upload.storage.getFilename({}, { originalname: 'Photo.JPG' }, (err, n) =>
+          err ? reject(err) : resolve(n)
+        )
+      );
+      expect(name).toMatch(/^custom-prefix-\d+-\d+\.jpg$/);
+    });
+
+    it('defaults the generated filename extension to .png when the upload has none', async () => {
+      const upload = createUploadMiddleware();
+      const name = await new Promise((resolve, reject) =>
+        upload.storage.getFilename({}, { originalname: 'noextension' }, (err, n) =>
+          err ? reject(err) : resolve(n)
+        )
+      );
+      expect(name).toMatch(/^image-\d+-\d+\.png$/);
     });
   });
 

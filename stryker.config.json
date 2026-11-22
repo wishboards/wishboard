@@ -30,6 +30,7 @@
     "!src/server/**/*.test.js",
     "!src/cli/**/*.test.js",
     "!src/server/index.js",
+    "!src/server/docs/openapi.js",
     "!src/client/src/main.tsx",
     "!src/client/src/**/*.stories.tsx"
   ],
