@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.42.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.41.0...wishboard-v1.42.0) (2026-11-22)
+
+
+### Features
+
+* **ai:** implement decomposable and optional AI integration ([#332](https://github.com/wishboards/wishboard/issues/332)) ([#628](https://github.com/wishboards/wishboard/issues/628)) ([91f7ca5](https://github.com/wishboards/wishboard/commit/91f7ca54c476b0e33812fcb442af843016c5b39d))
+* **cli:** turnkey AI API key and SSM bootstrap configuration ([#632](https://github.com/wishboards/wishboard/issues/632)) ([27cf4fc](https://github.com/wishboards/wishboard/commit/27cf4fc23755f4b00f81299b735278881184e33d))
+* **serverless:** support AI parameters and SSM API key in serverless deploy ([#631](https://github.com/wishboards/wishboard/issues/631)) ([30a1c22](https://github.com/wishboards/wishboard/commit/30a1c22569ffd0103879c5c95b761228f28b42a3))
+
+
+### Bug Fixes
+
+* **ai:** auto-route Gemini cloud endpoints and drain AI queue in Lambda ([#633](https://github.com/wishboards/wishboard/issues/633)) ([223dfc0](https://github.com/wishboards/wishboard/commit/223dfc0c04ae6e0180635583320f78d1aa731ba2))
+
 ## [1.41.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.40.0...wishboard-v1.41.0) (2026-11-18)
 
 
