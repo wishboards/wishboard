@@ -20,6 +20,8 @@ import {
   dismissProposal,
   ProposalValidationError,
 } from '../proposalsManager.js';
+import { matchOrSynthesizeSticker, synthesizeGeometricSvg } from '../stickerMatcher.js';
+import { exportTaxonomyBundle } from '../taxonomyExporter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -499,6 +501,34 @@ router.post('/proposals/:id/dismiss', requireAdmin, async (req, res) => {
     proposal_id: dismissed.id,
   });
   res.json({ success: true, proposal: dismissed });
+});
+
+// ── Sticker Matching & Taxonomy Export ────────────────────────────────────────
+
+router.post('/stickers/match', requireAdmin, (req, res) => {
+  const { label, tag, category } = req.body ?? {};
+  const result = matchOrSynthesizeSticker({ label, tag, category });
+  res.json(result);
+});
+
+router.post('/stickers/synthesize', requireAdmin, (req, res) => {
+  const { label, tag, category } = req.body ?? {};
+  const svg = synthesizeGeometricSvg({ label, tag, category });
+  res.json({
+    svg,
+    license: 'CC0-1.0',
+    sticker: { type: 'svg', svg },
+  });
+});
+
+router.get('/taxonomy/export', requireAdmin, async (req, res, next) => {
+  try {
+    const overridesOnly = req.query.overridesOnly === 'true' || req.query.overridesOnly === '1';
+    const bundle = await exportTaxonomyBundle({ overridesOnly });
+    res.json(bundle);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ── Profile Overrides (DB-over-YAML) ─────────────────────────────────────────

@@ -3263,6 +3263,187 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/admin/stickers/match': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG
+     * @description Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['StickerMatchInput'];
+        };
+      };
+      responses: {
+        /** @description Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['StickerMatchResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/stickers/synthesize': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Synthesize deterministic constrained geometric SVG sticker
+     * @description Synthesize deterministic constrained geometric SVG sticker
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['StickerMatchInput'];
+        };
+      };
+      responses: {
+        /** @description Synthesize deterministic constrained geometric SVG sticker response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['StickerSynthesizeResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/taxonomy/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Export approved taxonomy overrides as deterministic YAML and SVG patch bundle
+     * @description Export approved taxonomy overrides as deterministic YAML and SVG patch bundle
+     */
+    get: {
+      parameters: {
+        query?: {
+          overridesOnly?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Export approved taxonomy overrides as deterministic YAML and SVG patch bundle response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TaxonomyExportResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/admin/profile-overrides': {
     parameters: {
       query?: never;
@@ -4083,6 +4264,64 @@ export interface components {
       };
       sticker?: {
         [key: string]: unknown;
+      };
+    };
+    StickerMatchInput: {
+      /** @example Nonbinary */
+      label?: string;
+      /** @example nonbinary */
+      tag?: string;
+      /** @example gender */
+      category?: string;
+    };
+    StickerMatchResponse: {
+      /** @enum {string} */
+      source: 'bundled' | 'synthesized';
+      /** @example /assets/stickers/nonbinary.svg */
+      src?: string;
+      svg?: string;
+      /** @example CC0-1.0 */
+      license: string;
+      sticker: {
+        /** @enum {string} */
+        type: 'svg' | 'image';
+        src?: string;
+        svg?: string;
+      };
+    };
+    StickerSynthesizeResponse: {
+      svg: string;
+      /** @example CC0-1.0 */
+      license: string;
+      sticker: {
+        /** @enum {string} */
+        type: 'svg';
+        svg: string;
+      };
+    };
+    TaxonomyExportResponse: {
+      overridesOnly: boolean;
+      profileYaml: string;
+      rulesYaml: string;
+      stickersYaml: string;
+      yaml: string;
+      categories: {
+        [key: string]: unknown;
+      }[];
+      stickers: {
+        [key: string]: unknown;
+      };
+      assets: {
+        [key: string]: string;
+      };
+      validation: {
+        valid: boolean;
+        errors: {
+          [key: string]: unknown;
+        }[];
+        warnings: {
+          [key: string]: unknown;
+        }[];
       };
     };
     ProfileOverrideCategory: {

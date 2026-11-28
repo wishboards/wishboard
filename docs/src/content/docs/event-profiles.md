@@ -182,3 +182,14 @@ To point a serverless deployment stack to an isolated database:
 For local Raspberry Pi kiosk deployments (`npx wishboard kiosk deploy`), Wishboard runs an embedded libSQL server in a Docker container on the Pi (`DATABASE_URL=http://db:8080` inside the compose network, with SQLite files stored at `./data/db`). No remote authentication token or SSM parameter is required for standard kiosk deployments.
 
 To connect a kiosk to a remote database instead, specify `DATABASE_URL` and `DATABASE_AUTH_TOKEN` in `$WISHBOARD_HOME/wishboard/.env` on the Pi prior to starting the service.
+
+## 7. DB-over-YAML Overrides, Declarative SVG Stickers, and Patch Export
+
+At runtime, `configManager` (`getEffectiveEventProfile()`) layers approved database overrides stored in `settings` (`profile_override:categories`, `profile_override:suggestions`, and `profile_override:stickers`) on top of the static `profiles/<name>/*.yaml` baseline:
+
+- **Declarative SVG & Image Stickers (`stickers.yaml` & DB overrides)**:
+  - In addition to legacy CSS-coupled badges (`heart`, `flag`, `icon`), stickers support declarative `type: image` (`/assets/stickers/*.svg`) and inline `type: svg` definitions.
+  - Every inline SVG and image `src` passes through the strict allowlist sanitizer (`src/shared/svgSanitizer.js`), permitting only `svg`, `path`, `circle`, `rect`, `polygon`, and `line` elements with validated attributes and stripping `<script>`, event handlers, `<foreignObject>`, and external URLs.
+- **YAML/SVG Patch Export (`GET /api/admin/taxonomy/export`)**:
+  - Administrators can export approved runtime overrides (or the full effective profile) as deterministic, `validateRuleset`-verified `profileYaml`, `rulesYaml`, `stickersYaml`, and sanitized SVG `assets` bundles (`?overridesOnly=true` exports only DB deltas).
+  - Exported bundles never read `taxonomy_proposals`, `wishes`, or user PII, and can be validated offline with `node scripts/analyze-taxonomy.js --bundle <file> --format json` before committing to `profiles/*` or applying to an offline Raspberry Pi kiosk.

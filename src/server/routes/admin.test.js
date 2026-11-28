@@ -592,5 +592,12 @@ describe('Admin routes', () => {
         suggestions: { constructor: ['bad'] },
       });
     expect(badKey.status).toBe(400);
+
+    const exportRes = await request(app)
+      .get('/api/admin/taxonomy/export?overridesOnly=true')
+      .set('Authorization', `Bearer ${token}`);
+    expect(exportRes.status).toBe(200);
+    expect(exportRes.body.overridesOnly).toBe(true);
+    expect(exportRes.body.validation?.valid).toBe(true);
   });
 });

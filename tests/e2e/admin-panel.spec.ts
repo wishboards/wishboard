@@ -25,7 +25,9 @@ test.describe('Admin Panel Navigation & Sections E2E Tests', () => {
     // 5. Tab 3: User Accounts
     await page.click('button[title="User Accounts"]');
     await expect(page.locator('h2:has-text("User Accounts")')).toBeVisible();
-    await expect(page.locator('.wish-card', { hasText: 'admin' })).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.wish-card', { hasText: 'Role: admin' }).first()).toBeVisible({
+      timeout: 10000,
+    });
 
     // 6. Tab 4: System Overview
     await page.click('button[title="System Overview"]');
