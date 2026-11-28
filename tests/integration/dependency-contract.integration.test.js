@@ -33,6 +33,28 @@ describe('integration: production image ships what the bundled CLI needs', () =>
     expect(serverlessCli).toMatch(/['"]build['"],\s*['"]prepare-profile['"]/);
   });
 
+  // Browsers refuse to render standalone .svg files loaded via <img src="...">
+  // unless the root <svg> element declares xmlns="http://www.w3.org/2000/svg".
+  it('ensures every profile SVG asset declares the SVG XML namespace', () => {
+    const profilesDir = path.resolve(process.cwd(), 'profiles');
+    const missingXmlns = [];
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+        } else if (entry.name.endsWith('.svg')) {
+          const raw = fs.readFileSync(full, 'utf8');
+          if (!/<svg\b[^>]*\bxmlns="http:\/\/www\.w3\.org\/2000\/svg"/.test(raw)) {
+            missingXmlns.push(path.relative(process.cwd(), full).replace(/\\/g, '/'));
+          }
+        }
+      }
+    };
+    walk(profilesDir);
+    expect(missingXmlns).toEqual([]);
+  });
+
   // Every static and dynamic relative import in src/server and src/cli must resolve
   // to a path covered by a COPY directive in the Dockerfile `runner` stage.
   it('covers every relative runtime import in src/server and src/cli in the Dockerfile runner stage', () => {
