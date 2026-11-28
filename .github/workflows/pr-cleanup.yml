@@ -6,13 +6,40 @@ on:
 
 permissions:
   contents: none
+  packages: read
 
 jobs:
   delete-pr-image:
     if: ${{ !startsWith(github.head_ref, 'release-please-') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Check whether PR image tag exists in GHCR
+        id: check
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_DELETE_PAT }}
+          REPO: ${{ github.repository }}
+          TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          REPO_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          TOKEN=$(curl -sf -u "x:${GHCR_TOKEN}" "https://ghcr.io/token?scope=repository:${REPO_LOWER}:pull" | jq -r '.token // empty')
+          if [[ -z "$TOKEN" ]]; then
+            echo "Could not obtain GHCR pull token; falling back to ghcr-cleanup-action."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
+            "https://ghcr.io/v2/${REPO_LOWER}/manifests/${TAG}")
+          echo "GHCR manifest check for ${REPO_LOWER}:${TAG} returned HTTP ${STATUS}"
+          if [[ "$STATUS" == "200" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Delete PR Image
+        if: steps.check.outputs.exists == 'true'
         uses: dataaxiom/ghcr-cleanup-action@v1
         with:
           # Note: The default GITHUB_TOKEN does not have delete:packages permission.

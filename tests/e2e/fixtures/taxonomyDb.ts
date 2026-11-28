@@ -74,6 +74,34 @@ function parseRow(row: Record<string, unknown>): TaxonomyProposalRow {
   };
 }
 
+let cachedAdminToken: string | null = null;
+
+function getE2eBaseUrl(): string {
+  const port = process.env.PORT || '3000';
+  return process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${port}`;
+}
+
+async function getAdminToken(forceRefresh = false): Promise<string> {
+  if (cachedAdminToken && !forceRefresh) {
+    return cachedAdminToken;
+  }
+  const passphrase = process.env.WISHBOARD_ADMIN_SECRET || 'e2e-admin-password'; // gitleaks:allow
+  const res = await fetch(`${getE2eBaseUrl()}/api/users/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', passphrase }),
+  });
+  if (!res.ok) {
+    throw new Error(`taxonomyDb admin login failed (${res.status}): ${await res.text()}`);
+  }
+  const data = (await res.json()) as { token?: string };
+  if (!data.token) {
+    throw new Error('taxonomyDb admin login returned no token');
+  }
+  cachedAdminToken = data.token;
+  return cachedAdminToken;
+}
+
 export async function seedProposal(input: SeedProposalInput): Promise<TaxonomyProposalRow> {
   if (!VALID_PROPOSAL_TYPES.has(input.proposal_type)) {
     throw new Error(`Invalid proposal_type: ${input.proposal_type}`);
@@ -83,45 +111,36 @@ export async function seedProposal(input: SeedProposalInput): Promise<TaxonomyPr
     throw new Error(`Invalid normalized_key: ${input.normalized_key}`);
   }
 
-  const db = getE2eDbClient();
-  const count = Math.max(1, Math.floor(input.occurrence_count ?? 1));
-  const status: ProposalStatus = input.status ?? 'pending';
-  const payloadJson = JSON.stringify(input.proposed_payload ?? {});
-  const now = new Date().toISOString();
+  const body = JSON.stringify({
+    proposal_type: input.proposal_type,
+    normalized_key: normalizedKey,
+    proposed_payload: input.proposed_payload ?? {},
+    occurrence_count: Math.max(1, Math.floor(input.occurrence_count ?? 1)),
+    status: input.status ?? 'pending',
+  });
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    try {
-      await db.execute('PRAGMA busy_timeout = 10000');
-      await db.execute({
-        sql: `INSERT INTO taxonomy_proposals (
-          normalized_key, proposal_type, proposed_payload_json, occurrence_count, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(normalized_key, proposal_type) DO UPDATE SET
-          proposed_payload_json = excluded.proposed_payload_json,
-          occurrence_count = CASE
-            WHEN taxonomy_proposals.status = 'pending' THEN taxonomy_proposals.occurrence_count + excluded.occurrence_count
-            ELSE excluded.occurrence_count
-          END,
-          status = excluded.status,
-          updated_at = excluded.updated_at`,
-        args: [normalizedKey, input.proposal_type, payloadJson, count, status, now, now],
-      });
-      const res = await db.execute({
-        sql: `SELECT id, normalized_key, proposal_type, proposed_payload_json, occurrence_count, status, created_at, updated_at
-              FROM taxonomy_proposals
-              WHERE normalized_key = ? AND proposal_type = ?`,
-        args: [normalizedKey, input.proposal_type],
-      });
-      return parseRow(res.rows[0] as Record<string, unknown>);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!msg.includes('SQLITE_BUSY') || attempt === 11) {
-        throw err;
-      }
-      await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const token = await getAdminToken(attempt > 0);
+    const res = await fetch(`${getE2eBaseUrl()}/api/admin/proposals/test-seed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { proposal: TaxonomyProposalRow };
+      return data.proposal;
     }
+    if (res.status === 401 || res.status === 403 || res.status === 429 || res.status >= 500) {
+      cachedAdminToken = null;
+      await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+      continue;
+    }
+    throw new Error(`seedProposal failed (${res.status}): ${await res.text()}`);
   }
-  throw new Error('Unreachable: seedProposal retry loop exhausted');
+  throw new Error('seedProposal failed after retries');
 }
 
 export async function harvestTestSignals(
@@ -185,17 +204,16 @@ export async function listProposalsFromDb(): Promise<TaxonomyProposalRow[]> {
 }
 
 export async function clearProposals(normalizedKeys?: string[]): Promise<void> {
-  const db = getE2eDbClient();
-  await db.execute('PRAGMA busy_timeout = 5000');
-  if (!normalizedKeys || normalizedKeys.length === 0) {
-    await db.execute('DELETE FROM taxonomy_proposals');
-    return;
-  }
-  const normalized = normalizedKeys.map(normalizeProposalKey).filter(Boolean);
-  if (normalized.length === 0) return;
-  const placeholders = normalized.map(() => '?').join(', ');
-  await db.execute({
-    sql: `DELETE FROM taxonomy_proposals WHERE normalized_key IN (${placeholders})`,
-    args: normalized,
+  const token = await getAdminToken();
+  const res = await fetch(`${getE2eBaseUrl()}/api/admin/proposals/test-seed`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ normalizedKeys: normalizedKeys ?? [] }),
   });
+  if (!res.ok) {
+    throw new Error(`clearProposals failed (${res.status}): ${await res.text()}`);
+  }
 }

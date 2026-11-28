@@ -37,6 +37,8 @@ This section guides you through submitting an enhancement suggestion for Wishboa
 
 CI runs lint, type-check, format-check, build, tests, gitleaks secret scanning, and a SonarQube scan on every pull request; all must pass before merging.
 
+- **PR Docker Image Builds (`pr-build.yml`):** To conserve concurrent CI runners, multi-arch (`linux/amd64`, `linux/arm64`) PR Docker images are **not** built on every PR push. They build automatically when `Dockerfile`, `.dockerignore`, `package.json`, `package-lock.json`, or `src/cli/commands/build.js` changes, or on demand by adding the **`build-pr-image`** label to a PR (or running `gh workflow run pr-build.yml -f pr_number=<N>`). Note that `pull_request` events from forked repositories receive a read-only `GITHUB_TOKEN`, so GHCR pushes (`pr-<N>`) only succeed on branches in the upstream repository. When a PR closes, `pr-cleanup.yml` automatically and idempotently deletes any `pr-<N>` tag if present.
+
 ## Development Setup
 
 ### Option A: Dev container (recommended)

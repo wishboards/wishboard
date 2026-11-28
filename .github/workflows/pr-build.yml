@@ -2,11 +2,25 @@ name: Build PR Image
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to build (tagged as pr-<number>)'
+        required: true
+        type: string
+      platforms:
+        description: 'Target platforms'
+        required: false
+        default: 'linux/amd64,linux/arm64'
+        type: choice
+        options:
+          - 'linux/amd64,linux/arm64'
+          - 'linux/amd64'
 
 concurrency:
-  # Cancel an in-progress image build when the same PR is pushed again.
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel an in-progress image build when the same PR or dispatch ref is triggered again.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -14,13 +28,74 @@ permissions:
   packages: write
 
 jobs:
+  detect-trigger:
+    # Ignore release-please PRs and unrelated label events
+    if: >-
+      ${{
+        !startsWith(github.head_ref, 'release-please-') &&
+        (
+          github.event_name == 'workflow_dispatch' ||
+          github.event.action != 'labeled' ||
+          github.event.label.name == 'build-pr-image'
+        )
+      }}
+    runs-on: ubuntu-24.04
+    outputs:
+      should_build: ${{ steps.decide.outputs.should_build }}
+      pr_number: ${{ steps.decide.outputs.pr_number }}
+      platforms: ${{ steps.decide.outputs.platforms }}
+    steps:
+      - name: Checkout repository (PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine whether to build PR Docker image
+        id: decide
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+            echo "platforms=${{ inputs.platforms }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PR_NUM="${{ github.event.pull_request.number }}"
+          echo "pr_number=${PR_NUM}" >> "$GITHUB_OUTPUT"
+          echo "platforms=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+
+          HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'build-pr-image') }}"
+          if [[ "$HAS_LABEL" == "true" ]]; then
+            echo "PR #${PR_NUM} has build-pr-image label; building."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" || true)
+          if echo "$CHANGED" | grep -Eq '^(Dockerfile|\.dockerignore|package\.json|package-lock\.json|src/cli/commands/build\.js)$'; then
+            echo "Docker/dependency-sensitive file changed; building PR #${PR_NUM} image."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Docker/dependency changes and no build-pr-image label; skipping PR #${PR_NUM} image build."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-publish-pr-docker:
-    # Ignore PRs from release-please since it just bumps versions
-    if: ${{ !startsWith(github.head_ref, 'release-please-') }}
+    needs: detect-trigger
+    if: needs.detect-trigger.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (pull_request)
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v7.0.1
+
+      - name: Checkout PR head (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: refs/pull/${{ needs.detect-trigger.outputs.pr_number }}/head
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -40,14 +115,14 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}
+          platforms: ${{ needs.detect-trigger.outputs.platforms }}
+          tags: ghcr.io/${{ github.repository }}:pr-${{ needs.detect-trigger.outputs.pr_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Smoke-test PR Docker image imports and sticker assets
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}"
+          IMAGE="ghcr.io/${{ github.repository }}:pr-${{ needs.detect-trigger.outputs.pr_number }}"
           docker pull "$IMAGE"
           docker run --rm --entrypoint node "$IMAGE" -e "
             import { existsSync } from 'node:fs';

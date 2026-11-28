@@ -18,6 +18,8 @@ import {
   approveProposal,
   mapProposalAsAlias,
   dismissProposal,
+  seedTestProposal,
+  clearTestProposals,
   ProposalValidationError,
 } from '../proposalsManager.js';
 import { matchOrSynthesizeSticker, synthesizeGeometricSvg } from '../stickerMatcher.js';
@@ -526,6 +528,35 @@ router.get('/taxonomy/export', requireAdmin, async (req, res, next) => {
     const overridesOnly = req.query.overridesOnly === 'true' || req.query.overridesOnly === '1';
     const bundle = await exportTaxonomyBundle({ overridesOnly });
     res.json(bundle);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/proposals/test-seed', requireAdmin, async (req, res, next) => {
+  if (process.env.NODE_ENV !== 'test') {
+    return res.status(404).json({ error: 'Not found.' });
+  }
+  try {
+    const proposal = await seedTestProposal(req.body ?? {});
+    res.json({ proposal });
+  } catch (err) {
+    try {
+      handleProposalError(err, res);
+    } catch (unhandled) {
+      next(unhandled);
+    }
+  }
+});
+
+router.delete('/proposals/test-seed', requireAdmin, async (req, res, next) => {
+  if (process.env.NODE_ENV !== 'test') {
+    return res.status(404).json({ error: 'Not found.' });
+  }
+  try {
+    const keys = Array.isArray(req.body?.normalizedKeys) ? req.body.normalizedKeys : [];
+    await clearTestProposals(keys);
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

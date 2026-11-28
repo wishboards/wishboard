@@ -618,3 +618,74 @@ export async function mapProposalAsAlias(id, { targetAttribute, targetValue, tri
     };
   });
 }
+
+/**
+ * Test-only helper (gated at the route layer to `NODE_ENV === 'test'`) that upserts
+ * a proposal through the same `withProposalWriteLock` queue as runtime harvesting,
+ * avoiding cross-process SQLite lock contention during E2E runs.
+ */
+export async function seedTestProposal({
+  proposal_type,
+  normalized_key,
+  proposed_payload = {},
+  occurrence_count = 1,
+  status = 'pending',
+}) {
+  const proposalType = typeof proposal_type === 'string' ? proposal_type.trim().toLowerCase() : '';
+  if (!VALID_PROPOSAL_TYPES.has(proposalType)) {
+    throw new ProposalValidationError(`Invalid proposal_type: ${proposal_type}`, { status: 400 });
+  }
+  const normalizedKey = normalizeProposalKey(normalized_key);
+  if (!normalizedKey) {
+    throw new ProposalValidationError(`Invalid normalized_key: ${normalized_key}`, { status: 400 });
+  }
+  const safeStatus = VALID_PROPOSAL_STATUSES.has(status) ? status : 'pending';
+  const count = Math.max(1, Math.floor(Number(occurrence_count) || 1));
+  const payloadJson = JSON.stringify(
+    proposed_payload && typeof proposed_payload === 'object' ? proposed_payload : {}
+  );
+  const now = new Date().toISOString();
+
+  return withProposalWriteLock(async () => {
+    await db
+      .prepare(
+        `INSERT INTO taxonomy_proposals (
+          normalized_key, proposal_type, proposed_payload_json, occurrence_count, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(normalized_key, proposal_type) DO UPDATE SET
+          proposed_payload_json = excluded.proposed_payload_json,
+          occurrence_count = CASE
+            WHEN taxonomy_proposals.status = 'pending' THEN taxonomy_proposals.occurrence_count + excluded.occurrence_count
+            ELSE excluded.occurrence_count
+          END,
+          status = excluded.status,
+          updated_at = excluded.updated_at`
+      )
+      .run(normalizedKey, proposalType, payloadJson, count, safeStatus, now, now);
+
+    const row = await db
+      .prepare(
+        `SELECT id, normalized_key, proposal_type, proposed_payload_json, occurrence_count, status, created_at, updated_at
+         FROM taxonomy_proposals
+         WHERE normalized_key = ? AND proposal_type = ?`
+      )
+      .get(normalizedKey, proposalType);
+
+    return formatProposalRow(row);
+  });
+}
+
+export async function clearTestProposals(normalizedKeys = []) {
+  return withProposalWriteLock(async () => {
+    if (!Array.isArray(normalizedKeys) || normalizedKeys.length === 0) {
+      await db.prepare('DELETE FROM taxonomy_proposals').run();
+      return;
+    }
+    const normalized = normalizedKeys.map(normalizeProposalKey).filter(Boolean);
+    if (normalized.length === 0) return;
+    const placeholders = normalized.map(() => '?').join(', ');
+    await db
+      .prepare(`DELETE FROM taxonomy_proposals WHERE normalized_key IN (${placeholders})`)
+      .run(...normalized);
+  });
+}
