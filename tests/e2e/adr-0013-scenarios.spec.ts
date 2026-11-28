@@ -35,15 +35,27 @@ async function requestWithRetry(
 ): Promise<import('@playwright/test').APIResponse> {
   let lastStatus = 0;
   let lastBody = '';
+  let lastErr: unknown = null;
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const res = await fn();
-    if (res.ok()) return res;
-    lastStatus = res.status();
-    lastBody = await res.text().catch(() => '');
-    if (lastStatus !== 429 && lastStatus < 500) {
-      throw new Error(`${label} failed with ${lastStatus}: ${lastBody}`);
+    try {
+      const res = await fn();
+      if (res.ok()) return res;
+      lastStatus = res.status();
+      lastBody = await res.text().catch(() => '');
+      if (lastStatus !== 429 && lastStatus < 500) {
+        throw new Error(`${label} failed with ${lastStatus}: ${lastBody}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Request context disposed') || msg.includes('failed with 4')) {
+        throw err;
+      }
+      lastErr = err;
     }
     await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+  }
+  if (lastErr) {
+    throw lastErr;
   }
   throw new Error(`${label} failed after retries (${lastStatus}): ${lastBody}`);
 }
@@ -330,6 +342,7 @@ test.describe('ADR 0013 Tier 4: Real-World Application Scenarios & Live Checkpoi
       await requestWithRetry(
         () =>
           request.post('/api/wishes', {
+            timeout: 15_000,
             data: {
               content: `User ${i} looking for ${communityTerm} session`,
               passphrase: `${SCENARIO_PASSPHRASE}-${i}`, // gitleaks:allow
