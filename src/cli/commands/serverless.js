@@ -516,7 +516,7 @@ function performFrontendUpload(frontendBucket, distId, common, dryRun) {
   );
   if (syncRoot.status !== 0) throw new Error('Frontend root files upload to S3 failed.');
 
-  // Second, upload assets/ with long-lived immutable cache control
+  // Second, upload hashed assets/ with long-lived immutable cache control (excluding unhashed stickers)
   logInfo('Syncing assets (immutable cache)...');
   const syncAssets = execCommand(
     'aws',
@@ -525,6 +525,8 @@ function performFrontendUpload(frontendBucket, distId, common, dryRun) {
       'sync',
       path.join(DIST_DIR, 'assets'),
       `s3://${frontendBucket}/assets`,
+      '--exclude',
+      'stickers/*',
       '--delete',
       '--cache-control',
       'public, max-age=31536000, immutable',
@@ -553,6 +555,27 @@ function performFrontendUpload(frontendBucket, distId, common, dryRun) {
       { dryRun }
     );
     if (syncFonts.status !== 0) throw new Error('Frontend fonts upload to S3 failed.');
+  }
+
+  // Fourth, upload unhashed profile stickers/ with short revalidated cache control
+  const stickersDir = path.join(DIST_DIR, 'assets', 'stickers');
+  if (fs.existsSync(stickersDir)) {
+    logInfo('Syncing stickers (short revalidated cache)...');
+    const syncStickers = execCommand(
+      'aws',
+      [
+        's3',
+        'sync',
+        stickersDir,
+        `s3://${frontendBucket}/assets/stickers`,
+        '--delete',
+        '--cache-control',
+        'public, max-age=300, must-revalidate',
+        ...common,
+      ],
+      { dryRun }
+    );
+    if (syncStickers.status !== 0) throw new Error('Frontend stickers upload to S3 failed.');
   }
 
   if (distId) {
