@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/wishboards/wishboard/compare/api-v1.9.0...api-v1.10.0) (2026-11-28)
+
+
+### Features
+
+* **admin:** Phase 4 - assisted CC0/MIT sticker matching, YAML export, E2E, and docs ([#683](https://github.com/wishboards/wishboard/issues/683)) ([ebf3bd1](https://github.com/wishboards/wishboard/commit/ebf3bd111e51ab90a1d52b0eed37e898ba302dda))
+
 ## [1.9.0](https://github.com/wishboards/wishboard/compare/api-v1.8.0...api-v1.9.0) (2026-11-28)
 
 

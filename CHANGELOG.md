@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.48.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.47.0...wishboard-v1.48.0) (2026-11-28)
+
+
+### Features
+
+* **admin:** Phase 4 - assisted CC0/MIT sticker matching, YAML export, E2E, and docs ([#683](https://github.com/wishboards/wishboard/issues/683)) ([ebf3bd1](https://github.com/wishboards/wishboard/commit/ebf3bd111e51ab90a1d52b0eed37e898ba302dda))
+
+
+### Bug Fixes
+
+* **build:** prepare profile sticker assets and guard Dockerfile runtime imports ([#688](https://github.com/wishboards/wishboard/issues/688)) ([350e0e6](https://github.com/wishboards/wishboard/commit/350e0e6fd75d8aa91a82f79844ecb0b346e82b32))
+
+
+### Performance Improvements
+
+* **test:** optimize test project pools and harden tooling configurations ([#687](https://github.com/wishboards/wishboard/issues/687)) ([5b9f067](https://github.com/wishboards/wishboard/commit/5b9f067208b843b8bdcb5df4696e993f88f0b4fd))
+
 ## [1.47.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.46.0...wishboard-v1.47.0) (2026-11-28)
 
 
