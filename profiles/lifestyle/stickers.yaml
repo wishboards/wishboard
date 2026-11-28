@@ -11,6 +11,11 @@ stickers:
     ace: { type: heart, class: flag-asexual }
     queer: { type: heart, class: flag-rainbow }
     rainbow: { type: heart, class: flag-rainbow }
+    demisexual: { type: image, src: /assets/stickers/demisexual.svg }
+    aromantic: { type: image, src: /assets/stickers/aromantic.svg }
+    aro: { type: image, src: /assets/stickers/aromantic.svg }
+    demiromantic: { type: image, src: /assets/stickers/demiromantic.svg }
+    graysexual: { type: image, src: /assets/stickers/graysexual.svg }
   gender:
     trans: { type: flag, class: flag-trans }
     transgender: { type: flag, class: flag-trans }
@@ -20,10 +25,24 @@ stickers:
     non-binary: { type: flag, class: flag-nonbinary }
     enby: { type: flag, class: flag-nonbinary }
     genderqueer: { type: flag, class: flag-genderqueer }
-    agender: { type: flag, class: flag-nonbinary }
+    agender: { type: image, src: /assets/stickers/agender.svg }
+    genderfluid: { type: image, src: /assets/stickers/genderfluid.svg }
+    bigender: { type: image, src: /assets/stickers/bigender.svg }
     woman: { type: icon, class: female-icon, iconType: female }
     female: { type: icon, class: female-icon, iconType: female }
     ciswoman: { type: icon, class: female-icon, iconType: female }
     man: { type: icon, class: male-icon, iconType: male }
     male: { type: icon, class: male-icon, iconType: male }
     cisman: { type: icon, class: male-icon, iconType: male }
+  relationship_style:
+    polyamorous: { type: image, src: /assets/stickers/polyamory.svg }
+    poly: { type: image, src: /assets/stickers/polyamory.svg }
+    kitchen-table-poly: { type: image, src: /assets/stickers/polyamory.svg }
+    solo-poly: { type: image, src: /assets/stickers/polyamory.svg }
+    enm: { type: image, src: /assets/stickers/enm.svg }
+    open-relationship: { type: image, src: /assets/stickers/enm.svg }
+    relationship-anarchy: { type: image, src: /assets/stickers/enm.svg }
+  interests:
+    shibari: { type: image, src: /assets/stickers/shibari.svg }
+    rope: { type: image, src: /assets/stickers/shibari.svg }
+    bondage: { type: image, src: /assets/stickers/shibari.svg }

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "allowedLicenses": ["Apache-2.0", "MIT", "CC0-1.0"],
+  "excludedLicenses": ["AGPL-3.0-or-later", "CC BY-NC-SA 4.0"],
+  "approvedSources": [
+    {
+      "id": "fetlife-translations",
+      "source": "fetlife/translations",
+      "repository": "https://github.com/fetlife/translations",
+      "license": "Apache-2.0",
+      "scope": ["gender", "orientation", "role", "relationship_style"],
+      "notes": "Roles, genders, orientations, and relationship-status labels only. No FetLife trademarks, logos, or branding."
+    },
+    {
+      "id": "kinklist-v2",
+      "source": "Goctionni/kinklist-v2",
+      "repository": "https://github.com/Goctionni/kinklist-v2",
+      "license": "MIT",
+      "scope": ["role", "interests"],
+      "notes": "BDSM/kink practices, dynamics, and categories."
+    },
+    {
+      "id": "yellow-dog-man-pride-flags",
+      "source": "Yellow-Dog-Man/PrideFlags",
+      "repository": "https://github.com/Yellow-Dog-Man/PrideFlags",
+      "license": "CC0-1.0",
+      "scope": ["stickers"],
+      "notes": "LGBTQIA+ pride flag assets."
+    },
+    {
+      "id": "prideraiser-flags",
+      "source": "@prideraiser/flags",
+      "repository": "https://github.com/prideraiser/flags",
+      "license": "MIT",
+      "scope": ["stickers"],
+      "notes": "Pride flag SVG geometry and color palettes."
+    }
+  ],
+  "excludedSources": [
+    {
+      "id": "contribulibre-check-match",
+      "source": "ContribuLibre/check-match",
+      "repository": "https://github.com/ContribuLibre/check-match",
+      "license": "AGPL-3.0-or-later",
+      "reason": "Strong copyleft (AGPL-3.0-or-later) is incompatible with Wishboard's distribution and deployment model."
+    },
+    {
+      "id": "microsoft-pride-flag",
+      "source": "microsoft/Pride-flag",
+      "repository": "https://github.com/microsoft/Pride-flag",
+      "license": "CC BY-NC-SA 4.0",
+      "reason": "NonCommercial + ShareAlike (CC BY-NC-SA 4.0) is incompatible with commercial/convention deployments and ShareAlike redistribution."
+    }
+  ]
+}

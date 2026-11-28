@@ -22,6 +22,9 @@ categories:
       - Bigender
       - Genderfluid
       - Two-Spirit
+      - Intersex
+      - Demiboy
+      - Demigirl
   - id: orientation
     label: Orientation
     suggestions:
@@ -31,14 +34,23 @@ categories:
       - Bisexual
       - Pansexual
       - Asexual
+      - Aromantic
       - Queer
       - Demisexual
+      - Demiromantic
+      - Graysexual
+      - Polysexual
+      - Omnisexual
+      - Heteroflexible
+      - Homoflexible
   - id: role
     label: Role
     suggestions:
       - Top
       - Bottom
       - Versatile
+      - Service Top
+      - Service Sub
       - Dominant
       - Submissive
       - Switch
@@ -48,3 +60,47 @@ categories:
       - Rope Bunny
       - Handler
       - Pup
+      - Pet
+      - Kitten
+      - Pony
+      - Brat
+      - Brat Tamer
+      - Primal
+      - Prey
+      - Master
+      - Mistress
+      - Slave
+      - Owner
+      - Property
+      - Caregiver
+      - Daddy
+      - Mommy
+      - Little
+  - id: relationship_style
+    label: Relationship Style
+    suggestions:
+      - Polyamorous
+      - ENM
+      - Open Relationship
+      - Kitchen Table Poly
+      - Parallel Poly
+      - Solo Poly
+      - Relationship Anarchy
+      - Monogamous
+      - Monogamish
+      - Swinger
+  - id: interests
+    label: Interests
+    suggestions:
+      - Shibari
+      - Impact
+      - Sensory Play
+      - Bondage
+      - Power Exchange
+      - Praise
+      - Degradation
+      - Rope
+      - Wax Play
+      - Pet Play
+      - Aftercare
+      - Roleplay

@@ -21,18 +21,138 @@ rules:
     context_value: woman
     target_attribute: orientation
     target_value: lesbian
+  - id: enrich_enm_poly
+    rule_type: enrichment
+    trigger_attribute: relationship_style
+    trigger_value: polyamorous
+    target_attribute: relationship_style
+    target_value: enm
+  - id: enrich_ktp_poly
+    rule_type: enrichment
+    trigger_attribute: relationship_style
+    trigger_value: kitchen-table-poly
+    target_attribute: relationship_style
+    target_value: polyamorous
+  - id: enrich_solo_poly
+    rule_type: enrichment
+    trigger_attribute: relationship_style
+    trigger_value: solo-poly
+    target_attribute: relationship_style
+    target_value: polyamorous
+  - id: enrich_ra_enm
+    rule_type: enrichment
+    trigger_attribute: relationship_style
+    trigger_value: relationship-anarchy
+    target_attribute: relationship_style
+    target_value: enm
+  - id: enrich_shibari_bondage
+    rule_type: enrichment
+    trigger_attribute: interests
+    trigger_value: shibari
+    target_attribute: interests
+    target_value: bondage
+  - id: enrich_rope_bondage
+    rule_type: enrichment
+    trigger_attribute: interests
+    trigger_value: rope
+    target_attribute: interests
+    target_value: bondage
+  - id: enrich_master_dom
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: master
+    target_attribute: role
+    target_value: dominant
+  - id: enrich_mistress_dom
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: mistress
+    target_attribute: role
+    target_value: dominant
+  - id: enrich_slave_sub
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: slave
+    target_attribute: role
+    target_value: submissive
+  - id: enrich_sub_submissive
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: sub
+    target_attribute: role
+    target_value: submissive
+  - id: enrich_dom_dominant
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: dom
+    target_attribute: role
+    target_value: dominant
+  - id: enrich_domme_dominant
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: domme
+    target_attribute: role
+    target_value: dominant
+  - id: enrich_domme_dom
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: domme
+    target_attribute: role
+    target_value: dom
+  - id: enrich_vers_versatile
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: vers
+    target_attribute: role
+    target_value: versatile
+  - id: enrich_versatile_vers
+    rule_type: enrichment
+    trigger_attribute: role
+    trigger_value: versatile
+    target_attribute: role
+    target_value: vers
+  - id: enrich_enby_nonbinary
+    rule_type: enrichment
+    trigger_attribute: gender
+    trigger_value: enby
+    target_attribute: gender
+    target_value: nonbinary
+  - id: enrich_non_binary_nonbinary
+    rule_type: enrichment
+    trigger_attribute: gender
+    trigger_value: non-binary
+    target_attribute: gender
+    target_value: nonbinary
+  - id: enrich_female_woman
+    rule_type: enrichment
+    trigger_attribute: gender
+    trigger_value: female
+    target_attribute: gender
+    target_value: woman
+  - id: enrich_male_man
+    rule_type: enrichment
+    trigger_attribute: gender
+    trigger_value: male
+    target_attribute: gender
+    target_value: man
   - id: acc_pan
     rule_type: acceptance
     trigger_attribute: orientation
     trigger_value: pan
     target_attribute: gender
-    target_value: man, woman, nonbinary, cis-man, cis-woman, trans-man, trans-woman, men, women
+    target_value: man, woman, nonbinary, cis-man, cis-woman, trans-man, trans-woman, men, women, genderfluid, agender, bigender, two-spirit
+  - id: acc_pansexual
+    rule_type: acceptance
+    trigger_attribute: orientation
+    trigger_value: pansexual
+    target_attribute: gender
+    target_value: man, woman, nonbinary, cis-man, cis-woman, trans-man, trans-woman, men, women, genderfluid, agender, bigender, two-spirit
   - id: acc_queer
     rule_type: acceptance
     trigger_attribute: orientation
     trigger_value: queer
     target_attribute: gender
-    target_value: man, woman, nonbinary, cis-man, cis-woman, trans-man, trans-woman, men, women
+    target_value: man, woman, nonbinary, cis-man, cis-woman, trans-man, trans-woman, men, women, genderfluid, agender, bigender, two-spirit
   - id: acc_bi
     rule_type: acceptance
     trigger_attribute: orientation
@@ -50,19 +170,19 @@ rules:
     trigger_attribute: orientation
     trigger_value: lesbian
     target_attribute: gender
-    target_value: woman, cis-woman, women
+    target_value: woman, cis-woman, trans-woman, women
   - id: acc_gay_man
     rule_type: acceptance
     trigger_attribute: orientation
     trigger_value: gay
     target_attribute: gender
-    target_value: man, cis-man, men
+    target_value: man, cis-man, trans-man, men
   - id: acc_homosexual_man
     rule_type: acceptance
     trigger_attribute: orientation
     trigger_value: homosexual
     target_attribute: gender
-    target_value: man, cis-man, men
+    target_value: man, cis-man, trans-man, men
   - id: acc_gay_woman
     rule_type: acceptance
     trigger_attribute: orientation
@@ -70,7 +190,7 @@ rules:
     context_attribute: gender
     context_value: woman
     target_attribute: gender
-    target_value: woman, cis-woman, women
+    target_value: woman, cis-woman, trans-woman, women
   - id: acc_homosexual_woman
     rule_type: acceptance
     trigger_attribute: orientation
@@ -78,7 +198,7 @@ rules:
     context_attribute: gender
     context_value: woman
     target_attribute: gender
-    target_value: woman, cis-woman, women
+    target_value: woman, cis-woman, trans-woman, women
   - id: acc_str_man
     rule_type: acceptance
     trigger_attribute: orientation
@@ -86,7 +206,7 @@ rules:
     context_attribute: gender
     context_value: man
     target_attribute: gender
-    target_value: woman, cis-woman, women
+    target_value: woman, cis-woman, trans-woman, women
   - id: acc_str_woman
     rule_type: acceptance
     trigger_attribute: orientation
@@ -94,103 +214,169 @@ rules:
     context_attribute: gender
     context_value: woman
     target_attribute: gender
-    target_value: man, cis-man, men
+    target_value: man, cis-man, trans-man, men
+  - id: acc_enm_open
+    rule_type: acceptance
+    trigger_attribute: relationship_style
+    trigger_value: enm
+    target_attribute: relationship_style
+    target_value: polyamorous, open-relationship, solo-poly, kitchen-table-poly, relationship-anarchy, swinger
   - id: exp_woman
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: woman
     target_attribute: gender
-    target_value: woman, cis-woman, trans-woman, female, women
+    target_value: cis-woman, trans-woman, women
   - id: exp_female
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: female
     target_attribute: gender
-    target_value: woman, cis-woman, trans-woman, female, women
-  - id: exp_women
-    rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: women
-    target_attribute: gender
-    target_value: woman, cis-woman, trans-woman, female, women
-  - id: exp_trans_woman
-    rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: trans-woman
-    target_attribute: gender
-    target_value: woman, cis-woman, trans-woman, female, women
-  - id: exp_cis_woman
-    rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: cis-woman
-    target_attribute: gender
-    target_value: woman, cis-woman, trans-woman, female, women
+    target_value: woman, cis-woman, trans-woman, women
   - id: exp_man
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: man
     target_attribute: gender
-    target_value: man, cis-man, trans-man, male, men
+    target_value: cis-man, trans-man, men
   - id: exp_male
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: male
     target_attribute: gender
-    target_value: man, cis-man, trans-man, male, men
-  - id: exp_men
-    rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: men
-    target_attribute: gender
-    target_value: man, cis-man, trans-man, male, men
-  - id: exp_trans_man
-    rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: trans-man
-    target_attribute: gender
-    target_value: man, cis-man, trans-man, male, men
-  - id: exp_cis_man
-    rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: cis-man
-    target_attribute: gender
-    target_value: man, cis-man, trans-man, male, men
+    target_value: man, cis-man, trans-man, men
   - id: exp_nonbinary
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: nonbinary
     target_attribute: gender
-    target_value: nonbinary, enby, non-binary, genderqueer, agender, trans-nonbinary, cis-nonbinary
+    target_value: enby, non-binary, genderqueer, agender, genderfluid, bigender, two-spirit
   - id: exp_enby
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: enby
     target_attribute: gender
-    target_value: nonbinary, enby, non-binary, genderqueer, agender, trans-nonbinary, cis-nonbinary
+    target_value: genderqueer, agender, genderfluid, bigender
   - id: exp_non_binary
     rule_type: expansion
     trigger_attribute: gender
     trigger_value: non-binary
     target_attribute: gender
-    target_value: nonbinary, enby, non-binary, genderqueer, agender, trans-nonbinary, cis-nonbinary
-  - id: exp_genderqueer
+    target_value: genderqueer, agender, genderfluid, bigender
+  - id: exp_ace
     rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: genderqueer
-    target_attribute: gender
-    target_value: nonbinary, enby, non-binary, genderqueer, agender, trans-nonbinary, cis-nonbinary
-  - id: exp_agender
+    trigger_attribute: orientation
+    trigger_value: ace
+    target_attribute: orientation
+    target_value: asexual, demisexual, graysexual
+  - id: exp_aro
     rule_type: expansion
-    trigger_attribute: gender
-    trigger_value: agender
-    target_attribute: gender
-    target_value: nonbinary, enby, non-binary, genderqueer, agender, trans-nonbinary, cis-nonbinary
+    trigger_attribute: orientation
+    trigger_value: aro
+    target_attribute: orientation
+    target_value: aromantic, demiromantic
+  - id: exp_bi
+    rule_type: expansion
+    trigger_attribute: orientation
+    trigger_value: bi
+    target_attribute: orientation
+    target_value: bisexual
+  - id: exp_pan
+    rule_type: expansion
+    trigger_attribute: orientation
+    trigger_value: pan
+    target_attribute: orientation
+    target_value: pansexual
+  - id: exp_demi
+    rule_type: expansion
+    trigger_attribute: orientation
+    trigger_value: demi
+    target_attribute: orientation
+    target_value: demisexual, demiromantic
   - id: exp_role_pet
     rule_type: expansion
     trigger_attribute: role
     trigger_value: pet
     target_attribute: role
-    target_value: pet, pup, puppy, kitten, kitty, pony
+    target_value: pup, puppy, kitten, kitty, pony
+  - id: exp_role_submissive
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: submissive
+    target_attribute: role
+    target_value: slave, service-sub, little, brat
+  - id: exp_role_sub
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: sub
+    target_attribute: role
+    target_value: submissive, slave, service-sub, little, brat
+  - id: exp_role_dominant
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: dominant
+    target_attribute: role
+    target_value: master, mistress, service-top, brat-tamer
+  - id: exp_role_dom
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: dom
+    target_attribute: role
+    target_value: dominant, domme, master, mistress, service-top, brat-tamer
+  - id: exp_role_domme
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: domme
+    target_attribute: role
+    target_value: dominant, master, mistress, service-top, brat-tamer
+  - id: exp_role_caregiver
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: caregiver
+    target_attribute: role
+    target_value: daddy, mommy, mummy
+  - id: exp_role_vers
+    rule_type: expansion
+    trigger_attribute: role
+    trigger_value: vers
+    target_attribute: role
+    target_value: versatile
+  - id: exp_rel_poly
+    rule_type: expansion
+    trigger_attribute: relationship_style
+    trigger_value: poly
+    target_attribute: relationship_style
+    target_value: polyamorous, kitchen-table-poly, solo-poly, parallel-poly
+  - id: exp_rel_ktp
+    rule_type: expansion
+    trigger_attribute: relationship_style
+    trigger_value: ktp
+    target_attribute: relationship_style
+    target_value: kitchen-table-poly
+  - id: exp_rel_ra
+    rule_type: expansion
+    trigger_attribute: relationship_style
+    trigger_value: ra
+    target_attribute: relationship_style
+    target_value: relationship-anarchy
+  - id: exp_rel_enm
+    rule_type: expansion
+    trigger_attribute: relationship_style
+    trigger_value: enm
+    target_attribute: relationship_style
+    target_value: ethical-non-monogamy, open-relationship
+  - id: exp_int_rope
+    rule_type: expansion
+    trigger_attribute: interests
+    trigger_value: rope
+    target_attribute: interests
+    target_value: shibari, kinbaku, bondage
+  - id: exp_int_impact
+    rule_type: expansion
+    trigger_attribute: interests
+    trigger_value: impact
+    target_attribute: interests
+    target_value: spanking, flogging, paddling, caning
   - id: cross_handler_pet
     rule_type: cross_match
     trigger_attribute: role
@@ -203,6 +389,12 @@ rules:
     trigger_value: top
     target_attribute: role
     target_value: bottom
+  - id: cross_service_top_sub
+    rule_type: cross_match
+    trigger_attribute: role
+    trigger_value: service-top
+    target_attribute: role
+    target_value: service-sub
   - id: cross_switch_top
     rule_type: cross_match
     trigger_attribute: role
@@ -221,40 +413,16 @@ rules:
     trigger_value: dominant
     target_attribute: role
     target_value: submissive
-  - id: exp_role_submissive
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: submissive
-    target_attribute: role
-    target_value: submissive, sub, slave, service-sub, little
-  - id: exp_role_sub
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: sub
-    target_attribute: role
-    target_value: submissive, sub, slave, service-sub, little
-  - id: exp_role_dominant
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: dominant
-    target_attribute: role
-    target_value: dominant, dom, domme, master, mistress
-  - id: exp_role_dom
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: dom
-    target_attribute: role
-    target_value: dominant, dom, domme, master, mistress
-  - id: exp_role_domme
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: domme
-    target_attribute: role
-    target_value: dominant, dom, domme, master, mistress
   - id: cross_master_slave
     rule_type: cross_match
     trigger_attribute: role
     trigger_value: master
+    target_attribute: role
+    target_value: slave
+  - id: cross_mistress_slave
+    rule_type: cross_match
+    trigger_attribute: role
+    trigger_value: mistress
     target_attribute: role
     target_value: slave
   - id: cross_owner_property
@@ -281,30 +449,18 @@ rules:
     trigger_value: caregiver
     target_attribute: role
     target_value: little
-  - id: exp_role_caregiver
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: caregiver
-    target_attribute: role
-    target_value: caregiver, daddy, mommy, mummy
   - id: cross_brat_tamer_brat
     rule_type: cross_match
     trigger_attribute: role
     trigger_value: brat-tamer
     target_attribute: role
     target_value: brat
-  - id: exp_role_vers
-    rule_type: expansion
+  - id: cross_primal_prey
+    rule_type: cross_match
     trigger_attribute: role
-    trigger_value: vers
+    trigger_value: primal
     target_attribute: role
-    target_value: vers, versatile
-  - id: exp_role_versatile
-    rule_type: expansion
-    trigger_attribute: role
-    trigger_value: versatile
-    target_attribute: role
-    target_value: vers, versatile
+    target_value: prey
   - id: excl_gay_straight
     rule_type: exclusion
     trigger_attribute: orientation
@@ -319,3 +475,27 @@ rules:
     context_value: man
     target_attribute: gender
     target_value: man
+  - id: excl_mono_poly
+    rule_type: exclusion
+    trigger_attribute: relationship_style
+    trigger_value: monogamous
+    target_attribute: relationship_style
+    target_value: polyamorous
+  - id: excl_mono_enm
+    rule_type: exclusion
+    trigger_attribute: relationship_style
+    trigger_value: monogamous
+    target_attribute: relationship_style
+    target_value: enm
+  - id: excl_mono_open
+    rule_type: exclusion
+    trigger_attribute: relationship_style
+    trigger_value: monogamous
+    target_attribute: relationship_style
+    target_value: open-relationship
+  - id: excl_mono_ra
+    rule_type: exclusion
+    trigger_attribute: relationship_style
+    trigger_value: monogamous
+    target_attribute: relationship_style
+    target_value: relationship-anarchy

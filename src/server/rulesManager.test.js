@@ -7,8 +7,9 @@ const importFresh = async (env = {}) => {
   vi.resetModules();
   for (const [k, v] of Object.entries(env)) process.env[k] = v;
   const db = (await import('./db.js')).default;
+  const { getDomainConfig } = await import('./configManager.js');
   const rm = await import('./rulesManager.js');
-  return { db, rm };
+  return { db, rm, expectedRuleCount: getDomainConfig().rules.length };
 };
 
 const { createRule } = await import('../../tests/testUtils.ts');
@@ -25,29 +26,30 @@ const insertDirect = (db, id) =>
 describe('rulesManager (DB-backed)', () => {
   let db;
   let rm;
+  let expectedRuleCount;
 
   beforeEach(async () => {
-    ({ db, rm } = await importFresh());
+    ({ db, rm, expectedRuleCount } = await importFresh());
   });
 
   afterEach(() => {
     delete process.env.RULES_CACHE_TTL_MS;
   });
 
-  it('seeds the 51 bundled default rules into a fresh database on boot', () => {
-    expect(rm.getRules()).toHaveLength(51);
+  it('seeds the bundled default rules into a fresh database on boot', () => {
+    expect(rm.getRules()).toHaveLength(expectedRuleCount);
   });
 
   it('seedIfEmpty is a no-op when rules already exist', async () => {
     await rm.seedIfEmpty();
-    expect(rm.getRules()).toHaveLength(51); // not doubled
+    expect(rm.getRules()).toHaveLength(expectedRuleCount); // not doubled
   });
 
   it('seedIfEmpty repopulates an empty table with the defaults', async () => {
     await db.execute('DELETE FROM rules');
     await rm.seedIfEmpty();
     await rm.reloadRules();
-    expect(rm.getRules()).toHaveLength(51);
+    expect(rm.getRules()).toHaveLength(expectedRuleCount);
   });
 
   describe('CRUD against an empty table', () => {
@@ -156,10 +158,10 @@ describe('rulesManager (DB-backed)', () => {
     const yamlPath = pathMod.join(dir, 'rules.yaml');
     fs.writeFileSync(yamlPath, 'rules: [invalid: : : yaml]', 'utf8');
 
-    ({ db, rm } = await importFresh({ RULES_PATH: yamlPath }));
+    ({ db, rm, expectedRuleCount } = await importFresh({ RULES_PATH: yamlPath }));
 
-    // Should log warning and fall back to bundled 51 defaults
-    expect(rm.getRules()).toHaveLength(51);
+    // Should log warning and fall back to bundled defaults
+    expect(rm.getRules()).toHaveLength(expectedRuleCount);
 
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -172,9 +174,9 @@ describe('rulesManager (DB-backed)', () => {
     const yamlPath = pathMod.join(dir, 'rules.yaml');
     fs.writeFileSync(yamlPath, 'rules: []\n', 'utf8');
 
-    ({ db, rm } = await importFresh({ RULES_PATH: yamlPath }));
+    ({ db, rm, expectedRuleCount } = await importFresh({ RULES_PATH: yamlPath }));
 
-    expect(rm.getRules()).toHaveLength(51);
+    expect(rm.getRules()).toHaveLength(expectedRuleCount);
 
     fs.rmSync(dir, { recursive: true, force: true });
   });
