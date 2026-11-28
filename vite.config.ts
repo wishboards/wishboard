@@ -48,23 +48,35 @@ export default defineConfig({
     // Use repo root for testing so both client and server files are visible.
     root: projectRoot,
     globals: true,
-    environment: 'jsdom',
-    environmentMatchGlobs: [
-      ['**/src/server/**', 'node'],
-      ['**/src/cli/**', 'node'],
-      ['**/scripts/**', 'node'],
-      ['**/aws-serverless/**', 'node'],
-    ],
-    include: [
-      'src/client/src/**/*.{test,spec}.{ts,tsx}',
-      'src/server/**/*.{test,spec}.{js,ts}',
-      'src/cli/**/*.{test,spec}.{js,ts}',
-      'scripts/**/*.{test,spec}.{js,ts}',
-      'aws-serverless/**/*.{test,spec}.{js,mjs,ts}',
-      'tests/integration/**/*.integration.test.js',
-    ],
     setupFiles: 'tests/setupTests.ts',
     globalSetup: 'vitest.global-setup.js',
+    // Test environments are chosen per project. (`environmentMatchGlobs` was removed in
+    // Vitest 4; leaving it in place was silently ignored and put every file, including
+    // pure-Node server/CLI suites, in jsdom. See docs on Vitest projects.)
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'client',
+          environment: 'jsdom',
+          include: ['src/client/src/**/*.{test,spec}.{ts,tsx}'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'src/server/**/*.{test,spec}.{js,ts}',
+            'src/cli/**/*.{test,spec}.{js,ts}',
+            'scripts/**/*.{test,spec}.{js,ts}',
+            'aws-serverless/**/*.{test,spec}.{js,mjs,ts}',
+            'tests/integration/**/*.integration.test.js',
+          ],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
@@ -85,6 +97,5 @@ export default defineConfig({
         'aws-serverless/**/*.{js,mjs,ts}',
       ],
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Vitest test option extension onto Vite UserConfig requires fallback cast
-  } as any,
+  },
 });
