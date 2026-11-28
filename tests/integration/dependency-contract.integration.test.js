@@ -25,12 +25,12 @@ describe('integration: production image ships what the bundled CLI needs', () =>
 
   it('prepares profile sticker assets before running Vite build in Dockerfile and serverless deploy', () => {
     const dockerfile = fs.readFileSync(path.resolve(process.cwd(), 'Dockerfile'), 'utf8');
-    expect(dockerfile).toMatch(/wishboard\.js\s+build\s+prepare\s+&&\s+npm\s+run\s+build/);
+    expect(dockerfile).toMatch(/wishboard\.js\s+build\s+prepare-profile\s+&&\s+npm\s+run\s+build/);
     const serverlessCli = fs.readFileSync(
       path.resolve(process.cwd(), 'src/cli/commands/serverless.js'),
       'utf8'
     );
-    expect(serverlessCli).toMatch(/['"]build['"],\s*['"]prepare['"]/);
+    expect(serverlessCli).toMatch(/['"]build['"],\s*['"]prepare-profile['"]/);
   });
 
   // Every static and dynamic relative import in src/server and src/cli must resolve

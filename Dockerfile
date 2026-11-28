@@ -19,7 +19,7 @@ COPY scripts ./scripts
 COPY profiles ./profiles
 
 # Prepare default profile assets (stickers, theme.css) and run Vite build
-RUN node src/cli/wishboard.js build prepare && npm run build
+RUN node src/cli/wishboard.js build prepare-profile && npm run build
 
 # Stage 2: Install production dependencies
 FROM node:24-slim AS deps

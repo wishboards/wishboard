@@ -723,7 +723,7 @@ export function deployServerless(options) {
   logStep(`[1/6] Preparing profile '${eventProfile}' assets and building frontend...`);
   const prep = execCommand(
     'node',
-    ['src/cli/wishboard.js', 'build', 'prepare', '--profile', eventProfile],
+    ['src/cli/wishboard.js', 'build', 'prepare-profile', '--event-profile', eventProfile],
     { cwd: PROJECT_ROOT, dryRun }
   );
   if (prep.status !== 0) throw new Error('Profile asset preparation failed.');
