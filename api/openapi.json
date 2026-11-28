@@ -1631,6 +1631,190 @@
           "proposal"
         ]
       },
+      "StickerMatchInput": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "Nonbinary"
+          },
+          "tag": {
+            "type": "string",
+            "example": "nonbinary"
+          },
+          "category": {
+            "type": "string",
+            "example": "gender"
+          }
+        }
+      },
+      "StickerMatchResponse": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "bundled",
+              "synthesized"
+            ]
+          },
+          "src": {
+            "type": "string",
+            "example": "/assets/stickers/nonbinary.svg"
+          },
+          "svg": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string",
+            "example": "CC0-1.0"
+          },
+          "sticker": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "svg",
+                  "image"
+                ]
+              },
+              "src": {
+                "type": "string"
+              },
+              "svg": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "license",
+          "sticker"
+        ]
+      },
+      "StickerSynthesizeResponse": {
+        "type": "object",
+        "properties": {
+          "svg": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string",
+            "example": "CC0-1.0"
+          },
+          "sticker": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "svg"
+                ]
+              },
+              "svg": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "svg"
+            ]
+          }
+        },
+        "required": [
+          "svg",
+          "license",
+          "sticker"
+        ]
+      },
+      "TaxonomyExportResponse": {
+        "type": "object",
+        "properties": {
+          "overridesOnly": {
+            "type": "boolean"
+          },
+          "profileYaml": {
+            "type": "string"
+          },
+          "rulesYaml": {
+            "type": "string"
+          },
+          "stickersYaml": {
+            "type": "string"
+          },
+          "yaml": {
+            "type": "string"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "nullable": true
+              }
+            }
+          },
+          "stickers": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          },
+          "assets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "valid": {
+                "type": "boolean"
+              },
+              "errors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "nullable": true
+                  }
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "required": [
+              "valid",
+              "errors",
+              "warnings"
+            ]
+          }
+        },
+        "required": [
+          "overridesOnly",
+          "profileYaml",
+          "rulesYaml",
+          "stickersYaml",
+          "yaml",
+          "categories",
+          "stickers",
+          "assets",
+          "validation"
+        ]
+      },
       "ProfileOverrideCategory": {
         "type": "object",
         "properties": {
@@ -4888,6 +5072,174 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProposalMutationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/stickers/match": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG",
+        "description": "Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickerMatchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StickerMatchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/stickers/synthesize": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Synthesize deterministic constrained geometric SVG sticker",
+        "description": "Synthesize deterministic constrained geometric SVG sticker",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickerMatchInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Synthesize deterministic constrained geometric SVG sticker response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StickerSynthesizeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/taxonomy/export": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Export approved taxonomy overrides as deterministic YAML and SVG patch bundle",
+        "description": "Export approved taxonomy overrides as deterministic YAML and SVG patch bundle",
+        "parameters": [
+          {
+            "name": "overridesOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Export approved taxonomy overrides as deterministic YAML and SVG patch bundle response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyExportResponse"
                 }
               }
             }

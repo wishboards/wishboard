@@ -149,4 +149,48 @@ describe('Admin Taxonomy Governance Queue API (/api/admin/proposals)', () => {
     expect(dismissRes.status).toBe(200);
     expect(dismissRes.body.proposal.status).toBe('dismissed');
   });
+
+  it('supports sticker matching, SVG synthesis, and deterministic taxonomy export with admin auth', async () => {
+    const unauthMatch = await request(app)
+      .post('/api/admin/stickers/match')
+      .send({ label: 'Nonbinary', category: 'gender' });
+    expect([401, 403]).toContain(unauthMatch.status);
+
+    const unauthExport = await request(app).get('/api/admin/taxonomy/export');
+    expect([401, 403]).toContain(unauthExport.status);
+
+    const matchBundled = await request(app)
+      .post('/api/admin/stickers/match')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ label: 'Nonbinary', category: 'gender' });
+    expect(matchBundled.status).toBe(200);
+    expect(matchBundled.body.source).toBe('bundled');
+    expect(matchBundled.body.src).toBe('/assets/stickers/nonbinary.svg');
+    expect(['CC0-1.0', 'MIT']).toContain(matchBundled.body.license);
+
+    const matchFallback = await request(app)
+      .post('/api/admin/stickers/match')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ label: 'Custom Tea Lounge', category: 'interests' });
+    expect(matchFallback.status).toBe(200);
+    expect(matchFallback.body.source).toBe('synthesized');
+    expect(matchFallback.body.svg).toContain('<svg');
+
+    const synthRes = await request(app)
+      .post('/api/admin/stickers/synthesize')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ label: '"><script>alert(1)</script>', category: 'interests' });
+    expect(synthRes.status).toBe(200);
+    expect(synthRes.body.svg).toContain('<svg');
+    expect(synthRes.body.svg).not.toContain('<script');
+
+    const exportRes = await request(app)
+      .get('/api/admin/taxonomy/export')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(exportRes.status).toBe(200);
+    expect(exportRes.body.validation.valid).toBe(true);
+    expect(exportRes.body.rulesYaml).toBeTruthy();
+    expect(exportRes.body.stickersYaml).toBeTruthy();
+    expect(Object.keys(exportRes.body.assets).length).toBeGreaterThan(0);
+  });
 });

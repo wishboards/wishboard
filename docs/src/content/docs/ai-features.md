@@ -146,3 +146,21 @@ Per **ADR 0007**, the AI functionality is cleanly decoupled:
   - Owns HTTP routes and OpenAPI specifications (`/api/wishes/:id/suggestions`).
 - **Matching Engine (`@wishboards/matching-engine`)**:
   - Vector similarity algorithms (`cosineSimilarity`, `rankWishesBySimilarity` in `src/server/ai/vectorSearch.js`) are pure mathematical calculations with zero external dependencies, designed for clean future extraction into the engine library.
+  - Deterministic rule-graph validation (`validateRuleset`) ensures proposed taxonomy rules never introduce expansion cycles or conflicting exclusions.
+
+---
+
+## 6. Taxonomy Evolution & Admin Governance Queue (ADR 0013)
+
+To keep event taxonomies, matching rules, and identity stickers up to date without sacrificing privacy or offline Raspberry Pi parity, Wishboard implements a two-loop evolution pipeline:
+
+- **Loop A — Static Profile Analyzer CLI (`scripts/analyze-taxonomy.js`)**:
+  - Compares active `profiles/*` YAML against license-vetted seed catalogs (`Apache-2.0`, `MIT`, `CC0-1.0` per `profiles/provenance.json`) and optional anonymized board exports or exported patch bundles (`--bundle`).
+  - Validates proposed rules using `validateRuleset` before generating reviewable YAML/JSON diffs.
+- **Loop B — Runtime Gap Harvester (`unmappedSignals` → `taxonomy_proposals`)**:
+  - Both `CloudInferenceProvider` and `LocalInferenceProvider` emit bounded, PII-filtered `unmappedSignals` alongside ADR 0012 suggestions.
+  - The background worker (`src/server/ai/taggingWorker.js`) aggregates normalized keys and counts into the `taxonomy_proposals` SQLite table with zero `wish_id`, `user_id`, or raw wish prose columns, gating primary triage behind a configurable recurrence quorum (default `>= 3`).
+- **Admin Governance Queue (`Admin → Taxonomy Governance`)**:
+  - Admins review quorum-filtered proposals, edit payloads, map terms as `expansion` aliases, or approve promotions directly into live SQLite `rules` or `configManager` DB-over-YAML profile overrides (validated inline by `validateRuleset`).
+  - **Assisted Sticker Matching & Geometric SVG Synthesis**: Proposals can be matched against bundled `CC0-1.0` / `MIT` SVGs (`/assets/stickers/*.svg`) via `POST /api/admin/stickers/match` or assigned a deterministic constrained geometric SVG (`viewBox="0 0 64 64"`, strictly sanitized via `sanitizeSvg`) via `POST /api/admin/stickers/synthesize`.
+  - **YAML/SVG Patch Export**: Clicking **Export YAML** (or calling `GET /api/admin/taxonomy/export`) produces a deterministic, `validateRuleset`-clean YAML and sanitized SVG asset bundle for graduating live discoveries into versioned `profiles/*` files or applying to offline Pi deployments.

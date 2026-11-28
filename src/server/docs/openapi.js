@@ -680,6 +680,61 @@ export const ProposalMutationResponseSchema = registry.register(
   })
 );
 
+export const StickerMatchInputSchema = registry.register(
+  'StickerMatchInput',
+  z.object({
+    label: z.string().optional().openapi({ example: 'Nonbinary' }),
+    tag: z.string().optional().openapi({ example: 'nonbinary' }),
+    category: z.string().optional().openapi({ example: 'gender' }),
+  })
+);
+
+export const StickerMatchResponseSchema = registry.register(
+  'StickerMatchResponse',
+  z.object({
+    source: z.enum(['bundled', 'synthesized']),
+    src: z.string().optional().openapi({ example: '/assets/stickers/nonbinary.svg' }),
+    svg: z.string().optional(),
+    license: z.string().openapi({ example: 'CC0-1.0' }),
+    sticker: z.object({
+      type: z.enum(['svg', 'image']),
+      src: z.string().optional(),
+      svg: z.string().optional(),
+    }),
+  })
+);
+
+export const StickerSynthesizeResponseSchema = registry.register(
+  'StickerSynthesizeResponse',
+  z.object({
+    svg: z.string(),
+    license: z.string().openapi({ example: 'CC0-1.0' }),
+    sticker: z.object({
+      type: z.literal('svg'),
+      svg: z.string(),
+    }),
+  })
+);
+
+export const TaxonomyExportResponseSchema = registry.register(
+  'TaxonomyExportResponse',
+  z.object({
+    overridesOnly: z.boolean(),
+    profileYaml: z.string(),
+    rulesYaml: z.string(),
+    stickersYaml: z.string(),
+    yaml: z.string(),
+    categories: z.array(z.record(z.string(), z.any())),
+    stickers: z.record(z.string(), z.any()),
+    assets: z.record(z.string(), z.string()),
+    validation: z.object({
+      valid: z.boolean(),
+      errors: z.array(z.record(z.string(), z.any())),
+      warnings: z.array(z.record(z.string(), z.any())),
+    }),
+  })
+);
+
 export const ProfileOverrideCategorySchema = registry.register(
   'ProfileOverrideCategory',
   z.object({
@@ -1453,6 +1508,30 @@ addAdminRoute({
   summary: 'Dismiss taxonomy proposal',
   params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
   responseSchema: ProposalMutationResponseSchema,
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/stickers/match',
+  summary: 'Match proposed tag to bundled CC0/MIT sticker or synthesize geometric SVG',
+  requestSchema: StickerMatchInputSchema,
+  responseSchema: StickerMatchResponseSchema,
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/stickers/synthesize',
+  summary: 'Synthesize deterministic constrained geometric SVG sticker',
+  requestSchema: StickerMatchInputSchema,
+  responseSchema: StickerSynthesizeResponseSchema,
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/taxonomy/export',
+  summary: 'Export approved taxonomy overrides as deterministic YAML and SVG patch bundle',
+  params: [{ name: 'overridesOnly', in: 'query', required: false, schema: { type: 'boolean' } }],
+  responseSchema: TaxonomyExportResponseSchema,
 });
 
 addAdminRoute({

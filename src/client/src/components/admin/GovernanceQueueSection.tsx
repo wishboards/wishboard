@@ -3,6 +3,18 @@ import { apiClient, type ApiSchemas } from '../../api/client';
 import { sanitizeStickerImageSrc, sanitizeSvg } from '../../../../shared/svgSanitizer';
 
 type TaxonomyProposal = ApiSchemas['TaxonomyProposal'];
+type StickerMatchResponse = ApiSchemas['StickerMatchResponse'];
+type TaxonomyExportResponse = ApiSchemas['TaxonomyExportResponse'];
+
+interface StickerCandidateState {
+  source: 'bundled' | 'synthesized';
+  license: string;
+  sticker: {
+    type: 'svg' | 'image';
+    src?: string;
+    svg?: string;
+  };
+}
 
 interface ValidationIssue {
   severity?: string;
@@ -47,6 +59,12 @@ export default function GovernanceQueueSection({
   const [aliasTriggerAttr, setAliasTriggerAttr] = useState<string>('interests');
   const [aliasTargetAttr, setAliasTargetAttr] = useState<string>('interests');
   const [aliasTargetValue, setAliasTargetValue] = useState<string>('');
+
+  const [stickerCandidates, setStickerCandidates] = useState<Record<number, StickerCandidateState>>(
+    {}
+  );
+  const [exportBundle, setExportBundle] = useState<TaxonomyExportResponse | null>(null);
+  const [exporting, setExporting] = useState<boolean>(false);
 
   const loadProposals = useCallback(async () => {
     setLoading(true);
@@ -105,10 +123,11 @@ export default function GovernanceQueueSection({
     setMessage(null);
     setValidationBanner(null);
 
+    const candidate = stickerCandidates[proposal.id];
     const { response, error: apiErr } = await apiClient.POST('/api/admin/proposals/{id}/approve', {
       headers: authHeader,
       params: { path: { id: String(proposal.id) } },
-      body: {},
+      body: candidate ? { sticker: candidate.sticker } : {},
     });
 
     if (response.status === 401) {
@@ -266,6 +285,123 @@ export default function GovernanceQueueSection({
     await loadProposals();
   };
 
+  const handleMatchSticker = async (proposal: TaxonomyProposal) => {
+    setError(null);
+    setMessage(null);
+    const payload = proposal.proposed_payload ?? {};
+    const label =
+      typeof payload.label === 'string' && payload.label.trim()
+        ? payload.label.trim()
+        : proposal.normalized_key;
+    const category =
+      typeof payload.category === 'string' && payload.category.trim()
+        ? payload.category.trim()
+        : typeof payload.categoryId === 'string' && payload.categoryId.trim()
+          ? payload.categoryId.trim()
+          : 'interests';
+
+    const { data, response } = await apiClient.POST('/api/admin/stickers/match', {
+      headers: authHeader,
+      body: { label, tag: proposal.normalized_key, category },
+    });
+
+    if (response.status === 401) {
+      onSessionExpired?.();
+      return;
+    }
+    if (!response.ok || !data) {
+      setError('Failed to match sticker.');
+      return;
+    }
+
+    const matchData = data as StickerMatchResponse;
+    setStickerCandidates((prev) => ({
+      ...prev,
+      [proposal.id]: {
+        source: matchData.source,
+        license: matchData.license,
+        sticker: matchData.sticker,
+      },
+    }));
+    setMessage(
+      `Matched ${matchData.source} sticker (${matchData.license}) for "${proposal.normalized_key}".`
+    );
+  };
+
+  const handleSynthesizeSticker = async (proposal: TaxonomyProposal) => {
+    setError(null);
+    setMessage(null);
+    const payload = proposal.proposed_payload ?? {};
+    const label =
+      typeof payload.label === 'string' && payload.label.trim()
+        ? payload.label.trim()
+        : proposal.normalized_key;
+    const category =
+      typeof payload.category === 'string' && payload.category.trim()
+        ? payload.category.trim()
+        : typeof payload.categoryId === 'string' && payload.categoryId.trim()
+          ? payload.categoryId.trim()
+          : 'interests';
+
+    const { data, response } = await apiClient.POST('/api/admin/stickers/synthesize', {
+      headers: authHeader,
+      body: { label, tag: proposal.normalized_key, category },
+    });
+
+    if (response.status === 401) {
+      onSessionExpired?.();
+      return;
+    }
+    if (!response.ok || !data) {
+      setError('Failed to synthesize geometric SVG sticker.');
+      return;
+    }
+
+    setStickerCandidates((prev) => ({
+      ...prev,
+      [proposal.id]: {
+        source: 'synthesized',
+        license: data.license,
+        sticker: data.sticker,
+      },
+    }));
+    setMessage(`Synthesized CC0-1.0 geometric SVG for "${proposal.normalized_key}".`);
+  };
+
+  const handleExportYaml = async () => {
+    setError(null);
+    setMessage(null);
+    setExporting(true);
+    try {
+      const { data, response } = await apiClient.GET('/api/admin/taxonomy/export', {
+        headers: authHeader,
+        params: { query: { overridesOnly: false } },
+      });
+      if (response.status === 401) {
+        onSessionExpired?.();
+        return;
+      }
+      if (!response.ok || !data) {
+        setError('Failed to export taxonomy YAML bundle.');
+        return;
+      }
+      setExportBundle(data);
+      setMessage('Exported taxonomy YAML/SVG patch bundle.');
+
+      if (typeof globalThis.URL?.createObjectURL === 'function' && typeof Blob !== 'undefined') {
+        const blob = new Blob([data.yaml], { type: 'text/yaml;charset=utf-8' });
+        const url = globalThis.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'taxonomy-export.yaml';
+        link.click();
+        globalThis.URL.revokeObjectURL?.(url);
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <section aria-label="Taxonomy Governance Queue">
       <div
@@ -310,8 +446,46 @@ export default function GovernanceQueueSection({
             />
             Show below-quorum ({belowQuorumCount} below &ge; {quorumThreshold})
           </label>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleExportYaml}
+            disabled={exporting}
+          >
+            {exporting ? 'Exporting...' : 'Export YAML'}
+          </button>
         </div>
       </div>
+
+      {exportBundle && (
+        <div className="wish-card" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <strong>Exported YAML/SVG Bundle</strong>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => setExportBundle(null)}
+            >
+              Close
+            </button>
+          </div>
+          <pre
+            data-testid="taxonomy-export-preview"
+            className="microtext"
+            style={{
+              marginTop: '8px',
+              padding: '8px',
+              background: 'rgba(0,0,0,0.2)',
+              borderRadius: '4px',
+              maxHeight: '220px',
+              overflow: 'auto',
+            }}
+          >
+            {exportBundle.yaml}
+          </pre>
+        </div>
+      )}
 
       {validationBanner && (
         <div
@@ -357,6 +531,7 @@ export default function GovernanceQueueSection({
 
       <div style={{ display: 'grid', gap: '12px' }}>
         {proposals.map((proposal) => {
+          const candidate = stickerCandidates[proposal.id];
           const payloadSvg =
             typeof proposal.proposed_payload?.svg === 'string'
               ? proposal.proposed_payload.svg
@@ -375,11 +550,16 @@ export default function GovernanceQueueSection({
             return `data:image/svg+xml;utf8,${encodeURIComponent(withXmlns)}`;
           };
 
-          const previewSrc = payloadSrc
-            ? sanitizeStickerImageSrc(payloadSrc)
-            : payloadSvg
-              ? toSafeSvgDataUri(payloadSvg)
-              : null;
+          const previewSrc =
+            candidate?.sticker.type === 'image'
+              ? sanitizeStickerImageSrc(candidate.sticker.src ?? '')
+              : candidate?.sticker.type === 'svg'
+                ? toSafeSvgDataUri(candidate.sticker.svg)
+                : payloadSrc
+                  ? sanitizeStickerImageSrc(payloadSrc)
+                  : payloadSvg
+                    ? toSafeSvgDataUri(payloadSvg)
+                    : null;
 
           return (
             <article
@@ -426,6 +606,11 @@ export default function GovernanceQueueSection({
                   />
                 ) : (
                   <span className="microtext">No sticker selected</span>
+                )}
+                {candidate && (
+                  <span className="microtext">
+                    {candidate.source} ({candidate.license})
+                  </span>
                 )}
               </div>
 
@@ -526,6 +711,20 @@ export default function GovernanceQueueSection({
                 <div className="wish-actions" style={{ marginTop: '10px', flexWrap: 'wrap' }}>
                   <button type="button" onClick={() => handleApprove(proposal)}>
                     {proposal.proposal_type === 'rule' ? 'Approve Rule' : 'Approve'}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => handleMatchSticker(proposal)}
+                  >
+                    Match Sticker
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => handleSynthesizeSticker(proposal)}
+                  >
+                    Synthesize SVG
                   </button>
                   <button
                     type="button"

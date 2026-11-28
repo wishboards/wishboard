@@ -60,6 +60,10 @@ async function createWishAndMockSuggestions(page: Page) {
 }
 
 test.describe('AI suggestion review modal', () => {
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
+
   test('desktop: two-column modal with live preview, opt-in desired chips, and streamlining', async ({
     page,
   }) => {

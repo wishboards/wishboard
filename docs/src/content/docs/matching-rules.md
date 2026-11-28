@@ -238,3 +238,15 @@ following semantics are deliberate (pinned by the regression matrix in
   are defined against man/woman, so a nonbinary person with one of them has no
   gender preference the engine can infer and matches nobody implicitly — set an
   explicit desired gender or use Broad Search.
+
+---
+
+## 8. Rule Graph Validation (`validateRuleset`)
+
+Before any new rule is committed to a static profile or promoted at runtime through the Admin Governance Queue, `@wishboards/matching-engine` runs `validateRuleset(rules, options)` deterministically across all five rule types (`enrichment`, `acceptance`, `expansion`, `cross_match`, `exclusion`):
+
+- **Expansion cycles & self-loops (`EXPANSION_CYCLE`, `EXPANSION_SELF_LOOP`)**: Directed cycles in `expansion` rules (e.g., `enby -> nonbinary -> enby`) and self-referential expansions are rejected as errors, while diamond DAGs are permitted.
+- **Exclusion contradictions**: Conflicting `cross_match` or `exclusion` pairs are flagged deterministically, respecting context-scoped rules (`context_attribute` / `context_value`).
+- **Dangling or empty targets**: Rules with missing triggers/targets or unknown terms are surfaced with deterministic `errors` and `warnings`.
+
+Both the static analyzer CLI (`node scripts/analyze-taxonomy.js`) and the Governance Queue approval endpoints (`POST /api/admin/proposals/:id/approve` and `POST /api/admin/proposals/:id/alias`) enforce `validateRuleset` and return `HTTP 422` if a proposed rule introduces errors.

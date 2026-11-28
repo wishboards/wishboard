@@ -49,6 +49,9 @@ export default defineConfig({
       WISHBOARD_DB_PATH: 'data/e2e-test.db',
       WISHBOARD_ADMIN_SECRET: 'e2e-admin-password',
       NODE_ENV: 'test',
+      ENABLE_AI_FEATURES: 'true',
+      AI_PROVIDER: 'local',
+      WISHBOARD_DB_WAL: '1',
     },
   },
 });
