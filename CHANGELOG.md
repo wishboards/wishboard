@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.46.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.45.0...wishboard-v1.46.0) (2026-11-28)
+
+
+### Features
+
+* add license-vetted lifestyle taxonomy seed catalogs and static analyzer CLI ([#675](https://github.com/wishboards/wishboard/issues/675)) ([bceccf3](https://github.com/wishboards/wishboard/commit/bceccf31a840e497316f4dca9055a2b572342121))
+* **config:** Phase 2 - declarative SVG stickers and DB-over-YAML profile override layer ([#679](https://github.com/wishboards/wishboard/issues/679)) ([33a56c3](https://github.com/wishboards/wishboard/commit/33a56c351e840ad864c8c69ea89133289ab2aa52))
+
+
+### Bug Fixes
+
+* **test:** route test environments via Vitest projects ([#678](https://github.com/wishboards/wishboard/issues/678)) ([9038433](https://github.com/wishboards/wishboard/commit/90384338065c6ed9c912f4271cf53376f5a2dca4))
+
 ## [1.45.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.44.0...wishboard-v1.45.0) (2026-11-22)
 
 
