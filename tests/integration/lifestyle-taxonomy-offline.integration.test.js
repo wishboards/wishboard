@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import yaml from 'yaml';
 import { isCompatible, validateRuleset } from '@wishboards/matching-engine';
 import { LocalInferenceProvider } from '../../src/server/ai/LocalProvider.js';
+import { sanitizeSvg } from '../../src/shared/svgSanitizer.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '../..');
 const LIFESTYLE_DIR = path.join(REPO_ROOT, 'profiles', 'lifestyle');
@@ -86,8 +87,7 @@ describe('lifestyle taxonomy offline & validation integration', () => {
       const svgPath = path.join(LIFESTYLE_DIR, src.slice(1));
       expect(fs.existsSync(svgPath)).toBe(true);
       const rawSvg = fs.readFileSync(svgPath, 'utf8');
-      expect(rawSvg).toContain('<svg');
-      expect(rawSvg).not.toMatch(/<script/i);
+      expect(sanitizeSvg(rawSvg)).not.toBeNull();
     }
   });
 

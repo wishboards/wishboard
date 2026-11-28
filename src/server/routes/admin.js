@@ -7,10 +7,11 @@ import { requireAdmin } from '../auth.js';
 import { generateDemoData } from '../demoSeeder.js';
 import logger, { stringifyIfNotEmpty } from '../logger.js';
 import { emitWishDeleted, emitBrandingUpdated } from '../socket.js';
-import { getEventProfile } from '../configManager.js';
+import { getEventProfile, setProfileOverride, clearProfileOverrides } from '../configManager.js';
 import { reloadRules } from '../rulesManager.js';
 import { getMergedBranding, updateBranding, resetBranding } from '../brandingManager.js';
 import { createUploadMiddleware, processUploadedImage } from '../utils/imageStorage.js';
+import { sanitizeSvg, sanitizeStickerImageSrc } from '../../shared/svgSanitizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -401,6 +402,175 @@ router.post('/branding/upload', requireAdmin, brandingUpload.single('file'), asy
     url: processed.url,
     filename: processed.filename,
   });
+});
+
+// ── Profile Overrides (DB-over-YAML) ─────────────────────────────────────────
+
+const DISALLOWED_OVERRIDE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const isPlainObject = (val) => Boolean(val) && typeof val === 'object' && !Array.isArray(val);
+
+const validateSingleCategoryOverride = (cat) => {
+  if (!isPlainObject(cat) || typeof cat.id !== 'string' || !cat.id.trim()) {
+    return { error: 'Each category override must have a non-empty string id.' };
+  }
+  const id = cat.id.trim();
+  if (DISALLOWED_OVERRIDE_KEYS.has(id)) {
+    return { error: `Invalid category id: ${id}` };
+  }
+  if (cat.label !== undefined && typeof cat.label !== 'string') {
+    return { error: `Category "${id}" label must be a string.` };
+  }
+  if (cat.type !== undefined && typeof cat.type !== 'string') {
+    return { error: `Category "${id}" type must be a string.` };
+  }
+  if (
+    cat.suggestions !== undefined &&
+    (!Array.isArray(cat.suggestions) || cat.suggestions.some((s) => typeof s !== 'string'))
+  ) {
+    return { error: `Category "${id}" suggestions must be an array of strings.` };
+  }
+  return {
+    value: {
+      id,
+      ...(cat.label !== undefined ? { label: cat.label } : {}),
+      ...(cat.type !== undefined ? { type: cat.type } : {}),
+      ...(cat.suggestions !== undefined ? { suggestions: cat.suggestions } : {}),
+    },
+  };
+};
+
+const validateCategoriesOverride = (categories) => {
+  if (!Array.isArray(categories)) {
+    return { error: 'categories must be an array of { id, label?, type?, suggestions? }.' };
+  }
+  const normalized = [];
+  for (const cat of categories) {
+    const result = validateSingleCategoryOverride(cat);
+    if (result.error) return result;
+    normalized.push(result.value);
+  }
+  return { value: normalized };
+};
+
+const validateSuggestionsOverride = (suggestions) => {
+  if (!isPlainObject(suggestions)) {
+    return { error: 'suggestions must be a record mapping category IDs to string arrays.' };
+  }
+  const normalized = {};
+  for (const catId of Object.keys(suggestions)) {
+    if (DISALLOWED_OVERRIDE_KEYS.has(catId)) {
+      return { error: `Invalid category id: ${catId}` };
+    }
+    const list = suggestions[catId];
+    if (!Array.isArray(list) || list.some((s) => typeof s !== 'string')) {
+      return { error: `suggestions["${catId}"] must be an array of strings.` };
+    }
+    normalized[catId] = list;
+  }
+  return { value: normalized };
+};
+
+const sanitizeSingleStickerRule = (cat, term, rule) => {
+  if (!isPlainObject(rule)) {
+    return { error: `Sticker "${cat}.${term}" must be an object.` };
+  }
+  if (rule.type === 'svg') {
+    if (typeof rule.svg !== 'string') {
+      return { error: `Sticker "${cat}.${term}" with type "svg" must include an svg string.` };
+    }
+    const sanitized = sanitizeSvg(rule.svg);
+    if (!sanitized) {
+      return { error: `Sticker "${cat}.${term}" contains invalid or unsafe SVG.` };
+    }
+    return { value: { ...rule, type: 'svg', svg: sanitized } };
+  }
+  if (rule.type === 'image') {
+    if (typeof rule.src !== 'string') {
+      return { error: `Sticker "${cat}.${term}" with type "image" must include a src string.` };
+    }
+    const safeSrc = sanitizeStickerImageSrc(rule.src);
+    if (!safeSrc) {
+      return { error: `Sticker "${cat}.${term}" contains invalid or unsafe image src.` };
+    }
+    return { value: { ...rule, type: 'image', src: safeSrc } };
+  }
+  return { value: { ...rule } };
+};
+
+const validateAndSanitizeStickersOverride = (stickers) => {
+  if (!isPlainObject(stickers)) {
+    return { error: 'stickers must be a record mapping categories to term sticker rules.' };
+  }
+  const sanitized = {};
+  for (const cat of Object.keys(stickers)) {
+    if (DISALLOWED_OVERRIDE_KEYS.has(cat)) {
+      return { error: `Invalid sticker category: ${cat}` };
+    }
+    const termMap = stickers[cat];
+    if (!isPlainObject(termMap)) {
+      return { error: `stickers["${cat}"] must be an object mapping terms to sticker rules.` };
+    }
+    sanitized[cat] = {};
+    for (const term of Object.keys(termMap)) {
+      if (DISALLOWED_OVERRIDE_KEYS.has(term)) {
+        return { error: `Invalid sticker term: ${term}` };
+      }
+      const result = sanitizeSingleStickerRule(cat, term, termMap[term]);
+      if (result.error) return result;
+      sanitized[cat][term] = result.value;
+    }
+  }
+  return { value: sanitized };
+};
+
+router.put('/profile-overrides', requireAdmin, async (req, res, next) => {
+  try {
+    if (!isPlainObject(req.body)) {
+      return res.status(400).json({ error: 'Request body must be a JSON object.' });
+    }
+    const { categories, suggestions, stickers } = req.body;
+    const toPersist = {};
+
+    if (categories !== undefined) {
+      const checked = validateCategoriesOverride(categories);
+      if (checked.error) return res.status(400).json({ error: checked.error });
+      toPersist.categories = checked.value;
+    }
+    if (suggestions !== undefined) {
+      const checked = validateSuggestionsOverride(suggestions);
+      if (checked.error) return res.status(400).json({ error: checked.error });
+      toPersist.suggestions = checked.value;
+    }
+    if (stickers !== undefined) {
+      const checked = validateAndSanitizeStickersOverride(stickers);
+      if (checked.error) return res.status(400).json({ error: checked.error });
+      toPersist.stickers = checked.value;
+    }
+
+    await Promise.all(
+      Object.entries(toPersist).map(([section, value]) => setProfileOverride(section, value))
+    );
+
+    logger.info('Admin updated profile overrides', {
+      admin_user_id: req.user.id,
+      sections: Object.keys(toPersist),
+    });
+
+    res.json({ success: true, ...toPersist });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/profile-overrides', requireAdmin, async (req, res, next) => {
+  try {
+    await clearProfileOverrides();
+    logger.info('Admin cleared profile overrides', { admin_user_id: req.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

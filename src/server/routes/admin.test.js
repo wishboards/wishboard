@@ -575,4 +575,22 @@ describe('Admin routes', () => {
     spyExists.mockRestore();
     spyReadDir.mockRestore();
   });
+
+  it('validates PUT /api/admin/profile-overrides against non-object bodies and prototype-pollution keys', async () => {
+    const token = await loginAsAdmin();
+
+    const nonObj = await request(app)
+      .put('/api/admin/profile-overrides')
+      .set('Authorization', `Bearer ${token}`)
+      .send(['invalid-array']);
+    expect(nonObj.status).toBe(400);
+
+    const badKey = await request(app)
+      .put('/api/admin/profile-overrides')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        suggestions: { constructor: ['bad'] },
+      });
+    expect(badKey.status).toBe(400);
+  });
 });

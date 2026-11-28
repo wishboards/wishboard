@@ -2954,6 +2954,108 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/admin/profile-overrides': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Persist DB-over-YAML profile overrides and invalidate effective profile cache
+     * @description Persist DB-over-YAML profile overrides and invalidate effective profile cache
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['ProfileOverridesInput'];
+        };
+      };
+      responses: {
+        /** @description Persist DB-over-YAML profile overrides and invalidate effective profile cache response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ProfileOverridesResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    /**
+     * Clear all DB-over-YAML profile overrides and invalidate effective profile cache
+     * @description Clear all DB-over-YAML profile overrides and invalidate effective profile cache
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Clear all DB-over-YAML profile overrides and invalidate effective profile cache response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['SuccessResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/captive-portal': {
     parameters: {
       query?: never;
@@ -3529,9 +3631,56 @@ export interface components {
       /** @example gemini-flash-latest */
       model?: string | null;
     };
+    Category: {
+      /** @example gender */
+      id: string;
+      /** @example Gender */
+      label: string;
+      /** @example multi */
+      type?: string;
+      /**
+       * @example [
+       *       "Woman",
+       *       "Man",
+       *       "Nonbinary"
+       *     ]
+       */
+      suggestions?: string[];
+    };
+    StickerRule: {
+      /** @example svg */
+      type?: string;
+      /** @example female */
+      iconType?: string;
+      unicode?: string;
+      color?: string;
+      /** @example flag-rainbow */
+      class?: string;
+      /** @example /assets/presenter.png */
+      src?: string;
+      /** @example <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg> */
+      svg?: string;
+    };
     ConfigResponse: {
+      /** @example lifestyle */
+      profile?: string;
+      /** @example Wishboard */
+      title?: string;
       /** @example wishboards.local */
       domain: string;
+      /**
+       * @example [
+       *       "Phone",
+       *       "Email"
+       *     ]
+       */
+      contact_methods?: string[];
+      categories?: components['schemas']['Category'][];
+      stickers?: {
+        [key: string]: {
+          [key: string]: components['schemas']['StickerRule'];
+        };
+      };
       /** @example socketio */
       realtimeProvider: string;
       /** @example 192.168.4.1 */
@@ -3553,6 +3702,44 @@ export interface components {
       'user-portal-url': string;
       /** @example https://wishboards.local/ */
       'venue-info-url': string;
+    };
+    ProfileOverrideCategory: {
+      /** @example role */
+      id: string;
+      /** @example Role */
+      label?: string;
+      /** @example multi */
+      type?: string;
+      /**
+       * @example [
+       *       "RopeBunny"
+       *     ]
+       */
+      suggestions?: string[];
+    };
+    ProfileOverridesInput: {
+      categories?: components['schemas']['ProfileOverrideCategory'][];
+      suggestions?: {
+        [key: string]: string[];
+      };
+      stickers?: {
+        [key: string]: {
+          [key: string]: components['schemas']['StickerRule'];
+        };
+      };
+    };
+    ProfileOverridesResponse: {
+      /** @example true */
+      success: boolean;
+      categories?: components['schemas']['ProfileOverrideCategory'][];
+      suggestions?: {
+        [key: string]: string[];
+      };
+      stickers?: {
+        [key: string]: {
+          [key: string]: components['schemas']['StickerRule'];
+        };
+      };
     };
   };
   responses: never;

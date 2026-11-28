@@ -3,9 +3,16 @@ export function findMatchingStickerKey(
   val: string
 ): string | undefined {
   const valLower = val.toLowerCase();
-  return Object.keys(catStickers).find((k) => {
+  const keys = Object.keys(catStickers);
+
+  const exactMatch = keys.find((k) => k.toLowerCase() === valLower);
+  if (exactMatch) return exactMatch;
+
+  return keys.find((k) => {
     const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-    const regex = new RegExp(String.raw`\b${escapedKey}\b`, 'i');
+    const startBoundary = /^\w/.test(k) ? String.raw`\b` : String.raw`(?:^|\s)`;
+    const endBoundary = /\w$/.test(k) ? String.raw`\b` : String.raw`(?=$|\s)`;
+    const regex = new RegExp(`${startBoundary}${escapedKey}${endBoundary}`, 'i');
     return regex.test(valLower);
   });
 }

@@ -69,6 +69,7 @@ export default defineConfig({
           environment: 'node',
           include: [
             'src/server/**/*.{test,spec}.{js,ts}',
+            'src/shared/**/*.{test,spec}.{js,ts}',
             'src/cli/**/*.{test,spec}.{js,ts}',
             'scripts/**/*.{test,spec}.{js,ts}',
             'aws-serverless/**/*.{test,spec}.{js,mjs,ts}',
@@ -92,6 +93,7 @@ export default defineConfig({
       include: [
         'src/client/src/**/*.{js,ts,tsx}',
         'src/server/**/*.{js,ts}',
+        'src/shared/**/*.js',
         'src/cli/**/*.{js,ts}',
         'scripts/**/*.{js,ts}',
         'aws-serverless/**/*.{js,mjs,ts}',

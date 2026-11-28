@@ -102,11 +102,11 @@ const frontendLimiter = rateLimit({
 });
 
 app.get('/api/config', async (req, res) => {
-  const { getDomainConfig } = await import('./configManager.js');
+  const { getEffectiveEventProfile } = await import('./configManager.js');
   const { getMergedBranding } = await import('./brandingManager.js');
   const { getAiStatus } = await import('./ai/index.js');
   const { getRules } = await import('./rulesManager.js');
-  const domainConfig = getDomainConfig();
+  const domainConfig = await getEffectiveEventProfile();
   const branding = await getMergedBranding();
   const liveRules = getRules();
   res.json({

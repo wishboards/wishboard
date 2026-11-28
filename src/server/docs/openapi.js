@@ -551,10 +551,47 @@ export const AiStatusSchema = registry.register(
   })
 );
 
+export const CategorySchema = registry.register(
+  'Category',
+  z.object({
+    id: z.string().openapi({ example: 'gender' }),
+    label: z.string().openapi({ example: 'Gender' }),
+    type: z.string().optional().openapi({ example: 'multi' }),
+    suggestions: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ['Woman', 'Man', 'Nonbinary'] }),
+  })
+);
+
+export const StickerRuleSchema = registry.register(
+  'StickerRule',
+  z.object({
+    type: z.string().optional().openapi({ example: 'svg' }),
+    iconType: z.string().optional().openapi({ example: 'female' }),
+    unicode: z.string().optional(),
+    color: z.string().optional(),
+    class: z.string().optional().openapi({ example: 'flag-rainbow' }),
+    src: z.string().optional().openapi({ example: '/assets/presenter.png' }),
+    svg: z
+      .string()
+      .optional()
+      .openapi({ example: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></svg>' }),
+  })
+);
+
 export const ConfigResponseSchema = registry.register(
   'ConfigResponse',
   z.object({
+    profile: z.string().optional().openapi({ example: 'lifestyle' }),
+    title: z.string().optional().openapi({ example: 'Wishboard' }),
     domain: z.string().openapi({ example: 'wishboards.local' }),
+    contact_methods: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ['Phone', 'Email'] }),
+    categories: z.array(CategorySchema).optional(),
+    stickers: z.record(z.string(), z.record(z.string(), StickerRuleSchema)).optional(),
     realtimeProvider: z.string().openapi({ example: 'socketio' }),
     apIp: z.string().openapi({ example: '192.168.4.1' }),
     isServerless: z.boolean().openapi({ example: false }),
@@ -572,6 +609,38 @@ export const CaptivePortalStatusSchema = registry.register(
     captive: z.boolean().openapi({ example: false }),
     'user-portal-url': z.string().openapi({ example: 'https://wishboards.local/' }),
     'venue-info-url': z.string().openapi({ example: 'https://wishboards.local/' }),
+  })
+);
+
+export const ProfileOverrideCategorySchema = registry.register(
+  'ProfileOverrideCategory',
+  z.object({
+    id: z.string().min(1).openapi({ example: 'role' }),
+    label: z.string().optional().openapi({ example: 'Role' }),
+    type: z.string().optional().openapi({ example: 'multi' }),
+    suggestions: z
+      .array(z.string())
+      .optional()
+      .openapi({ example: ['RopeBunny'] }),
+  })
+);
+
+export const ProfileOverridesInputSchema = registry.register(
+  'ProfileOverridesInput',
+  z.object({
+    categories: z.array(ProfileOverrideCategorySchema).optional(),
+    suggestions: z.record(z.string(), z.array(z.string())).optional(),
+    stickers: z.record(z.string(), z.record(z.string(), StickerRuleSchema)).optional(),
+  })
+);
+
+export const ProfileOverridesResponseSchema = registry.register(
+  'ProfileOverridesResponse',
+  z.object({
+    success: z.boolean().openapi({ example: true }),
+    categories: z.array(ProfileOverrideCategorySchema).optional(),
+    suggestions: z.record(z.string(), z.array(z.string())).optional(),
+    stickers: z.record(z.string(), z.record(z.string(), StickerRuleSchema)).optional(),
   })
 );
 
@@ -1264,6 +1333,21 @@ addAdminRoute({
   description:
     'CloudWatch metrics time-series. Note: Available in AWS Serverless mode only; returns 400 in Kiosk/Local mode.',
   responseSchema: z.record(z.string(), z.any()),
+});
+
+addAdminRoute({
+  method: 'put',
+  path: '/api/admin/profile-overrides',
+  summary: 'Persist DB-over-YAML profile overrides and invalidate effective profile cache',
+  requestSchema: ProfileOverridesInputSchema,
+  responseSchema: ProfileOverridesResponseSchema,
+});
+
+addAdminRoute({
+  method: 'delete',
+  path: '/api/admin/profile-overrides',
+  summary: 'Clear all DB-over-YAML profile overrides and invalidate effective profile cache',
+  responseSchema: SuccessResponseSchema,
 });
 
 // ── 7. Captive Portal Domain ──────────────────────────────────────────────────
