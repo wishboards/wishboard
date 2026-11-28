@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.2](https://github.com/wishboards/wishboard/compare/wishboard-v1.48.1...wishboard-v1.48.2) (2026-11-28)
+
+
+### Bug Fixes
+
+* **serverless:** avoid immutable 1-year cache on unhashed sticker assets ([#693](https://github.com/wishboards/wishboard/issues/693)) ([4941f3c](https://github.com/wishboards/wishboard/commit/4941f3c8f28c1bd4cd7852a012163f97ae2e6530))
+
 ## [1.48.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.48.0...wishboard-v1.48.1) (2026-11-28)
 
 
