@@ -612,6 +612,74 @@ export const CaptivePortalStatusSchema = registry.register(
   })
 );
 
+export const TaxonomyProposalSchema = registry.register(
+  'TaxonomyProposal',
+  z.object({
+    id: z.number().int().openapi({ example: 1 }),
+    normalized_key: z.string().openapi({ example: 'fire-play' }),
+    proposal_type: z
+      .enum(['category', 'suggestion', 'rule', 'sticker'])
+      .openapi({ example: 'suggestion' }),
+    proposed_payload_json: z.string().openapi({ example: '{"categoryId":"interests"}' }),
+    proposed_payload: z.record(z.string(), z.any()),
+    occurrence_count: z.number().int().openapi({ example: 4 }),
+    status: z.enum(['pending', 'approved', 'dismissed']).openapi({ example: 'pending' }),
+    created_at: z.string().openapi({ example: '2026-11-26T12:00:00.000Z' }),
+    updated_at: z.string().openapi({ example: '2026-11-26T12:00:00.000Z' }),
+  })
+);
+
+export const TaxonomyProposalsListResponseSchema = registry.register(
+  'TaxonomyProposalsListResponse',
+  z.object({
+    proposals: z.array(TaxonomyProposalSchema),
+    quorumThreshold: z.number().int().openapi({ example: 3 }),
+    belowQuorumCount: z.number().int().openapi({ example: 2 }),
+  })
+);
+
+export const UpdateProposalPayloadInputSchema = registry.register(
+  'UpdateProposalPayloadInput',
+  z.object({
+    payload: z.record(z.string(), z.any()),
+  })
+);
+
+export const ApproveProposalInputSchema = registry.register(
+  'ApproveProposalInput',
+  z.object({
+    payloadOverride: z.record(z.string(), z.any()).optional(),
+    sticker: z
+      .object({
+        type: z.enum(['svg', 'image']),
+        svg: z.string().optional(),
+        src: z.string().optional(),
+        label: z.string().optional(),
+      })
+      .optional(),
+  })
+);
+
+export const MapProposalAliasInputSchema = registry.register(
+  'MapProposalAliasInput',
+  z.object({
+    targetAttribute: z.string().openapi({ example: 'interests' }),
+    targetValue: z.string().openapi({ example: 'bondage' }),
+    triggerAttribute: z.string().optional().openapi({ example: 'interests' }),
+  })
+);
+
+export const ProposalMutationResponseSchema = registry.register(
+  'ProposalMutationResponse',
+  z.object({
+    success: z.boolean().openapi({ example: true }),
+    proposal: TaxonomyProposalSchema,
+    promoted: z.record(z.string(), z.any()).optional(),
+    validation: z.record(z.string(), z.any()).optional(),
+    sticker: z.record(z.string(), z.any()).optional(),
+  })
+);
+
 export const ProfileOverrideCategorySchema = registry.register(
   'ProfileOverrideCategory',
   z.object({
@@ -1333,6 +1401,58 @@ addAdminRoute({
   description:
     'CloudWatch metrics time-series. Note: Available in AWS Serverless mode only; returns 400 in Kiosk/Local mode.',
   responseSchema: z.record(z.string(), z.any()),
+});
+
+addAdminRoute({
+  method: 'get',
+  path: '/api/admin/proposals',
+  summary: 'List taxonomy evolution proposals',
+  params: [
+    {
+      name: 'status',
+      in: 'query',
+      required: false,
+      schema: { type: 'string', enum: ['pending', 'approved', 'dismissed'] },
+    },
+    { name: 'minQuorum', in: 'query', required: false, schema: { type: 'integer' } },
+    { name: 'includeBelowQuorum', in: 'query', required: false, schema: { type: 'boolean' } },
+  ],
+  responseSchema: TaxonomyProposalsListResponseSchema,
+});
+
+addAdminRoute({
+  method: 'patch',
+  path: '/api/admin/proposals/{id}',
+  summary: 'Edit taxonomy proposal payload',
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+  requestSchema: UpdateProposalPayloadInputSchema,
+  responseSchema: ProposalMutationResponseSchema,
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/proposals/{id}/approve',
+  summary: 'Approve and promote taxonomy proposal',
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+  requestSchema: ApproveProposalInputSchema,
+  responseSchema: ProposalMutationResponseSchema,
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/proposals/{id}/alias',
+  summary: 'Map taxonomy proposal as expansion alias rule',
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+  requestSchema: MapProposalAliasInputSchema,
+  responseSchema: ProposalMutationResponseSchema,
+});
+
+addAdminRoute({
+  method: 'post',
+  path: '/api/admin/proposals/{id}/dismiss',
+  summary: 'Dismiss taxonomy proposal',
+  params: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+  responseSchema: ProposalMutationResponseSchema,
 });
 
 addAdminRoute({

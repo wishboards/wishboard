@@ -1,4 +1,55 @@
 import { InferenceProvider, EmbeddingProvider } from './interfaces.js';
+import { normalizeProposalKey, PII_PATTERN } from '../proposalsManager.js';
+
+const MAX_UNMAPPED_SIGNALS = 10;
+const STOP_WORDS = new Set([
+  'someone',
+  'anyone',
+  'everyone',
+  'people',
+  'person',
+  'friends',
+  'friend',
+  'evening',
+  'tonight',
+  'today',
+  'tomorrow',
+  'weekend',
+  'hotel',
+  'room',
+  'party',
+  'convention',
+  'board',
+  'wish',
+  'wishboard',
+  'drinks',
+  'coffee',
+  'dinner',
+  'chat',
+  'fun',
+  'time',
+  'good',
+  'nice',
+  'great',
+  'new',
+  'here',
+  'looking',
+  'seeking',
+  'wanting',
+  'interested',
+  'into',
+  'with',
+  'some',
+  'more',
+  'very',
+  'just',
+  'also',
+  'like',
+  'to',
+  'for',
+  'a',
+  'an',
+]);
 
 function isTermAssignedToDesired(
   text,
@@ -126,7 +177,8 @@ export class LocalInferenceProvider extends InferenceProvider {
     existingDesiredAttributes = {},
     taxonomy = [],
   }) {
-    const text = content.toLowerCase();
+    const safeContent = typeof content === 'string' ? content : String(content ?? '');
+    const text = safeContent.toLowerCase();
     const seekingIndicators = ['looking for', 'seeking', 'want', 'interested in', 'iso', 'desired'];
     const selfIndicators = ['i am', "i'm", 'myself', 'as a'];
 
@@ -148,7 +200,7 @@ export class LocalInferenceProvider extends InferenceProvider {
       processCategoryTerms(category, text, context, state);
     }
 
-    const suggestedContent = streamlineWishText(content);
+    const suggestedContent = streamlineWishText(safeContent);
     const reasons = [];
     if (state.matchedTerms.length > 0) {
       reasons.push(`Local inference matched taxonomy keywords: ${state.matchedTerms.join(', ')}`);
@@ -157,14 +209,73 @@ export class LocalInferenceProvider extends InferenceProvider {
       reasons.push('Removed redundant greeting filler for card conciseness');
     }
 
+    const unmappedSignals = collectUnmappedSignals(safeContent, taxonomy, state.matchedTerms);
+
     return {
       suggestedCreatorAttributes: state.suggestedCreator,
       suggestedDesiredAttributes: state.suggestedDesired,
       suggestedContent,
+      unmappedSignals,
       reasoning:
         reasons.length > 0 ? reasons.join('. ') : 'No taxonomy terms identified in wish text',
     };
   }
+}
+
+function collectUnmappedSignals(content, taxonomy = [], matchedTerms = []) {
+  if (typeof content !== 'string' || !content.trim()) return [];
+
+  const knownTerms = new Set(matchedTerms.map((t) => normalizeProposalKey(t)));
+  for (const cat of taxonomy) {
+    if (cat?.id) knownTerms.add(normalizeProposalKey(cat.id));
+    if (cat?.label) knownTerms.add(normalizeProposalKey(cat.label));
+    for (const term of cat?.suggestions || []) {
+      knownTerms.add(normalizeProposalKey(term));
+    }
+  }
+
+  const candidates = [];
+  const seen = new Set();
+
+  const tryAddCandidate = (rawTerm, categoryId = 'interests') => {
+    if (candidates.length >= MAX_UNMAPPED_SIGNALS) return;
+    const key = normalizeProposalKey(rawTerm);
+    if (!key || key.length < 3 || key.length > 48) return;
+    if (PII_PATTERN.test(key) || STOP_WORDS.has(key)) return;
+    if (knownTerms.has(key) || seen.has(key)) return;
+    const words = key.split(' ');
+    if (words.every((w) => STOP_WORDS.has(w))) return;
+    seen.add(key);
+    candidates.push({
+      proposal_type: 'suggestion',
+      key,
+      payload: {
+        categoryId,
+        term: key,
+        source: 'local_heuristic',
+      },
+    });
+  };
+
+  // 1. Hyphenated multi-part descriptors (e.g. fire-play, wax-play, rope-bunny)
+  const hyphenMatches = content.matchAll(/\b([a-z][a-z0-9]*(?:-[a-z0-9]+)+)\b/gi);
+  for (const match of hyphenMatches) {
+    tryAddCandidate(match[1], 'interests');
+  }
+
+  // 2. Curated structural patterns ("into X", "seeking X", "i am a X", "looking for X")
+  const phraseRegex =
+    /\b(?:into|seeking|looking for|i am an?|i'm an?)\s+([a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*){0,2})/gi;
+  for (const match of content.matchAll(phraseRegex)) {
+    const phrase = match[1];
+    if (!phrase) continue;
+    const trimmed = phrase.replace(/^(?:a|an|the|some)\s+/i, '').trim();
+    if (trimmed) {
+      tryAddCandidate(trimmed, 'interests');
+    }
+  }
+
+  return candidates;
 }
 
 /**

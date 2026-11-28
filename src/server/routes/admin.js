@@ -12,6 +12,14 @@ import { reloadRules } from '../rulesManager.js';
 import { getMergedBranding, updateBranding, resetBranding } from '../brandingManager.js';
 import { createUploadMiddleware, processUploadedImage } from '../utils/imageStorage.js';
 import { sanitizeSvg, sanitizeStickerImageSrc } from '../../shared/svgSanitizer.js';
+import {
+  listProposals,
+  updateProposalPayload,
+  approveProposal,
+  mapProposalAsAlias,
+  dismissProposal,
+  ProposalValidationError,
+} from '../proposalsManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -402,6 +410,95 @@ router.post('/branding/upload', requireAdmin, brandingUpload.single('file'), asy
     url: processed.url,
     filename: processed.filename,
   });
+});
+
+// ── Taxonomy Governance Queue ─────────────────────────────────────────────────
+
+const handleProposalError = (err, res) => {
+  if (err instanceof ProposalValidationError) {
+    return res.status(err.status).json({
+      error: err.message,
+      errors: err.errors,
+      warnings: err.warnings,
+    });
+  }
+  throw err;
+};
+
+router.get('/proposals', requireAdmin, async (req, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : 'pending';
+  const minQuorum = req.query.minQuorum !== undefined ? Number(req.query.minQuorum) : undefined;
+  const includeBelowQuorum =
+    req.query.includeBelowQuorum === 'true' || req.query.includeBelowQuorum === '1';
+
+  const result = await listProposals({
+    status,
+    ...(Number.isFinite(minQuorum) ? { minQuorum } : {}),
+    includeBelowQuorum,
+  });
+  res.json(result);
+});
+
+router.patch('/proposals/:id', requireAdmin, async (req, res) => {
+  const payload =
+    req.body && typeof req.body === 'object' && 'payload' in req.body ? req.body.payload : req.body;
+  const updated = await updateProposalPayload(req.params.id, payload);
+  if (!updated) {
+    return res.status(404).json({ error: 'Proposal not found.' });
+  }
+  logger.info('Admin updated proposal payload', {
+    admin_user_id: req.user.id,
+    proposal_id: updated.id,
+  });
+  res.json({ success: true, proposal: updated });
+});
+
+router.post('/proposals/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    const result = await approveProposal(req.params.id, {
+      payloadOverride: req.body?.payloadOverride,
+      sticker: req.body?.sticker,
+    });
+    if (!result) {
+      return res.status(404).json({ error: 'Proposal not found.' });
+    }
+    logger.info('Admin approved taxonomy proposal', {
+      admin_user_id: req.user.id,
+      proposal_id: result.proposal.id,
+      proposal_type: result.proposal.proposal_type,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    return handleProposalError(err, res);
+  }
+});
+
+router.post('/proposals/:id/alias', requireAdmin, async (req, res) => {
+  try {
+    const result = await mapProposalAsAlias(req.params.id, req.body ?? {});
+    if (!result) {
+      return res.status(404).json({ error: 'Proposal not found.' });
+    }
+    logger.info('Admin mapped taxonomy proposal as alias rule', {
+      admin_user_id: req.user.id,
+      proposal_id: result.proposal.id,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    return handleProposalError(err, res);
+  }
+});
+
+router.post('/proposals/:id/dismiss', requireAdmin, async (req, res) => {
+  const dismissed = await dismissProposal(req.params.id);
+  if (!dismissed) {
+    return res.status(404).json({ error: 'Proposal not found.' });
+  }
+  logger.info('Admin dismissed taxonomy proposal', {
+    admin_user_id: req.user.id,
+    proposal_id: dismissed.id,
+  });
+  res.json({ success: true, proposal: dismissed });
 });
 
 // ── Profile Overrides (DB-over-YAML) ─────────────────────────────────────────

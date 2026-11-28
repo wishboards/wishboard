@@ -164,6 +164,20 @@ await db.executeMultiple(`
     created_at TEXT NOT NULL,
     FOREIGN KEY(wish_id) REFERENCES wishes(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS taxonomy_proposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    normalized_key TEXT NOT NULL,
+    proposal_type TEXT NOT NULL CHECK(proposal_type IN ('category', 'suggestion', 'rule', 'sticker')),
+    proposed_payload_json TEXT NOT NULL,
+    occurrence_count INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'dismissed')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(normalized_key, proposal_type)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_taxonomy_proposals_status_count ON taxonomy_proposals(status, occurrence_count DESC);
 `);
 
 // WAL is opt-in for single-node deployments (the Pi/kiosk, set via
@@ -306,32 +320,51 @@ export const mapArg = (a) => {
   return a;
 };
 
+export const isSqliteBusy = (err) => {
+  const code = err?.code || err?.cause?.code;
+  const msg = err?.message || '';
+  return (
+    code === 'SQLITE_BUSY' || msg.includes('SQLITE_BUSY') || msg.includes('database is locked')
+  );
+};
+
+export const withBusyRetry = async (fn, maxAttempts = 10) => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isSqliteBusy(err) || attempt === maxAttempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+    }
+  }
+};
+
 const dbWrapper = {
   prepare: (sql) => ({
     get: async (...args) => {
-      const rs = await db.execute({ sql, args: args.map(mapArg) });
+      const rs = await withBusyRetry(() => db.execute({ sql, args: args.map(mapArg) }));
       return rs.rows[0];
     },
     all: async (...args) => {
-      const rs = await db.execute({ sql, args: args.map(mapArg) });
+      const rs = await withBusyRetry(() => db.execute({ sql, args: args.map(mapArg) }));
       return rs.rows;
     },
     run: async (...args) => {
-      const rs = await db.execute({ sql, args: args.map(mapArg) });
+      const rs = await withBusyRetry(() => db.execute({ sql, args: args.map(mapArg) }));
       return { changes: rs.rowsAffected, lastInsertRowid: rs.lastInsertRowid };
     },
   }),
   exec: async (sql) => {
-    return await db.executeMultiple(sql);
+    return await withBusyRetry(() => db.executeMultiple(sql));
   },
   execute: async (...args) => {
-    return await db.execute(...args);
+    return await withBusyRetry(() => db.execute(...args));
   },
   executeMultiple: async (...args) => {
-    return await db.executeMultiple(...args);
+    return await withBusyRetry(() => db.executeMultiple(...args));
   },
   batch: async (...args) => {
-    return await db.batch(...args);
+    return await withBusyRetry(() => db.batch(...args));
   },
 };
 

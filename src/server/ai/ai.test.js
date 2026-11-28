@@ -910,5 +910,58 @@ describe('AI Module', () => {
       await db.prepare('DELETE FROM wish_embeddings WHERE wish_id = ?').run(testWishId);
       await db.prepare('DELETE FROM wishes WHERE id = ?').run(testWishId);
     });
+
+    it('LocalInferenceProvider guards null content and filters connector stop-word phrases', async () => {
+      const provider = new LocalInferenceProvider();
+      const nullRes = await provider.suggestAttributes({ content: null, taxonomy: [] });
+      expect(nullRes.suggestedCreatorAttributes).toEqual({});
+      expect(nullRes.suggestedDesiredAttributes).toEqual({});
+      expect(nullRes.unmappedSignals).toEqual([]);
+
+      const chatRes = await provider.suggestAttributes({
+        content: "I'm looking for someone to chat",
+        taxonomy: [],
+      });
+      expect(chatRes.unmappedSignals).toEqual([]);
+    });
+
+    it('CloudInferenceProvider enforces min key length, valid proposal_type, signal cap, and embedding catch fallback', async () => {
+      const signals = [
+        { proposal_type: 'suggestion', key: 'x', payload: {} },
+        { proposal_type: 'invalid_type', key: 'valid-term', payload: {} },
+        ...Array.from({ length: 12 }, (_, i) => ({
+          proposal_type: 'suggestion',
+          key: `signal-${i}`,
+          payload: {},
+        })),
+      ];
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  suggestedCreatorAttributes: {},
+                  suggestedDesiredAttributes: {},
+                  unmappedSignals: signals,
+                  reasoning: 'ok',
+                }),
+              },
+            },
+          ],
+        }),
+      });
+
+      const cloud = new CloudInferenceProvider({ apiKey: 'test-key' });
+      const res = await cloud.suggestAttributes({ content: 'test wish', taxonomy: [] });
+      expect(res.unmappedSignals).toHaveLength(10);
+      expect(res.unmappedSignals.some((s) => s.key === 'x')).toBe(false);
+      expect(res.unmappedSignals.some((s) => s.key === 'valid-term')).toBe(false);
+
+      const emb = new CloudEmbeddingProvider({ apiKey: 'test-key' });
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network down'));
+      expect(await emb.generateEmbedding('test wish')).toEqual([]);
+    });
   });
 });

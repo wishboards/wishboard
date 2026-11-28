@@ -1438,6 +1438,199 @@
           "venue-info-url"
         ]
       },
+      "TaxonomyProposal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "normalized_key": {
+            "type": "string",
+            "example": "fire-play"
+          },
+          "proposal_type": {
+            "type": "string",
+            "enum": [
+              "category",
+              "suggestion",
+              "rule",
+              "sticker"
+            ],
+            "example": "suggestion"
+          },
+          "proposed_payload_json": {
+            "type": "string",
+            "example": "{\"categoryId\":\"interests\"}"
+          },
+          "proposed_payload": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          },
+          "occurrence_count": {
+            "type": "integer",
+            "example": 4
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "dismissed"
+            ],
+            "example": "pending"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-11-26T12:00:00.000Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "example": "2026-11-26T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "normalized_key",
+          "proposal_type",
+          "proposed_payload_json",
+          "proposed_payload",
+          "occurrence_count",
+          "status",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "TaxonomyProposalsListResponse": {
+        "type": "object",
+        "properties": {
+          "proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxonomyProposal"
+            }
+          },
+          "quorumThreshold": {
+            "type": "integer",
+            "example": 3
+          },
+          "belowQuorumCount": {
+            "type": "integer",
+            "example": 2
+          }
+        },
+        "required": [
+          "proposals",
+          "quorumThreshold",
+          "belowQuorumCount"
+        ]
+      },
+      "UpdateProposalPayloadInput": {
+        "type": "object",
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          }
+        },
+        "required": [
+          "payload"
+        ]
+      },
+      "ApproveProposalInput": {
+        "type": "object",
+        "properties": {
+          "payloadOverride": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          },
+          "sticker": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "svg",
+                  "image"
+                ]
+              },
+              "svg": {
+                "type": "string"
+              },
+              "src": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      },
+      "MapProposalAliasInput": {
+        "type": "object",
+        "properties": {
+          "targetAttribute": {
+            "type": "string",
+            "example": "interests"
+          },
+          "targetValue": {
+            "type": "string",
+            "example": "bondage"
+          },
+          "triggerAttribute": {
+            "type": "string",
+            "example": "interests"
+          }
+        },
+        "required": [
+          "targetAttribute",
+          "targetValue"
+        ]
+      },
+      "ProposalMutationResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "proposal": {
+            "$ref": "#/components/schemas/TaxonomyProposal"
+          },
+          "promoted": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          },
+          "validation": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          },
+          "sticker": {
+            "type": "object",
+            "additionalProperties": {
+              "nullable": true
+            }
+          }
+        },
+        "required": [
+          "success",
+          "proposal"
+        ]
+      },
       "ProfileOverrideCategory": {
         "type": "object",
         "properties": {
@@ -4367,6 +4560,334 @@
                   "additionalProperties": {
                     "nullable": true
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/proposals": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List taxonomy evolution proposals",
+        "description": "List taxonomy evolution proposals",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "dismissed"
+              ]
+            }
+          },
+          {
+            "name": "minQuorum",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "includeBelowQuorum",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List taxonomy evolution proposals response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyProposalsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/proposals/{id}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Edit taxonomy proposal payload",
+        "description": "Edit taxonomy proposal payload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProposalPayloadInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Edit taxonomy proposal payload response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalMutationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/proposals/{id}/approve": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Approve and promote taxonomy proposal",
+        "description": "Approve and promote taxonomy proposal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveProposalInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approve and promote taxonomy proposal response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalMutationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/proposals/{id}/alias": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Map taxonomy proposal as expansion alias rule",
+        "description": "Map taxonomy proposal as expansion alias rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapProposalAliasInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Map taxonomy proposal as expansion alias rule response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalMutationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/proposals/{id}/dismiss": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Dismiss taxonomy proposal",
+        "description": "Dismiss taxonomy proposal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dismiss taxonomy proposal response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalMutationResponse"
                 }
               }
             }

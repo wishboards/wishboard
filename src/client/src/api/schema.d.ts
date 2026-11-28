@@ -2954,6 +2954,315 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/admin/proposals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List taxonomy evolution proposals
+     * @description List taxonomy evolution proposals
+     */
+    get: {
+      parameters: {
+        query?: {
+          status?: 'pending' | 'approved' | 'dismissed';
+          minQuorum?: number;
+          includeBelowQuorum?: boolean;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List taxonomy evolution proposals response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TaxonomyProposalsListResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/proposals/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Edit taxonomy proposal payload
+     * @description Edit taxonomy proposal payload
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['UpdateProposalPayloadInput'];
+        };
+      };
+      responses: {
+        /** @description Edit taxonomy proposal payload response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ProposalMutationResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  '/api/admin/proposals/{id}/approve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Approve and promote taxonomy proposal
+     * @description Approve and promote taxonomy proposal
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['ApproveProposalInput'];
+        };
+      };
+      responses: {
+        /** @description Approve and promote taxonomy proposal response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ProposalMutationResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/proposals/{id}/alias': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Map taxonomy proposal as expansion alias rule
+     * @description Map taxonomy proposal as expansion alias rule
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          'application/json': components['schemas']['MapProposalAliasInput'];
+        };
+      };
+      responses: {
+        /** @description Map taxonomy proposal as expansion alias rule response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ProposalMutationResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/admin/proposals/{id}/dismiss': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Dismiss taxonomy proposal
+     * @description Dismiss taxonomy proposal
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Dismiss taxonomy proposal response */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ProposalMutationResponse'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/admin/profile-overrides': {
     parameters: {
       query?: never;
@@ -3702,6 +4011,79 @@ export interface components {
       'user-portal-url': string;
       /** @example https://wishboards.local/ */
       'venue-info-url': string;
+    };
+    TaxonomyProposal: {
+      /** @example 1 */
+      id: number;
+      /** @example fire-play */
+      normalized_key: string;
+      /**
+       * @example suggestion
+       * @enum {string}
+       */
+      proposal_type: 'category' | 'suggestion' | 'rule' | 'sticker';
+      /** @example {"categoryId":"interests"} */
+      proposed_payload_json: string;
+      proposed_payload: {
+        [key: string]: unknown;
+      };
+      /** @example 4 */
+      occurrence_count: number;
+      /**
+       * @example pending
+       * @enum {string}
+       */
+      status: 'pending' | 'approved' | 'dismissed';
+      /** @example 2026-11-26T12:00:00.000Z */
+      created_at: string;
+      /** @example 2026-11-26T12:00:00.000Z */
+      updated_at: string;
+    };
+    TaxonomyProposalsListResponse: {
+      proposals: components['schemas']['TaxonomyProposal'][];
+      /** @example 3 */
+      quorumThreshold: number;
+      /** @example 2 */
+      belowQuorumCount: number;
+    };
+    UpdateProposalPayloadInput: {
+      payload: {
+        [key: string]: unknown;
+      };
+    };
+    ApproveProposalInput: {
+      payloadOverride?: {
+        [key: string]: unknown;
+      };
+      sticker?: {
+        /** @enum {string} */
+        type: 'svg' | 'image';
+        svg?: string;
+        src?: string;
+        label?: string;
+      };
+    };
+    MapProposalAliasInput: {
+      /** @example interests */
+      targetAttribute: string;
+      /** @example bondage */
+      targetValue: string;
+      /** @example interests */
+      triggerAttribute?: string;
+    };
+    ProposalMutationResponse: {
+      /** @example true */
+      success: boolean;
+      proposal: components['schemas']['TaxonomyProposal'];
+      promoted?: {
+        [key: string]: unknown;
+      };
+      validation?: {
+        [key: string]: unknown;
+      };
+      sticker?: {
+        [key: string]: unknown;
+      };
     };
     ProfileOverrideCategory: {
       /** @example role */

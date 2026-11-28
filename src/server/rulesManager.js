@@ -62,15 +62,23 @@ const updateRuleRow = (rule) => {
 const CACHE_TTL_MS = Number(process.env.RULES_CACHE_TTL_MS ?? 60_000);
 let lastLoadedAt = 0;
 let reloadInFlight = null;
+let ruleMutationQueue = Promise.resolve();
+
+const withRuleMutationLock = (fn) => {
+  const run = ruleMutationQueue.then(fn, fn);
+  ruleMutationQueue = run.catch(() => {});
+  return run;
+};
 
 /** Rehydrate the in-memory cache from the DB so getRules() can stay synchronous. */
-export const reloadRules = async () => {
-  const rs = await db.execute('SELECT * FROM rules');
-  rulesCache = rs.rows.map(rowToRule);
-  lastLoadedAt = Date.now();
-  logger.debug(`Loaded ${rulesCache.length} rules from the database`);
-  return rulesCache;
-};
+export const reloadRules = () =>
+  withRuleMutationLock(async () => {
+    const rs = await db.execute('SELECT * FROM rules');
+    rulesCache = rs.rows.map(rowToRule);
+    lastLoadedAt = Date.now();
+    logger.debug(`Loaded ${rulesCache.length} rules from the database`);
+    return rulesCache;
+  });
 
 const maybeRefreshCache = () => {
   if (reloadInFlight || Date.now() - lastLoadedAt < CACHE_TTL_MS) return;
@@ -127,30 +135,34 @@ export const getRules = () => {
   return rulesCache;
 };
 
-export const addRule = async (rule) => {
-  await insertRule(rule);
-  rulesCache.push(rule);
-  return rule;
-};
+export const addRule = (rule) =>
+  withRuleMutationLock(async () => {
+    const normalizedRule = rowToRule(rule);
+    await insertRule(normalizedRule);
+    rulesCache = [...rulesCache, normalizedRule];
+    return normalizedRule;
+  });
 
-export const updateRule = async (id, updatedRule) => {
-  const index = rulesCache.findIndex((r) => r.id === id);
-  if (index === -1) return false;
+export const updateRule = (id, updatedRule) =>
+  withRuleMutationLock(async () => {
+    const existing = rulesCache.find((r) => r.id === id);
+    if (!existing) return false;
 
-  const merged = { ...rulesCache[index], ...updatedRule, id };
-  await updateRuleRow(merged);
-  rulesCache[index] = merged;
-  return true;
-};
+    const merged = rowToRule({ ...existing, ...updatedRule, id });
+    await updateRuleRow(merged);
+    rulesCache = rulesCache.map((r) => (r.id === id ? merged : r));
+    return true;
+  });
 
-export const deleteRule = async (id) => {
-  const index = rulesCache.findIndex((r) => r.id === id);
-  if (index === -1) return false;
+export const deleteRule = (id) =>
+  withRuleMutationLock(async () => {
+    const exists = rulesCache.some((r) => r.id === id);
+    if (!exists) return false;
 
-  await db.execute({ sql: 'DELETE FROM rules WHERE id = ?', args: [id] });
-  rulesCache.splice(index, 1);
-  return true;
-};
+    await db.execute({ sql: 'DELETE FROM rules WHERE id = ?', args: [id] });
+    rulesCache = rulesCache.filter((r) => r.id !== id);
+    return true;
+  });
 
 /** No-op retained for API compatibility — the file watcher is gone with the DB migration. */
 export const stopWatchingRules = () => {};
