@@ -12,6 +12,7 @@ const COMPOSE_FILE = path.join(PROJECT_ROOT, 'docker-compose.yml');
 const DEFAULT_DOMAIN = 'wishboard.painless-computing.com';
 const VALID_MODES = ['prod', 'dev', 'dual'];
 const VALID_AI_PROVIDERS = ['noop', 'local', 'cloud'];
+const VALID_PULL_POLICIES = ['always', 'missing', 'never'];
 
 function logStep(msg) {
   console.log(`\x1b[36m==> ${msg}\x1b[0m`);
@@ -58,9 +59,28 @@ function assertCommand(name) {
   }
 }
 
+function resolvePullPolicy(pullPolicy) {
+  if (!pullPolicy) return '';
+  if (!VALID_PULL_POLICIES.includes(pullPolicy)) {
+    throw new Error(
+      `Pull policy must be one of: ${VALID_PULL_POLICIES.join(', ')} (got '${pullPolicy}').`
+    );
+  }
+  return pullPolicy;
+}
+
 function runRemoteKioskSteps(target, remoteTemp, config, dryRun) {
-  const { mode, domain, deployRules, appVersion, eventProfile, skipSetup, enableAi, aiProvider } =
-    config;
+  const {
+    mode,
+    domain,
+    deployRules,
+    appVersion,
+    eventProfile,
+    skipSetup,
+    enableAi,
+    aiProvider,
+    pullPolicy,
+  } = config;
   logStep('[2/4] Uploading setup-kiosk.sh, build-kiosk.sh, and docker-compose.yml...');
   for (const src of [SETUP_SCRIPT, BUILD_SCRIPT, COMPOSE_FILE]) {
     const up = execCommand('scp', [src, `${target}:${remoteTemp}/${path.basename(src)}`], {
@@ -80,7 +100,8 @@ function runRemoteKioskSteps(target, remoteTemp, config, dryRun) {
   }
 
   logStep('[4/4] Running build-kiosk.sh on the Pi (docker compose up + display)...');
-  const buildCmd = String.raw`sed -i 's/\r$//' ${remoteTemp}/build-kiosk.sh && sudo bash ${remoteTemp}/build-kiosk.sh ${mode} ${domain} ${deployRules} ${appVersion} ${eventProfile} ${remoteTemp} ${enableAi} ${aiProvider}`;
+  const pullArg = pullPolicy ? ` ${pullPolicy}` : '';
+  const buildCmd = String.raw`sed -i 's/\r$//' ${remoteTemp}/build-kiosk.sh && sudo bash ${remoteTemp}/build-kiosk.sh ${mode} ${domain} ${deployRules} ${appVersion} ${eventProfile} ${remoteTemp} ${enableAi} ${aiProvider}${pullArg}`;
   if (execCommand('ssh', [target, buildCmd], { dryRun }).status !== 0) {
     throw new Error('Remote build-kiosk.sh failed.');
   }
@@ -102,6 +123,7 @@ export function deployKiosk(options) {
   const skipSetup = !!options.skipSetup;
   assertMode(mode);
   const { enableAi, aiProvider } = resolveAiConfig(options);
+  const pullPolicy = resolvePullPolicy(options.pullPolicy);
 
   const eventProfile = getEventProfile(options);
   const profileDir = path.resolve(PROJECT_ROOT, 'profiles', eventProfile);
@@ -141,7 +163,17 @@ export function deployKiosk(options) {
     runRemoteKioskSteps(
       target,
       remoteTemp,
-      { mode, domain, deployRules, appVersion, eventProfile, skipSetup, enableAi, aiProvider },
+      {
+        mode,
+        domain,
+        deployRules,
+        appVersion,
+        eventProfile,
+        skipSetup,
+        enableAi,
+        aiProvider,
+        pullPolicy,
+      },
       dryRun
     );
 
@@ -213,6 +245,7 @@ export function runKiosk(options) {
   const appVersion = resolveVersion(options.appVersion);
   assertMode(mode);
   const { enableAi, aiProvider } = resolveAiConfig(options);
+  const pullPolicy = resolvePullPolicy(options.pullPolicy);
   if (!dryRun) assertCommand('bash');
 
   const eventProfile = getEventProfile(options);
@@ -226,7 +259,18 @@ export function runKiosk(options) {
   );
   const res = execCommand(
     'bash',
-    [BUILD_SCRIPT, mode, domain, deployRules, appVersion, eventProfile, '', enableAi, aiProvider],
+    [
+      BUILD_SCRIPT,
+      mode,
+      domain,
+      deployRules,
+      appVersion,
+      eventProfile,
+      '',
+      enableAi,
+      aiProvider,
+      ...(pullPolicy ? [pullPolicy] : []),
+    ],
     {
       cwd: PROJECT_ROOT,
       dryRun,

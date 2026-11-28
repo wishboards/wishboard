@@ -174,6 +174,14 @@ export -f id
     expect(dockerLog).toContain('image prune -af');
   });
 
+  it('honors an explicit pull policy override in dual mode', () => {
+    const ran = runScript('dual', 'keep latest lifestyle "" false noop missing');
+    if (!ran) return;
+
+    const dockerLog = fs.readFileSync(dockerLogFile, 'utf8');
+    expect(dockerLog).toContain('compose --env-file .env up -d --pull missing');
+  });
+
   it('prunes unused Docker images before retrying disk check when free space is initially below 800 MB', () => {
     const relativeDfState =
       './' + path.relative(PROJECT_ROOT, path.join(tempDir, 'df-called')).replace(/\\/g, '/');

@@ -115,6 +115,22 @@ describe('kiosk commands', () => {
       ).toThrow(/AI provider must be one of/);
     });
 
+    it('forwards explicit pullPolicy and rejects invalid pull policies', () => {
+      deployKiosk({ host: 'pi.local', mode: 'dual', pullPolicy: 'missing' });
+      expect(
+        sshCmds().some((s) => s.includes('build-kiosk.sh dual') && s.endsWith('false noop missing'))
+      ).toBe(true);
+
+      deployKiosk({ host: 'pi.local', mode: 'dual', enableAi: true, pullPolicy: 'never' });
+      expect(
+        sshCmds().some((s) => s.includes('build-kiosk.sh dual') && s.endsWith('true local never'))
+      ).toBe(true);
+
+      expect(() =>
+        deployKiosk({ host: 'pi.local', mode: 'dual', pullPolicy: 'sometimes' })
+      ).toThrow(/Pull policy must be one of/);
+    });
+
     it('throws if ssh is missing', () => {
       vi.mocked(commandUtils.hasCommand).mockImplementation((cmd) => cmd !== 'ssh');
       expect(() => deployKiosk({ host: 'pi.local' })).toThrow('ssh missing');
