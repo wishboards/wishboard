@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/wishboards/wishboard/compare/api-v1.7.0...api-v1.8.0) (2026-11-28)
+
+
+### Features
+
+* **config:** Phase 2 - declarative SVG stickers and DB-over-YAML profile override layer ([#679](https://github.com/wishboards/wishboard/issues/679)) ([33a56c3](https://github.com/wishboards/wishboard/commit/33a56c351e840ad864c8c69ea89133289ab2aa52))
+
 ## [1.7.0](https://github.com/wishboards/wishboard/compare/api-v1.6.0...api-v1.7.0) (2026-11-22)
 
 
