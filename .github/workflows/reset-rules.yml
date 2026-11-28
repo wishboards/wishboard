@@ -1,0 +1,127 @@
+name: Reset Serverless Matching Rules
+
+on:
+  workflow_dispatch:
+    inputs:
+      event_profile:
+        description: 'Deployment target to reset rules for (all, lifestyle, professional, or ai)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - lifestyle
+          - professional
+          - ai
+      dry_run:
+        description: 'Preview without modifying databases'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: 'reset-rules-serverless'
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  reset-rules:
+    name: Reset Rules (${{ inputs.event_profile || 'all' }})
+    runs-on: ubuntu-24.04
+    env:
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Configure AWS credentials (OIDC)
+        if: env.AWS_ROLE_TO_ASSUME != ''
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          audience: sts.amazonaws.com
+
+      - name: Reset matching rules to bundled defaults
+        if: env.AWS_ROLE_TO_ASSUME != ''
+        shell: bash
+        env:
+          VARS_JSON: ${{ toJson(vars) }}
+          TARGET_PROFILE: ${{ inputs.event_profile || 'all' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          AWS_REGION_VAL: ${{ vars.AWS_REGION || 'us-east-1' }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$TARGET_PROFILE" = "all" ]]; then
+            PROFILES_JSON=$(echo "$VARS_JSON" | jq -r '.SERVERLESS_PROFILES // empty')
+            if [[ -n "$PROFILES_JSON" ]]; then
+              mapfile -t PROFILES < <(echo "$PROFILES_JSON" | jq -r '.[]')
+            else
+              PROFILES=("lifestyle" "professional")
+            fi
+          else
+            PROFILES=("$TARGET_PROFILE")
+          fi
+
+          get_profile_var() {
+            local prefix="$1" key="$2" fallback="$3"
+            local val
+            val=$(echo "$VARS_JSON" | jq -r --arg k "${prefix}_${key}" '.[$k] // empty')
+            if [[ -n "$val" ]]; then
+              echo "$val"
+              return
+            fi
+            if [[ "$prefix" = "LIFESTYLE" ]]; then
+              val=$(echo "$VARS_JSON" | jq -r --arg k "$key" '.[$k] // empty')
+              if [[ -n "$val" ]]; then
+                echo "$val"
+                return
+              fi
+            fi
+            echo "$fallback"
+          }
+
+          RAN_ANY=0
+          for prof in "${PROFILES[@]}"; do
+            PREFIX=$(echo "$prof" | tr '[:lower:]' '[:upper:]')
+            DB_URL=$(get_profile_var "$PREFIX" "DATABASE_URL" "")
+            SSM_PARAM=$(get_profile_var "$PREFIX" "DATABASE_AUTH_TOKEN_SSM" "")
+            EVENT_PROF=$(get_profile_var "$PREFIX" "EVENT_PROFILE" "$prof")
+
+            if [[ -z "$DB_URL" ]]; then
+              echo "Skipping profile '$prof': ${PREFIX}_DATABASE_URL is not configured."
+              continue
+            fi
+
+            echo "==> Resetting matching rules for target '$prof' (profile: $EVENT_PROF)"
+            ARGS=(db reset-rules)
+            if [[ "$DRY_RUN" = "true" ]]; then
+              ARGS+=(--dry-run)
+            fi
+
+            DATABASE_URL="$DB_URL" \
+            DATABASE_AUTH_TOKEN_SSM="$SSM_PARAM" \
+            EVENT_PROFILE="$EVENT_PROF" \
+            AWS_REGION="$AWS_REGION_VAL" \
+              node src/cli/wishboard.js "${ARGS[@]}"
+
+            RAN_ANY=1
+          done
+
+          if [[ "$RAN_ANY" -eq 0 ]]; then
+            echo "No serverless database URLs configured in repository variables; nothing to reset."
+          fi
