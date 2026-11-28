@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.48.1](https://github.com/wishboards/wishboard/compare/wishboard-v1.48.0...wishboard-v1.48.1) (2026-11-28)
+
+
+### Bug Fixes
+
+* **stickers:** add SVG xmlns namespace and reuse sticker matcher in AttributeInput ([#690](https://github.com/wishboards/wishboard/issues/690)) ([a4a818b](https://github.com/wishboards/wishboard/commit/a4a818b92876551adbf673c4cdf5ae122c31c434))
+
 ## [1.48.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.47.0...wishboard-v1.48.0) (2026-11-28)
 
 
