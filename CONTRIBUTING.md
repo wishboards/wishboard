@@ -77,6 +77,7 @@ Ports `3000` (app) and `4321` (Starlight docs) are forwarded automatically.
    Start the local dev environment with `npm run dev`. This will launch both the Node backend and the Vite frontend.
 4. **Run tests:**
    Verify your changes with `npm run test` and `npm run test:coverage`.
+   Vitest runs two [projects](https://vitest.dev/guide/projects) defined in `vite.config.ts`: `client` (`jsdom`, for `src/client/src/**` tests) and `node` (`node`, for `src/server`, `src/cli`, `scripts`, `aws-serverless` and `tests/integration`). A test's environment is determined by where the file lives; put new tests next to the code they cover. Run a single project with `npx vitest run --project node` (or `client`). Do not reintroduce `environmentMatchGlobs`: it was removed in Vitest 4 and is silently ignored (see #665).
 5. **Lint, format, and type-check:**
    Run `npm run lint`, `npm run format`, and `npm run type-check` before committing. Husky installs git hooks on `npm install`: a pre-commit hook auto-lints and formats staged files, and a pre-push hook builds and runs the tests.
 6. **Documentation site:**
