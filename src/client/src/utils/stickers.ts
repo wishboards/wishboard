@@ -1,19 +1,25 @@
+const normalizeStickerText = (s: string) => s.toLowerCase().replaceAll(/[-_]+/g, ' ').trim();
+
 export function findMatchingStickerKey(
   catStickers: Record<string, unknown>,
   val: string
 ): string | undefined {
   const valLower = val.toLowerCase();
+  const valNormalized = normalizeStickerText(val);
   const keys = Object.keys(catStickers);
 
-  const exactMatch = keys.find((k) => k.toLowerCase() === valLower);
+  const exactMatch = keys.find(
+    (k) => k.toLowerCase() === valLower || normalizeStickerText(k) === valNormalized
+  );
   if (exactMatch) return exactMatch;
 
   return keys.find((k) => {
-    const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-    const startBoundary = /^\w/.test(k) ? String.raw`\b` : String.raw`(?:^|\s)`;
-    const endBoundary = /\w$/.test(k) ? String.raw`\b` : String.raw`(?=$|\s)`;
+    const kNorm = normalizeStickerText(k);
+    const escapedKey = kNorm.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    const startBoundary = /^\w/.test(kNorm) ? String.raw`\b` : String.raw`(?:^|\s)`;
+    const endBoundary = /\w$/.test(kNorm) ? String.raw`\b` : String.raw`(?=$|\s)`;
     const regex = new RegExp(`${startBoundary}${escapedKey}${endBoundary}`, 'i');
-    return regex.test(valLower);
+    return regex.test(valNormalized);
   });
 }
 

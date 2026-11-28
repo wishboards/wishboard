@@ -38,6 +38,15 @@ describe('stickers utils', () => {
       };
       expect(findMatchingStickerKey(roleStickers, 'Service Top')).toBe('service top');
     });
+
+    it('matches hyphenated sticker keys against space-separated values', () => {
+      const relStickers = {
+        'kitchen-table-poly': { type: 'image', src: '/assets/stickers/polyamory.svg' },
+        'open-relationship': { type: 'image', src: '/assets/stickers/enm.svg' },
+      };
+      expect(findMatchingStickerKey(relStickers, 'Kitchen Table Poly')).toBe('kitchen-table-poly');
+      expect(findMatchingStickerKey(relStickers, 'Open Relationship')).toBe('open-relationship');
+    });
   });
 
   describe('countMatchingStickers', () => {

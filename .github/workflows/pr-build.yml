@@ -44,3 +44,20 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke-test PR Docker image imports and sticker assets
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:pr-${{ github.event.pull_request.number }}"
+          docker pull "$IMAGE"
+          docker run --rm --entrypoint node "$IMAGE" -e "
+            import { existsSync } from 'node:fs';
+            if (!existsSync('/app/dist/assets/stickers/nonbinary.svg')) {
+              throw new Error('Missing bundled sticker asset /app/dist/assets/stickers/nonbinary.svg');
+            }
+            await import('./src/server/configManager.js');
+            await import('./src/server/routes/admin.js');
+            await import('./src/server/proposalsManager.js');
+            await import('./src/server/taxonomyExporter.js');
+            console.log('Docker runtime smoke check passed');
+          "
+          docker run --rm --entrypoint node "$IMAGE" src/cli/wishboard.js --help >/dev/null
