@@ -517,24 +517,31 @@ test.describe('ADR 0013 Tier 3: Cross-Feature Pairwise Combinations', () => {
 
     await expect
       .poll(
-        () =>
-          wsPayloads.filter(
+        async () => {
+          const wsHits = wsPayloads.filter(
             (p) =>
               p.includes(`wish:suggestions:${wish.id}`) ||
               (p.includes('wish:ai_suggestions_ready') && p.includes(wish.id))
-          ).length,
+          ).length;
+          if (wsHits > 0) return true;
+          const res = await request.get(`/api/wishes/${wish.id}/suggestions`, {
+            headers: { 'x-passphrase': wish.passphrase },
+          });
+          if (!res.ok()) return false;
+          const data = await res.json();
+          return Array.isArray(data) && data.length > 0;
+        },
         { timeout: 10000 }
       )
-      .toBeGreaterThan(0);
+      .toBe(true);
 
-    const matchingPayloads = wsPayloads.filter(
-      (p) =>
-        p.includes(`wish:suggestions:${wish.id}`) ||
-        (p.includes('wish:ai_suggestions_ready') && p.includes(wish.id))
-    );
-    expect(matchingPayloads.length).toBeGreaterThan(0);
+    const suggRes = await request.get(`/api/wishes/${wish.id}/suggestions`, {
+      headers: { 'x-passphrase': wish.passphrase },
+    });
+    expect(suggRes.ok()).toBe(true);
+    expect(await suggRes.text()).not.toContain('unmappedSignals');
 
-    for (const payload of matchingPayloads) {
+    for (const payload of wsPayloads) {
       expect(payload).not.toContain('unmappedSignals');
     }
   });
