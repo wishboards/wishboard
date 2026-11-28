@@ -10,7 +10,3 @@ Enhancement and technical-debt work tracked as issues, for traceability:
 
 - **[#492](https://github.com/wishboards/wishboard/issues/492)** — Upgrade to TypeScript 7 once `typescript-eslint` widens its peer dependency range (`>=4.8.4 <6.1.0`), unblocking the Dependabot TS 7 bump.
 - **[#531](https://github.com/wishboards/wishboard/issues/531)** — Drop Storage prototype test polyfill when JSDOM supports Node 25+ uninitialized `globalThis.localStorage` or Node 24 is retired. _(Partially completed: `jsdom` bumped to `^31.0.1`; polyfill retained pending upstream resolution or Node 24 retirement in April 2027)._
-- **[#671](https://github.com/wishboards/wishboard/issues/671)** — Evaluate `happy-dom` or `pool: 'vmThreads'` for the client test project to further reduce DOM environment setup overhead without sacrificing test fidelity.
-- **[#672](https://github.com/wishboards/wishboard/issues/672)** — Split `tests/setupTests.ts` into shared and client-only setups so the `node` test project skips unnecessary browser/mock initialization.
-- **[#673](https://github.com/wishboards/wishboard/issues/673)** — Verify Stryker mutation runner handles Vitest `test.projects` and reconcile mutation-testing doc drift.
-- **[#674](https://github.com/wishboards/wishboard/issues/674)** — Configure npm 12+ install-script approvals for `esbuild` and `tesseract.js` blocked under `allowScripts`.

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import { extractUrl } from './testUtils';
 
 const MOCK_DOMAIN = {
@@ -141,6 +141,7 @@ globalThis.ResizeObserver = ResizeObserver;
 if (globalThis.window !== undefined) {
   Object.defineProperty(globalThis.window, 'matchMedia', {
     writable: true,
+    configurable: true,
     value: vi.fn().mockImplementation((query) => ({
       matches: false,
       media: query,
@@ -207,3 +208,9 @@ if (globalThis.window !== undefined) {
     });
   }
 }
+
+afterEach(() => {
+  if (typeof document !== 'undefined') {
+    document.body.innerHTML = '';
+  }
+});

@@ -150,18 +150,21 @@ describe('WiFiQrCode', () => {
 
     it('uses browser host when not on localhost or 127.0.0.1', () => {
       setConfig({ isServerless: true });
-      const originalLocation = globalThis.location;
-      // @ts-expect-error Mocking location.host
-      delete globalThis.location;
-      globalThis.location = {
-        ...originalLocation,
-        host: 'live-event.wishboards.org',
-      } as Location;
+      const proto = Object.getPrototypeOf((globalThis.window as any)._document._location);
+      const origHostDesc = Object.getOwnPropertyDescriptor(proto, 'host');
+      Object.defineProperty(proto, 'host', {
+        get() {
+          return 'live-event.wishboards.org';
+        },
+        configurable: true,
+      });
 
       render(<WiFiQrCode variant="sidebar" />);
       expect(screen.getByText('https://live-event.wishboards.org')).toBeInTheDocument();
 
-      globalThis.location = originalLocation;
+      if (origHostDesc) {
+        Object.defineProperty(proto, 'host', origHostDesc);
+      }
     });
   });
 });

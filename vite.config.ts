@@ -48,7 +48,6 @@ export default defineConfig({
     // Use repo root for testing so both client and server files are visible.
     root: projectRoot,
     globals: true,
-    setupFiles: 'tests/setupTests.ts',
     globalSetup: 'vitest.global-setup.js',
     // Test environments are chosen per project. (`environmentMatchGlobs` was removed in
     // Vitest 4; leaving it in place was silently ignored and put every file, including
@@ -59,6 +58,8 @@ export default defineConfig({
         test: {
           name: 'client',
           environment: 'jsdom',
+          pool: 'vmThreads',
+          setupFiles: 'tests/setupTests.ts',
           include: ['src/client/src/**/*.{test,spec}.{ts,tsx}'],
         },
       },

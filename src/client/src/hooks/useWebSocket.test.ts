@@ -98,11 +98,6 @@ describe('useWebSocket', () => {
     }
 
     beforeEach(() => {
-      vi.stubGlobal('location', {
-        protocol: 'http:',
-        host: 'localhost:3000',
-        origin: 'http://localhost:3000',
-      });
       vi.stubGlobal('WebSocket', MockWebSocket);
       import.meta.env.VITE_USE_RAW_WEBSOCKETS = 'true';
       import.meta.env.VITE_WS_URL = 'ws://localhost:3000/raw';
