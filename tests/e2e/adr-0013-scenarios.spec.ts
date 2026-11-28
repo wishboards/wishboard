@@ -29,6 +29,25 @@ async function loginAdminApi(request: APIRequestContext): Promise<string> {
   throw new Error(`loginAdminApi failed after retries (${lastStatus}): ${lastBody}`);
 }
 
+async function requestWithRetry(
+  fn: () => Promise<import('@playwright/test').APIResponse>,
+  label: string
+): Promise<import('@playwright/test').APIResponse> {
+  let lastStatus = 0;
+  let lastBody = '';
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const res = await fn();
+    if (res.ok()) return res;
+    lastStatus = res.status();
+    lastBody = await res.text().catch(() => '');
+    if (lastStatus !== 429 && lastStatus < 500) {
+      throw new Error(`${label} failed with ${lastStatus}: ${lastBody}`);
+    }
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+  }
+  throw new Error(`${label} failed after retries (${lastStatus}): ${lastBody}`);
+}
+
 async function loginAdminUi(page: Page): Promise<void> {
   await page.goto('/#admin');
   await expect(page.locator('h1')).toHaveText('Admin Panel');
@@ -303,17 +322,21 @@ test.describe('ADR 0013 Tier 4: Real-World Application Scenarios & Live Checkpoi
     page,
     request,
   }) => {
+    test.setTimeout(90_000);
     const communityTerm = `starlight_cuddle_${Date.now()}`;
 
     // 3 separate users submit wishes with the unmapped term
     for (let i = 1; i <= 3; i += 1) {
-      const wishRes = await request.post('/api/wishes', {
-        data: {
-          content: `User ${i} looking for ${communityTerm} session`,
-          passphrase: `${SCENARIO_PASSPHRASE}-${i}`, // gitleaks:allow
-        },
-      });
-      expect(wishRes.ok()).toBe(true);
+      await requestWithRetry(
+        () =>
+          request.post('/api/wishes', {
+            data: {
+              content: `User ${i} looking for ${communityTerm} session`,
+              passphrase: `${SCENARIO_PASSPHRASE}-${i}`, // gitleaks:allow
+            },
+          }),
+        `Scenario 4 POST /api/wishes #${i}`
+      );
 
       const seeded = await harvestTestSignals([
         {
@@ -339,14 +362,18 @@ test.describe('ADR 0013 Tier 4: Real-World Application Scenarios & Live Checkpoi
     await expect(page.locator('.message.success')).toBeVisible();
 
     const newWishText = `Post-approval ${communityTerm} meetup ${Date.now()}`;
-    await request.post('/api/wishes', {
-      data: {
-        content: newWishText,
-        creator_attributes: { role: [communityTerm] },
-        creator_roles: [communityTerm],
-        passphrase: SCENARIO_PASSPHRASE,
-      },
-    });
+    await requestWithRetry(
+      () =>
+        request.post('/api/wishes', {
+          data: {
+            content: newWishText,
+            creator_attributes: { role: [communityTerm] },
+            creator_roles: [communityTerm],
+            passphrase: SCENARIO_PASSPHRASE,
+          },
+        }),
+      'Scenario 4 POST /api/wishes (post-approval)'
+    );
 
     await page.evaluate(() => globalThis.localStorage?.removeItem('wishboard-auth-token'));
     await page.goto('/#search');
@@ -367,14 +394,17 @@ test.describe('ADR 0013 Tier 4: Real-World Application Scenarios & Live Checkpoi
     const dirtySvg =
       '<svg viewBox="0 0 24 24" onmouseover="window.__svgPwned=true"><script>window.__svgPwned=true</script><foreignObject><iframe src="https://evil.example"></iframe></foreignObject><a href="https://evil.example">click</a><polygon points="12,2 22,22 2,22" fill="#10b981"/></svg>';
 
-    const res = await request.put('/api/admin/profile-overrides', {
-      headers: { Authorization: `Bearer ${token}` },
-      data: {
-        categories: [{ id: 'interests', label: 'Interests', suggestions: [xssTag] }],
-        stickers: { interests: { [xssTag]: { type: 'svg', svg: dirtySvg } } },
-      },
-    });
-    expect(res.ok()).toBe(true);
+    await requestWithRetry(
+      () =>
+        request.put('/api/admin/profile-overrides', {
+          headers: { Authorization: `Bearer ${token}` },
+          data: {
+            categories: [{ id: 'interests', label: 'Interests', suggestions: [xssTag] }],
+            stickers: { interests: { [xssTag]: { type: 'svg', svg: dirtySvg } } },
+          },
+        }),
+      'Scenario 5 PUT /api/admin/profile-overrides'
+    );
 
     const configRes = await request.get('/api/config');
     const configJson = await configRes.json();
@@ -385,13 +415,17 @@ test.describe('ADR 0013 Tier 4: Real-World Application Scenarios & Live Checkpoi
     expect(storedSvg).not.toContain('https://evil.example');
 
     const wishText = `Sanitized geometric SVG card ${Date.now()}`;
-    await request.post('/api/wishes', {
-      data: {
-        content: wishText,
-        creator_attributes: { interests: [xssTag] },
-        passphrase: SCENARIO_PASSPHRASE,
-      },
-    });
+    await requestWithRetry(
+      () =>
+        request.post('/api/wishes', {
+          data: {
+            content: wishText,
+            creator_attributes: { interests: [xssTag] },
+            passphrase: SCENARIO_PASSPHRASE,
+          },
+        }),
+      'Scenario 5 POST /api/wishes'
+    );
 
     await page.goto('/#search');
     await page.fill('input[placeholder="Search existing wishes"]', wishText);

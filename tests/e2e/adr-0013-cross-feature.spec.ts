@@ -525,18 +525,18 @@ test.describe('ADR 0013 Tier 3: Cross-Feature Pairwise Combinations', () => {
           ).length;
           if (wsHits > 0) return true;
           const res = await request.get(`/api/wishes/${wish.id}/suggestions`, {
-            headers: { 'x-wish-secret': wish.passphrase },
+            headers: { 'x-passphrase': wish.passphrase },
           });
           if (!res.ok()) return false;
           const data = await res.json();
-          return Array.isArray(data.suggestions) && data.suggestions.length > 0;
+          return Array.isArray(data) && data.length > 0;
         },
         { timeout: 10000 }
       )
       .toBe(true);
 
     const suggRes = await request.get(`/api/wishes/${wish.id}/suggestions`, {
-      headers: { 'x-wish-secret': wish.passphrase },
+      headers: { 'x-passphrase': wish.passphrase },
     });
     expect(suggRes.ok()).toBe(true);
     expect(await suggRes.text()).not.toContain('unmappedSignals');
