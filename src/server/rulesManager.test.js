@@ -193,4 +193,37 @@ describe('rulesManager (DB-backed)', () => {
     rm.getRules();
     expect(rm.getRules()).toHaveLength(0);
   });
+
+  it('serializes reloadRules with concurrent addRule/updateRule/deleteRule and normalizes context fields', async () => {
+    ({ db, rm } = await importFresh());
+    await db.execute('DELETE FROM rules');
+    await rm.reloadRules();
+
+    const [added] = await Promise.all([
+      rm.addRule({
+        id: 'conc-1',
+        rule_type: 'expansion',
+        trigger_attribute: 'interests',
+        trigger_value: 'rope',
+        target_attribute: 'interests',
+        target_value: 'bondage',
+      }),
+      rm.reloadRules(),
+    ]);
+
+    expect(added.context_attribute).toBeNull();
+    expect(added.context_value).toBeNull();
+    expect(rm.getRules().some((r) => r.id === 'conc-1')).toBe(true);
+
+    const [updated] = await Promise.all([
+      rm.updateRule('conc-1', { target_value: 'shibari' }),
+      rm.reloadRules(),
+    ]);
+    expect(updated).toBe(true);
+    expect(rm.getRules().find((r) => r.id === 'conc-1')?.target_value).toBe('shibari');
+
+    const [deleted] = await Promise.all([rm.deleteRule('conc-1'), rm.reloadRules()]);
+    expect(deleted).toBe(true);
+    expect(rm.getRules().some((r) => r.id === 'conc-1')).toBe(false);
+  });
 });

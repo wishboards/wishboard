@@ -1,6 +1,12 @@
 import { InferenceProvider, EmbeddingProvider } from './interfaces.js';
 import { LocalInferenceProvider } from './LocalProvider.js';
 import logger from '../logger.js';
+import {
+  normalizeProposalKey,
+  sanitizeProposalPayload,
+  VALID_PROPOSAL_TYPES,
+  PII_PATTERN,
+} from '../proposalsManager.js';
 
 let cachedSsmApiKey = null;
 
@@ -141,17 +147,20 @@ export class CloudInferenceProvider extends InferenceProvider {
         requestBody.reasoning_effort = 'low';
       }
 
-      const res = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timer);
+      let res;
+      try {
+        res = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -188,6 +197,9 @@ export class CloudInferenceProvider extends InferenceProvider {
         parsed.suggestedContent ?? parsed.suggested_content ?? null,
         originalContent
       );
+      const unmappedSignals = normalizeUnmappedSignals(
+        parsed.unmappedSignals ?? parsed.unmapped_signals ?? []
+      );
 
       return {
         ok: true,
@@ -197,6 +209,7 @@ export class CloudInferenceProvider extends InferenceProvider {
           suggestedDesiredAttributes:
             parsed.suggestedDesiredAttributes || parsed.desiredAttributes || {},
           suggestedContent,
+          unmappedSignals,
           reasoning: parsed.reasoning || 'Extracted via cloud LLM',
         },
       };
@@ -233,6 +246,7 @@ export class CloudInferenceProvider extends InferenceProvider {
         suggestedCreatorAttributes: {},
         suggestedDesiredAttributes: {},
         suggestedContent: null,
+        unmappedSignals: [],
         reasoning: 'Cloud inference API key not configured',
       };
     }
@@ -248,6 +262,8 @@ Your job is to analyze wish content and return structured suggestions:
 1. "suggestedCreatorAttributes": Attributes describing the person who wrote the wish.
 2. "suggestedDesiredAttributes": Attributes describing the person/people they are seeking to meet.
 3. "suggestedContent": (Optional string or null) A more concise version of the wish text for a physical 3x5 index card.
+
+4. "unmappedSignals": (Optional array, max 10 items) Identity, role, interest, or relationship terms expressed in the wish that do NOT match any term in the Allowed Categories and Taxonomy above. Each item must be { "proposal_type": "category" | "suggestion" | "rule" | "sticker", "key": "normalized lowercase term", "payload": { "categoryId": "best_category_id", "term": "normalized term" } }. NEVER include raw wish prose, user identifiers, or personal details in unmappedSignals.
 
 Allowed Categories and Taxonomy:
 ${taxonomyDescription}
@@ -270,6 +286,7 @@ Return ONLY valid JSON with this exact schema:
   "suggestedCreatorAttributes": { "category_id": ["Term"] },
   "suggestedDesiredAttributes": { "category_id": ["Term"] },
   "suggestedContent": "optional streamlined wish text or null",
+  "unmappedSignals": [],
   "reasoning": "brief explanation"
 }`;
 
@@ -339,9 +356,44 @@ Existing Desired Attributes: ${JSON.stringify(existingDesiredAttributes)}`;
       suggestedCreatorAttributes: {},
       suggestedDesiredAttributes: {},
       suggestedContent: null,
+      unmappedSignals: [],
       reasoning: lastReason,
     };
   }
+}
+
+const MAX_UNMAPPED_SIGNALS = 10;
+
+function normalizeUnmappedSignals(rawSignals) {
+  if (!Array.isArray(rawSignals)) return [];
+  const results = [];
+  const seen = new Set();
+
+  for (const item of rawSignals) {
+    if (results.length >= MAX_UNMAPPED_SIGNALS) break;
+    if (!item || typeof item !== 'object') continue;
+
+    const proposalType =
+      typeof item.proposal_type === 'string'
+        ? item.proposal_type.trim().toLowerCase()
+        : 'suggestion';
+    if (!VALID_PROPOSAL_TYPES.has(proposalType)) continue;
+
+    const key = normalizeProposalKey(item.key);
+    if (!key || key.length < 3 || key.length > 80 || PII_PATTERN.test(key)) continue;
+
+    const dedupeKey = `${proposalType}:${key}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    results.push({
+      proposal_type: proposalType,
+      key,
+      payload: sanitizeProposalPayload(item.payload ?? {}),
+    });
+  }
+
+  return results;
 }
 
 function formatStickerSummary(stickers) {
@@ -416,20 +468,23 @@ export class CloudEmbeddingProvider extends EmbeddingProvider {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
-      const res = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          input: text.trim(),
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timer);
+      let res;
+      try {
+        res = await fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            model: this.model,
+            input: text.trim(),
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!res.ok) {
         logger.warn('Cloud AI embedding request returned non-OK status', { status: res.status });

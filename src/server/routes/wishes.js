@@ -187,15 +187,17 @@ router.post('/', upload.single('image'), validateBody(CreateWishInputSchema), as
   const rules = getRules();
   const creatorConflicts = getExclusionConflicts(creatorAttrs, rules);
   if (creatorConflicts.length > 0) {
+    const messages = [...new Set(creatorConflicts.map((c) => c.message))];
     return res.status(400).json({
-      error: `Validation failed: Creator attributes conflict. ${creatorConflicts.map((c) => c.message).join(' ')}`,
+      error: `Validation failed: Creator attributes conflict. ${messages.join(' ')}`,
     });
   }
 
   const desiredConflicts = getExclusionConflicts(desiredAttrs, rules);
   if (desiredConflicts.length > 0) {
+    const messages = [...new Set(desiredConflicts.map((c) => c.message))];
     return res.status(400).json({
-      error: `Validation failed: Desired criteria conflict. ${desiredConflicts.map((c) => c.message).join(' ')}`,
+      error: `Validation failed: Desired criteria conflict. ${messages.join(' ')}`,
     });
   }
 
@@ -787,11 +789,13 @@ function validateAttributesConflicts(creatorAttrs, desiredAttrs) {
   const rules = getRules();
   const creatorConflicts = getExclusionConflicts(creatorAttrs, rules);
   if (creatorConflicts.length > 0) {
-    return `Validation failed: Creator attributes conflict. ${creatorConflicts.map((c) => c.message).join(' ')}`;
+    const messages = [...new Set(creatorConflicts.map((c) => c.message))];
+    return `Validation failed: Creator attributes conflict. ${messages.join(' ')}`;
   }
   const desiredConflicts = getExclusionConflicts(desiredAttrs, rules);
   if (desiredConflicts.length > 0) {
-    return `Validation failed: Desired criteria conflict. ${desiredConflicts.map((c) => c.message).join(' ')}`;
+    const messages = [...new Set(desiredConflicts.map((c) => c.message))];
+    return `Validation failed: Desired criteria conflict. ${messages.join(' ')}`;
   }
   return null;
 }

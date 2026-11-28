@@ -247,4 +247,37 @@ describe('db initialization', () => {
     else process.env.NODE_ENV = originalNodeEnv;
     existsSpy.mockRestore();
   });
+
+  it('isSqliteBusy and withBusyRetry retry transient SQLITE_BUSY errors and throw after max attempts', async () => {
+    const { isSqliteBusy, withBusyRetry } = await import('./db.js');
+
+    expect(isSqliteBusy({ code: 'SQLITE_BUSY' })).toBe(true);
+    expect(isSqliteBusy({ cause: { code: 'SQLITE_BUSY' } })).toBe(true);
+    expect(isSqliteBusy({ message: 'database is locked' })).toBe(true);
+    expect(isSqliteBusy({ message: 'other error' })).toBe(false);
+    expect(isSqliteBusy(null)).toBe(false);
+
+    let attempts = 0;
+    const okResult = await withBusyRetry(async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        const err = new Error('database is locked');
+        err.code = 'SQLITE_BUSY';
+        throw err;
+      }
+      return 'recovered';
+    }, 5);
+    expect(okResult).toBe('recovered');
+    expect(attempts).toBe(3);
+
+    await expect(
+      withBusyRetry(async () => {
+        const err = new Error('SQLITE_BUSY');
+        err.code = 'SQLITE_BUSY';
+        throw err;
+      }, 2)
+    ).rejects.toThrow('SQLITE_BUSY');
+
+    await expect(db.executeMultiple('SELECT 1; SELECT 2;')).resolves.toBeUndefined();
+  });
 });

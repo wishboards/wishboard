@@ -6,6 +6,7 @@ import FlaggedWishesSection from '../components/admin/FlaggedWishesSection';
 import SystemOverviewSection from '../components/admin/SystemOverviewSection';
 import UserAccountsSection from '../components/admin/UserAccountsSection';
 import BrandingStudioSection from '../components/admin/BrandingStudioSection';
+import GovernanceQueueSection from '../components/admin/GovernanceQueueSection';
 
 export default function AdminPage() {
   const { user, token, login, logout } = useAuth();
@@ -15,9 +16,9 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
 
-  const [activeTab, setActiveTab] = useState<'rules' | 'flags' | 'overview' | 'users' | 'branding'>(
-    'rules'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'rules' | 'flags' | 'overview' | 'users' | 'branding' | 'governance'
+  >('rules');
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   const authHeader = useMemo(() => {
@@ -125,6 +126,14 @@ export default function AdminPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab('governance')}
+                className={activeTab === 'governance' ? '' : 'secondary-button'}
+                title="Taxonomy Governance Queue"
+              >
+                🧭 {sidebarExpanded && 'Governance'}
+              </button>
+              <button
+                type="button"
                 className="secondary-button"
                 onClick={() => {
                   globalThis.location.hash = '#poster';
@@ -168,6 +177,15 @@ export default function AdminPage() {
             )}
             {activeTab === 'branding' && (
               <BrandingStudioSection
+                authHeader={authHeader}
+                setMessage={setMessage}
+                setError={setError}
+                refreshCounter={refreshCounter}
+                onSessionExpired={handleSessionExpired}
+              />
+            )}
+            {activeTab === 'governance' && (
+              <GovernanceQueueSection
                 authHeader={authHeader}
                 setMessage={setMessage}
                 setError={setError}

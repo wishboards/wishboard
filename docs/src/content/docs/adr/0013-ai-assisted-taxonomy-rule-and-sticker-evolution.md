@@ -4,7 +4,7 @@ sidebar:
   label: 0013 AI Taxonomy & Rule Evolution
 ---
 
-- **Status:** Accepted (Phases 1-2 implemented; Phases 3-4 pending)
+- **Status:** Accepted (Phases 1-3 implemented; Phase 4 pending)
 - **Date:** 2026-11
 - **Extends:** [ADR 0012: AI Suggestion Review UX and Streamlining](../0012-ai-suggestion-review-ux-and-streamlining/)
 
@@ -84,5 +84,5 @@ We adopt **Option 3: Hybrid Two-Loop Architecture (Static Bootstrap + Runtime Ga
 - [x] Phase 0 / Engine: Deterministic rule-graph validator (`wishboards/matching-engine#105`)
 - [x] Phase 1: License-vetted seed catalogs, static profile analyzer CLI, and curated profile updates (`wishboards/wishboard#660`)
 - [x] Phase 2: Declarative SVG sticker pipeline & DB-over-YAML config override layer (`wishboards/wishboard#661`)
-- [ ] Phase 3: Runtime gap harvester (`taxonomy_proposals`) & Admin Governance Queue UI (`wishboards/wishboard#662`)
+- [x] Phase 3: Runtime gap harvester (`taxonomy_proposals`) & Admin Governance Queue UI (`wishboards/wishboard#662`)
 - [ ] Phase 4: Sticker auto-matching, sanitized SVG synthesis, YAML export, and end-to-end validation (`wishboards/wishboard#663`)

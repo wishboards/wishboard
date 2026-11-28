@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
 import db from '../db.js';
 import logger from '../logger.js';
-import { getEventProfile } from '../configManager.js';
+import { getEffectiveEventProfile } from '../configManager.js';
 import { getInferenceProvider, getEmbeddingProvider, isAiEnabled } from './index.js';
 import { emitAiSuggestionsReady } from '../socket.js';
+import { harvestSignals } from '../proposalsManager.js';
 
 let pendingTasks = [];
 let customLambdaDispatcher = null;
@@ -139,6 +140,20 @@ async function processInferenceJob(wishId, provider, params) {
   const suggestedContent = inferenceResult?.suggestedContent || null;
   const reasoning = inferenceResult?.reasoning || '';
 
+  if (
+    Array.isArray(inferenceResult?.unmappedSignals) &&
+    inferenceResult.unmappedSignals.length > 0
+  ) {
+    try {
+      await harvestSignals(inferenceResult.unmappedSignals);
+    } catch (err) {
+      logger.warn('Failed to harvest unmapped taxonomy signals (non-fatal)', {
+        wish_id: wishId,
+        error: err.message,
+      });
+    }
+  }
+
   const hasCreatorSuggestions = Object.keys(suggestedCreator).some(
     (k) => Array.isArray(suggestedCreator[k]) && suggestedCreator[k].length > 0
   );
@@ -231,7 +246,7 @@ export async function processWishJob({
     return;
   }
 
-  const profile = getEventProfile() || {};
+  const profile = (await getEffectiveEventProfile()) || {};
   const taxonomy = profile.categories || [];
   const stickers = profile.stickers || {};
 
