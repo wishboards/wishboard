@@ -639,7 +639,10 @@ export async function seedTestProposal({
   if (!normalizedKey) {
     throw new ProposalValidationError(`Invalid normalized_key: ${normalized_key}`, { status: 400 });
   }
-  const safeStatus = VALID_PROPOSAL_STATUSES.has(status) ? status : 'pending';
+  const safeStatus = typeof status === 'string' ? status.trim().toLowerCase() : 'pending';
+  if (!VALID_PROPOSAL_STATUSES.has(safeStatus)) {
+    throw new ProposalValidationError(`Invalid status: ${status}`, { status: 400 });
+  }
   const count = Math.max(1, Math.floor(Number(occurrence_count) || 1));
   const payloadJson = JSON.stringify(
     proposed_payload && typeof proposed_payload === 'object' ? proposed_payload : {}
