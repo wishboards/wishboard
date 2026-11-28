@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.47.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.46.0...wishboard-v1.47.0) (2026-11-28)
+
+
+### Features
+
+* **ai:** Phase 3 - runtime taxonomy_proposals harvester and Admin Governance Queue ([#680](https://github.com/wishboards/wishboard/issues/680)) ([6014065](https://github.com/wishboards/wishboard/commit/601406566d7fcc8dabda2053cc0b2aa612ab4fc6))
+* **cli:** add --pull-policy flag to kiosk deploy and run ([#684](https://github.com/wishboards/wishboard/issues/684)) ([a625b64](https://github.com/wishboards/wishboard/commit/a625b64275d462262263647e24ee128c83000a68))
+
+
+### Bug Fixes
+
+* **docker:** copy src/shared into runner stage for svgSanitizer ([#685](https://github.com/wishboards/wishboard/issues/685)) ([d6f987e](https://github.com/wishboards/wishboard/commit/d6f987e56f4a751e0aa5e42353c79950ea9d5097))
+
 ## [1.46.0](https://github.com/wishboards/wishboard/compare/wishboard-v1.45.0...wishboard-v1.46.0) (2026-11-28)
 
 
