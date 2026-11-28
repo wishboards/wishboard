@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/wishboards/wishboard/compare/api-v1.8.0...api-v1.9.0) (2026-11-28)
+
+
+### Features
+
+* **ai:** Phase 3 - runtime taxonomy_proposals harvester and Admin Governance Queue ([#680](https://github.com/wishboards/wishboard/issues/680)) ([6014065](https://github.com/wishboards/wishboard/commit/601406566d7fcc8dabda2053cc0b2aa612ab4fc6))
+
 ## [1.8.0](https://github.com/wishboards/wishboard/compare/api-v1.7.0...api-v1.8.0) (2026-11-28)
 
 
