@@ -498,6 +498,15 @@ test.describe('ADR 0013 Tier 3: Cross-Feature Pairwise Combinations', () => {
         }
       });
     });
+    page.on('response', async (res) => {
+      if (res.url().includes('/socket.io/')) {
+        try {
+          wsPayloads.push(await res.text());
+        } catch {
+          // Ignore aborted/redirected polling responses
+        }
+      }
+    });
 
     const wish = await createWishViaApi(request, {
       content: `Looking for rope bunny and switch play at dusk ${Date.now()}`,
