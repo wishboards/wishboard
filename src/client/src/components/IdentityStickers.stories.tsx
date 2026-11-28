@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import React from 'react';
 import IdentityStickers from './IdentityStickers';
+import EventProfileContext, { type EventProfile } from '../EventProfileContext';
 
 const meta: Meta<typeof IdentityStickers> = {
   title: 'Components/IdentityStickers',
@@ -80,6 +81,42 @@ export const MultiCategory: Story = {
       orientation: ['Lesbian', 'Asexual'],
       gender: ['Woman'],
       interests: ['Board Games', 'VR'],
+    },
+  },
+};
+
+const svgProfile: EventProfile = {
+  profile: 'custom-svg',
+  contact_methods: ['Phone', 'Email'],
+  categories: [],
+  stickers: {
+    role: {
+      star: {
+        type: 'svg',
+        svg: '<svg viewBox="0 0 24 24" fill="#f59e0b"><polygon points="12,2 15,9 22,9 16.5,14 18.5,21 12,17 5.5,21 7.5,14 2,9 9,9" /></svg>',
+      },
+      spark: {
+        type: 'svg',
+        svg: '<svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="8" /><path d="M12 4v16M4 12h16" /></svg>',
+      },
+    },
+  },
+  realtimeProvider: 'socketio',
+  apIp: '',
+  isServerless: false,
+};
+
+export const DeclarativeSvgStickers: Story = {
+  decorators: [
+    (Story) => (
+      <EventProfileContext value={svgProfile}>
+        <Story />
+      </EventProfileContext>
+    ),
+  ],
+  args: {
+    attributes: {
+      role: ['Star', 'Spark'],
     },
   },
 };

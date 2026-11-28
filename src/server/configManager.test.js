@@ -8,7 +8,13 @@ import {
   clearConfigCache,
   validateBranding,
   DEFAULT_BRANDING,
+  getEffectiveEventProfile,
+  invalidateEffectiveProfileCache,
+  setProfileOverride,
+  deleteProfileOverride,
+  clearProfileOverrides,
 } from './configManager.js';
+import db from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -234,6 +240,209 @@ describe('configManager', () => {
       boardTexture: 'cork',
       logoUrl: null,
       boardBgUrl: null,
+    });
+  });
+
+  describe('getEffectiveEventProfile & DB overrides', () => {
+    beforeEach(async () => {
+      await clearProfileOverrides();
+    });
+
+    it('merges categories, suggestions, and sanitized stickers from DB over YAML base', async () => {
+      await setProfileOverride('categories', [
+        { id: 'gender', label: 'Gender Identity', suggestions: ['Demi-girl', 'Nonbinary'] },
+        { id: 'kink_experience', label: 'Experience', suggestions: ['Newbie', 'Veteran'] },
+      ]);
+      await setProfileOverride('suggestions', {
+        orientation: ['Omni', 'Gay'],
+      });
+      await setProfileOverride('stickers', {
+        role: {
+          star: {
+            type: 'svg',
+            svg: '<svg viewBox="0 0 24 24" onload="alert(1)"><script>alert(1)</script><polygon points="12,2 15,9 22,9" fill="#f59e0b" /></svg>',
+          },
+          unsafe_svg: {
+            type: 'svg',
+            svg: '<svg viewBox="0 0 24 24"><script>alert(1)</script></svg>',
+          },
+          unsafe_img: {
+            type: 'image',
+            src: 'https://evil.example/a.png',
+          },
+          safe_img: {
+            type: 'image',
+            src: '/assets/badge.png',
+          },
+        },
+      });
+
+      const effective = await getEffectiveEventProfile();
+      const genderCat = effective.categories.find((c) => c.id === 'gender');
+      expect(genderCat.label).toBe('Gender Identity');
+      expect(genderCat.suggestions).toContain('Demi-girl');
+      // Deduplicated
+      expect(genderCat.suggestions.filter((s) => s === 'Nonbinary')).toHaveLength(1);
+
+      const expCat = effective.categories.find((c) => c.id === 'kink_experience');
+      expect(expCat).toEqual({
+        id: 'kink_experience',
+        label: 'Experience',
+        suggestions: ['Newbie', 'Veteran'],
+      });
+
+      const orientationCat = effective.categories.find((c) => c.id === 'orientation');
+      expect(orientationCat.suggestions).toContain('Omni');
+      expect(orientationCat.suggestions.filter((s) => s === 'Gay')).toHaveLength(1);
+
+      expect(effective.stickers.role.star).toEqual({
+        type: 'svg',
+        svg: '<svg viewBox="0 0 24 24"><polygon points="12,2 15,9 22,9" fill="#f59e0b" /></svg>',
+      });
+      expect(effective.stickers.role.unsafe_svg).toBeUndefined();
+      expect(effective.stickers.role.unsafe_img).toBeUndefined();
+      expect(effective.stickers.role.safe_img).toEqual({
+        type: 'image',
+        src: '/assets/badge.png',
+      });
+    });
+
+    it('caches effective profile according to RULES_CACHE_TTL_MS, returns immutable clones, and invalidates on write/delete', async () => {
+      process.env.RULES_CACHE_TTL_MS = '60000';
+      const prepareSpy = vi.spyOn(db, 'prepare');
+      const first = await getEffectiveEventProfile();
+      const second = await getEffectiveEventProfile();
+      expect(second).toEqual(first);
+      expect(second).not.toBe(first);
+      expect(prepareSpy).toHaveBeenCalledTimes(1);
+
+      // Mutating returned object does not corrupt cached profile
+      second.categories.push({ id: 'mutated', label: 'Mutated', suggestions: [] });
+      const stillClean = await getEffectiveEventProfile();
+      expect(stillClean.categories.some((c) => c.id === 'mutated')).toBe(false);
+
+      // Dynamic change to RULES_CACHE_TTL_MS=0 takes effect immediately
+      process.env.RULES_CACHE_TTL_MS = '0';
+      await getEffectiveEventProfile();
+      expect(prepareSpy).toHaveBeenCalledTimes(2);
+
+      // Empty/invalid/negative RULES_CACHE_TTL_MS falls back to 60s default
+      invalidateEffectiveProfileCache();
+      process.env.RULES_CACHE_TTL_MS = '   ';
+      await getEffectiveEventProfile();
+      await getEffectiveEventProfile();
+      expect(prepareSpy).toHaveBeenCalledTimes(3);
+
+      process.env.RULES_CACHE_TTL_MS = '-100';
+      await getEffectiveEventProfile();
+      expect(prepareSpy).toHaveBeenCalledTimes(3);
+
+      await setProfileOverride('suggestions', { role: ['Switcheroo'] });
+      const third = await getEffectiveEventProfile();
+      expect(third).not.toEqual(first);
+      expect(third.categories.find((c) => c.id === 'role')?.suggestions).toContain('Switcheroo');
+
+      await deleteProfileOverride('suggestions');
+      const fourth = await getEffectiveEventProfile();
+      expect(fourth.categories.find((c) => c.id === 'role')?.suggestions).not.toContain(
+        'Switcheroo'
+      );
+    });
+
+    it('rejects __proto__, constructor, and prototype keys to prevent prototype pollution', async () => {
+      const evilStickersJson =
+        '{"__proto__":{"polluted":{"type":"heart","class":"x"}},"constructor":{"prototype":{"polluted":true}},"role":{"__proto__":{"type":"heart"},"constructor":{"type":"heart"},"prototype":{"type":"heart"},"valid":{"type":"heart","class":"ok"}}}';
+      const evilSuggestionsJson =
+        '{"__proto__":["evil"],"constructor":["evil"],"prototype":["evil"]}';
+      const evilCategoriesJson =
+        '[{"id":"__proto__","label":"Evil"},{"id":"constructor","label":"Evil"},{"id":"prototype","label":"Evil"}]';
+
+      await db
+        .prepare(
+          'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+        )
+        .run('profile_override:stickers', evilStickersJson, new Date().toISOString());
+      await db
+        .prepare(
+          'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+        )
+        .run('profile_override:suggestions', evilSuggestionsJson, new Date().toISOString());
+      await db
+        .prepare(
+          'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+        )
+        .run('profile_override:categories', evilCategoriesJson, new Date().toISOString());
+
+      invalidateEffectiveProfileCache();
+      const effective = await getEffectiveEventProfile();
+
+      expect({}.polluted).toBeUndefined();
+      expect(Object.hasOwn(effective.stickers, '__proto__')).toBe(false);
+      expect(Object.hasOwn(effective.stickers, 'constructor')).toBe(false);
+      expect(Object.hasOwn(effective.stickers, 'prototype')).toBe(false);
+      expect(Object.hasOwn(effective.stickers.role, '__proto__')).toBe(false);
+      expect(Object.hasOwn(effective.stickers.role, 'constructor')).toBe(false);
+      expect(Object.hasOwn(effective.stickers.role, 'prototype')).toBe(false);
+      expect(effective.stickers.role.valid).toEqual({ type: 'heart', class: 'ok' });
+      expect(effective.categories.some((c) => c.id === '__proto__')).toBe(false);
+    });
+
+    it('does not populate cache if invalidated while DB query is in flight', async () => {
+      process.env.RULES_CACHE_TTL_MS = '60000';
+      invalidateEffectiveProfileCache();
+
+      let resolveAll;
+      const pendingAll = new Promise((resolve) => {
+        resolveAll = resolve;
+      });
+      const prepareSpy = vi.spyOn(db, 'prepare').mockImplementationOnce(() => ({
+        all: () => pendingAll,
+      }));
+
+      const inFlight = getEffectiveEventProfile();
+      invalidateEffectiveProfileCache();
+      resolveAll([
+        {
+          key: 'profile_override:suggestions',
+          value: JSON.stringify({ role: ['StaleInFlight'] }),
+        },
+      ]);
+      await inFlight;
+
+      // Next call must NOT hit the stale in-flight cache; it must query DB fresh
+      const fresh = await getEffectiveEventProfile();
+      expect(prepareSpy).toHaveBeenCalledTimes(2);
+      expect(fresh.categories.find((c) => c.id === 'role')?.suggestions).not.toContain(
+        'StaleInFlight'
+      );
+    });
+
+    it('falls back cleanly to base YAML if DB query fails or JSON is malformed', async () => {
+      await db
+        .prepare(
+          'INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+        )
+        .run('profile_override:categories', '{bad-json', new Date().toISOString());
+      invalidateEffectiveProfileCache();
+
+      const withBadJson = await getEffectiveEventProfile();
+      expect(withBadJson.profile).toBe(getEventProfile().profile);
+
+      invalidateEffectiveProfileCache();
+      vi.spyOn(db, 'prepare').mockImplementationOnce(() => {
+        throw new Error('DB unavailable');
+      });
+      const withDbErr = await getEffectiveEventProfile();
+      expect(withDbErr.profile).toBe(getEventProfile().profile);
+    });
+
+    it('rejects invalid override section names', async () => {
+      await expect(setProfileOverride('invalid_section', {})).rejects.toThrow(
+        'Invalid profile override section'
+      );
+      await expect(deleteProfileOverride('invalid_section')).rejects.toThrow(
+        'Invalid profile override section'
+      );
     });
   });
 });

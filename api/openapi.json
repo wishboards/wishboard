@@ -1271,12 +1271,108 @@
           "provider"
         ]
       },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "gender"
+          },
+          "label": {
+            "type": "string",
+            "example": "Gender"
+          },
+          "type": {
+            "type": "string",
+            "example": "multi"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Woman",
+              "Man",
+              "Nonbinary"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      },
+      "StickerRule": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "example": "svg"
+          },
+          "iconType": {
+            "type": "string",
+            "example": "female"
+          },
+          "unicode": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "class": {
+            "type": "string",
+            "example": "flag-rainbow"
+          },
+          "src": {
+            "type": "string",
+            "example": "/assets/presenter.png"
+          },
+          "svg": {
+            "type": "string",
+            "example": "<svg viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8\" /></svg>"
+          }
+        }
+      },
       "ConfigResponse": {
         "type": "object",
         "properties": {
+          "profile": {
+            "type": "string",
+            "example": "lifestyle"
+          },
+          "title": {
+            "type": "string",
+            "example": "Wishboard"
+          },
           "domain": {
             "type": "string",
             "example": "wishboards.local"
+          },
+          "contact_methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Phone",
+              "Email"
+            ]
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            }
+          },
+          "stickers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/StickerRule"
+              }
+            }
           },
           "realtimeProvider": {
             "type": "string",
@@ -1340,6 +1436,101 @@
           "captive",
           "user-portal-url",
           "venue-info-url"
+        ]
+      },
+      "ProfileOverrideCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "example": "role"
+          },
+          "label": {
+            "type": "string",
+            "example": "Role"
+          },
+          "type": {
+            "type": "string",
+            "example": "multi"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "RopeBunny"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ProfileOverridesInput": {
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileOverrideCategory"
+            }
+          },
+          "suggestions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "stickers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/StickerRule"
+              }
+            }
+          }
+        }
+      },
+      "ProfileOverridesResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileOverrideCategory"
+            }
+          },
+          "suggestions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "stickers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/components/schemas/StickerRule"
+              }
+            }
+          }
+        },
+        "required": [
+          "success"
         ]
       }
     },
@@ -4176,6 +4367,107 @@
                   "additionalProperties": {
                     "nullable": true
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/profile-overrides": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Persist DB-over-YAML profile overrides and invalidate effective profile cache",
+        "description": "Persist DB-over-YAML profile overrides and invalidate effective profile cache",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileOverridesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Persist DB-over-YAML profile overrides and invalidate effective profile cache response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOverridesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Clear all DB-over-YAML profile overrides and invalidate effective profile cache",
+        "description": "Clear all DB-over-YAML profile overrides and invalidate effective profile cache",
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Clear all DB-over-YAML profile overrides and invalidate effective profile cache response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
                 }
               }
             }

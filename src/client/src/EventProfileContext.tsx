@@ -29,6 +29,16 @@ export interface AiStatus {
   model?: string | null;
 }
 
+export interface StickerRule {
+  type?: 'heart' | 'flag' | 'icon' | 'image' | 'svg' | (string & {});
+  iconType?: string;
+  unicode?: string;
+  color?: string;
+  class?: string;
+  src?: string;
+  svg?: string;
+}
+
 export interface EventProfile {
   profile: string;
   title?: string;
@@ -37,20 +47,7 @@ export interface EventProfile {
   rules?: Rule[];
   branding?: BrandingConfig;
   ai?: AiStatus;
-  stickers?: Record<
-    string,
-    Record<
-      string,
-      {
-        type?: string;
-        iconType?: string;
-        unicode?: string;
-        color?: string;
-        class?: string;
-        src?: string;
-      }
-    >
-  >;
+  stickers?: Record<string, Record<string, StickerRule>>;
   realtimeProvider: string;
   apIp: string;
   isServerless: boolean;

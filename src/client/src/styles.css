@@ -875,13 +875,20 @@ button:hover {
   height: 0.9em;
 }
 
-.sticker-image {
+.sticker-image,
+.sticker-svg {
   width: 1.5em;
   height: 1.5em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   vertical-align: middle;
+}
+
+.sticker-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .female-icon {
