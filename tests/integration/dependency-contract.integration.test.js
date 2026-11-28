@@ -22,6 +22,73 @@ describe('integration: production image ships what the bundled CLI needs', () =>
     const cliSource = fs.readFileSync(path.resolve(process.cwd(), 'src/cli/wishboard.js'), 'utf8');
     expect(cliSource).toContain("'../../package.json'");
   });
+
+  it('prepares profile sticker assets before running Vite build in Dockerfile and serverless deploy', () => {
+    const dockerfile = fs.readFileSync(path.resolve(process.cwd(), 'Dockerfile'), 'utf8');
+    expect(dockerfile).toMatch(/wishboard\.js\s+build\s+prepare-profile\s+&&\s+npm\s+run\s+build/);
+    const serverlessCli = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/cli/commands/serverless.js'),
+      'utf8'
+    );
+    expect(serverlessCli).toMatch(/['"]build['"],\s*['"]prepare-profile['"]/);
+  });
+
+  // Every static and dynamic relative import in src/server and src/cli must resolve
+  // to a path covered by a COPY directive in the Dockerfile `runner` stage.
+  it('covers every relative runtime import in src/server and src/cli in the Dockerfile runner stage', () => {
+    const repoRoot = process.cwd();
+    const dockerfile = fs.readFileSync(path.resolve(repoRoot, 'Dockerfile'), 'utf8');
+    const runnerStage = dockerfile.slice(dockerfile.lastIndexOf('AS runner'));
+
+    const copiedPaths = [];
+    for (const line of runnerStage.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('COPY ')) continue;
+      const tokens = trimmed
+        .replace(/^COPY\s+(?:--from=\S+\s+)?/, '')
+        .split(/\s+/)
+        .filter(Boolean);
+      if (tokens.length >= 2) {
+        const dest = tokens.at(-1).replace(/^\.\//, '').replace(/\/+$/, '');
+        copiedPaths.push(dest);
+      }
+    }
+
+    const collectJsFiles = (dir) => {
+      const out = [];
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          out.push(...collectJsFiles(full));
+        } else if (/\.(?:js|mjs)$/.test(entry.name) && !/\.test\.(?:js|mjs)$/.test(entry.name)) {
+          out.push(full);
+        }
+      }
+      return out;
+    };
+
+    const isCoveredByRunnerCopy = (relPath) =>
+      copiedPaths.some((dest) => relPath === dest || relPath.startsWith(`${dest}/`));
+
+    const importPattern = /(?:from\s+|import\s*\(\s*(?:\/\*[\s\S]*?\*\/\s*)?)['"](\.[^'"]+)['"]/g;
+
+    const missing = [];
+    for (const rootDir of ['src/server', 'src/cli']) {
+      for (const file of collectJsFiles(path.resolve(repoRoot, rootDir))) {
+        const raw = fs.readFileSync(file, 'utf8');
+        for (const match of raw.matchAll(importPattern)) {
+          const spec = match[1];
+          const resolved = path.resolve(path.dirname(file), spec);
+          const rel = path.relative(repoRoot, resolved).replace(/\\/g, '/');
+          if (!isCoveredByRunnerCopy(rel)) {
+            missing.push(`${path.relative(repoRoot, file).replace(/\\/g, '/')} -> ${rel}`);
+          }
+        }
+      }
+    }
+
+    expect(missing).toEqual([]);
+  });
 });
 
 describe('integration: package.json dependency-placement contract', () => {

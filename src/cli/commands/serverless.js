@@ -720,7 +720,13 @@ export function deployServerless(options) {
   performPreflightChecks(frontendOnly, common, dryRun);
 
   // --- 1. Frontend build ---
-  logStep('[1/6] Building frontend (npm run build)...');
+  logStep(`[1/6] Preparing profile '${eventProfile}' assets and building frontend...`);
+  const prep = execCommand(
+    'node',
+    ['src/cli/wishboard.js', 'build', 'prepare-profile', '--event-profile', eventProfile],
+    { cwd: PROJECT_ROOT, dryRun }
+  );
+  if (prep.status !== 0) throw new Error('Profile asset preparation failed.');
   const build = execCommand('npm', ['run', 'build'], { cwd: PROJECT_ROOT, dryRun });
   if (build.status !== 0) throw new Error('Frontend build failed.');
 
