@@ -524,18 +524,22 @@ test.describe('ADR 0013 Tier 3: Cross-Feature Pairwise Combinations', () => {
               (p.includes('wish:ai_suggestions_ready') && p.includes(wish.id))
           ).length;
           if (wsHits > 0) return true;
-          const res = await request.get(`/api/wishes/${wish.id}?secret=${wish.passphrase}`);
+          const res = await request.get(`/api/wishes/${wish.id}/suggestions`, {
+            headers: { 'x-wish-secret': wish.passphrase },
+          });
           if (!res.ok()) return false;
           const data = await res.json();
-          return Boolean(data.ai_suggestions);
+          return Array.isArray(data.suggestions) && data.suggestions.length > 0;
         },
         { timeout: 10000 }
       )
       .toBe(true);
 
-    const wishRes = await request.get(`/api/wishes/${wish.id}?secret=${wish.passphrase}`);
-    expect(wishRes.ok()).toBe(true);
-    expect(await wishRes.text()).not.toContain('unmappedSignals');
+    const suggRes = await request.get(`/api/wishes/${wish.id}/suggestions`, {
+      headers: { 'x-wish-secret': wish.passphrase },
+    });
+    expect(suggRes.ok()).toBe(true);
+    expect(await suggRes.text()).not.toContain('unmappedSignals');
 
     for (const payload of wsPayloads) {
       expect(payload).not.toContain('unmappedSignals');

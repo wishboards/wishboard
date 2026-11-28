@@ -8,7 +8,9 @@ const ADMIN_SECRET = 'e2e-admin-password'; // gitleaks:allow
 const SCENARIO_PASSPHRASE = 'ScenarioPassphrase123'; // gitleaks:allow
 
 async function loginAdminApi(request: APIRequestContext): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  let lastStatus = 0;
+  let lastBody = '';
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const res = await request.post('/api/users/login', {
       data: { username: 'admin', passphrase: ADMIN_SECRET },
     });
@@ -17,12 +19,14 @@ async function loginAdminApi(request: APIRequestContext): Promise<string> {
       expect(body.token).toBeTruthy();
       return body.token as string;
     }
-    if (res.status() !== 429 && res.status() < 500) {
-      expect(res.ok()).toBe(true);
+    lastStatus = res.status();
+    lastBody = await res.text().catch(() => '');
+    if (lastStatus !== 429 && lastStatus < 500) {
+      throw new Error(`loginAdminApi failed with ${lastStatus}: ${lastBody}`);
     }
     await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
   }
-  throw new Error('loginAdminApi failed after retries');
+  throw new Error(`loginAdminApi failed after retries (${lastStatus}): ${lastBody}`);
 }
 
 async function loginAdminUi(page: Page): Promise<void> {
