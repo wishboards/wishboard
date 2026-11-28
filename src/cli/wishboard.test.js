@@ -42,16 +42,30 @@ vi.mock('./commands/bootstrap.js', () => ({
   runBootstrap: vi.fn().mockResolvedValue({}),
 }));
 
+class ProcessExitError extends Error {
+  constructor(code) {
+    super(`process.exit(${code})`);
+    this.code = code;
+  }
+}
+
 describe('wishboard CLI entrypoint', () => {
   let originalArgv;
   let exitSpy;
   let errorSpy;
+  let stdoutSpy;
 
   beforeEach(() => {
     originalArgv = process.argv;
-    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {});
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((code) => {
+      if (code === 0) {
+        throw new ProcessExitError(code);
+      }
+    });
     vi.spyOn(console, 'log').mockImplementation(() => {});
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   });
 
   afterEach(() => {
@@ -62,12 +76,19 @@ describe('wishboard CLI entrypoint', () => {
 
   const runCLI = async (args) => {
     process.argv = ['node', 'wishboard.js', ...args];
-    await import('./wishboard.js');
+    try {
+      await import('./wishboard.js');
+    } catch (err) {
+      if (!(err instanceof ProcessExitError)) {
+        throw err;
+      }
+    }
   };
 
   it('prints help output', async () => {
     await runCLI(['--help']);
     expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(stdoutSpy).toHaveBeenCalledWith(expect.stringContaining('Usage: wishboard'));
   });
 
   it('routes to oidc setup command with options', async () => {

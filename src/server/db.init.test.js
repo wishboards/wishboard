@@ -129,6 +129,7 @@ describe('db init: URL resolution', () => {
   it('a :memory: path maps to file::memory: in any environment', async () => {
     process.env.NODE_ENV = 'production';
     process.env.WISHBOARD_DB_PATH = ':memory:';
+    vi.spyOn(console, 'log').mockImplementation(() => {});
     await importDb();
     expect(h.createClientCalls[0]).toEqual({ url: 'file::memory:' });
   });
