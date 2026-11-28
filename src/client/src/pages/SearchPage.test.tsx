@@ -285,7 +285,7 @@ describe('SearchPage', () => {
     );
   });
 
-  it('updates useProfileAttributes when user logs in dynamically', () => {
+  it('updates useProfileAttributes when user logs in dynamically', async () => {
     mockUser = null;
     const { rerender } = render(<SearchPage />);
     expect(
@@ -299,6 +299,9 @@ describe('SearchPage', () => {
     ) as HTMLInputElement;
     expect(checkbox).toBeInTheDocument();
     expect(checkbox.checked).toBe(true);
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled();
+    });
   });
 
   it('opens mobile filter attributes bottom sheet on mobile viewports for guests', async () => {

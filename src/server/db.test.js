@@ -143,6 +143,7 @@ describe('db initialization', () => {
 
     process.env.DATABASE_URL = 'http://localhost:8080';
     process.env.NODE_ENV = 'production';
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const mockExecute = vi.fn().mockResolvedValue({
       rows: [],
@@ -201,6 +202,7 @@ describe('db initialization', () => {
     else process.env.NODE_ENV = originalNodeEnv;
     existsSpy.mockRestore();
     writeSpy.mockRestore();
+    logSpy.mockRestore();
   });
 
   it('does not crash on boot when the remote driver rejects connection PRAGMAs', async () => {
@@ -211,6 +213,8 @@ describe('db initialization', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.DATABASE_URL = 'http://localhost:8080';
     process.env.NODE_ENV = 'production';
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const executeMultiple = vi.fn().mockResolvedValue({});
     const execute = vi.fn().mockImplementation((arg) => {
@@ -246,6 +250,8 @@ describe('db initialization', () => {
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalNodeEnv;
     existsSpy.mockRestore();
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('isSqliteBusy and withBusyRetry retry transient SQLITE_BUSY errors and throw after max attempts', async () => {
