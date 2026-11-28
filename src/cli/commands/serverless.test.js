@@ -143,7 +143,7 @@ describe('serverless commands', () => {
       const syncCalls = vi
         .mocked(commandUtils.execCommand)
         .mock.calls.filter((c) => c[0] === 'aws' && c[1].includes('sync'));
-      expect(syncCalls.length).toBe(3);
+      expect(syncCalls.length).toBe(4);
 
       // First sync (root files excluding assets and fonts)
       expect(syncCalls[0][1]).toEqual(
@@ -160,11 +160,13 @@ describe('serverless commands', () => {
         ])
       );
 
-      // Second sync (assets)
+      // Second sync (assets excluding unhashed stickers)
       expect(syncCalls[1][1]).toEqual(
         expect.arrayContaining([
           's3',
           'sync',
+          '--exclude',
+          'stickers/*',
           '--delete',
           '--cache-control',
           'public, max-age=31536000, immutable',
@@ -179,6 +181,17 @@ describe('serverless commands', () => {
           '--delete',
           '--cache-control',
           'public, max-age=31536000',
+        ])
+      );
+
+      // Fourth sync (unhashed stickers)
+      expect(syncCalls[3][1]).toEqual(
+        expect.arrayContaining([
+          's3',
+          'sync',
+          '--delete',
+          '--cache-control',
+          'public, max-age=300, must-revalidate',
         ])
       );
 
@@ -648,6 +661,22 @@ describe('serverless commands', () => {
       });
       expect(() => deployServerless({ stackName: 'wishboard-serverless-dev' })).toThrow(
         'Frontend fonts upload to S3 failed.'
+      );
+    });
+
+    it('throws if the fourth S3 sync (stickers) fails', () => {
+      let syncCount = 0;
+      vi.mocked(commandUtils.execCommand).mockImplementation((cmd, args = []) => {
+        if (cmd === 'aws' && args.includes('sync')) {
+          syncCount++;
+          if (syncCount === 4) {
+            return { status: 1, stdout: '', stderr: 'x' };
+          }
+        }
+        return defaultExec(cmd, args);
+      });
+      expect(() => deployServerless({ stackName: 'wishboard-serverless-dev' })).toThrow(
+        'Frontend stickers upload to S3 failed.'
       );
     });
 
@@ -1270,6 +1299,8 @@ describe('serverless commands', () => {
           'sync',
           `${dist}/assets`,
           's3://frontend-bucket/assets',
+          '--exclude',
+          'stickers/*',
           '--delete',
           '--cache-control',
           'public, max-age=31536000, immutable',
@@ -1282,6 +1313,15 @@ describe('serverless commands', () => {
           '--delete',
           '--cache-control',
           'public, max-age=31536000',
+        ],
+        [
+          's3',
+          'sync',
+          `${dist}/assets/stickers`,
+          's3://frontend-bucket/assets/stickers',
+          '--delete',
+          '--cache-control',
+          'public, max-age=300, must-revalidate',
         ],
       ]);
       const invalidation = calls.find(
