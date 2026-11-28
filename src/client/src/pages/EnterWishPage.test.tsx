@@ -75,6 +75,9 @@ describe('EnterWishPage', () => {
   });
 
   afterEach(() => {
+    if (typeof document !== 'undefined') {
+      document.body.innerHTML = '';
+    }
     globalThis.Image = originalImage;
     if (originalMatchMedia !== undefined) {
       Object.defineProperty(globalThis, 'matchMedia', {
@@ -82,6 +85,13 @@ describe('EnterWishPage', () => {
         configurable: true,
         value: originalMatchMedia,
       });
+      if (globalThis.window !== undefined) {
+        Object.defineProperty(globalThis.window, 'matchMedia', {
+          writable: true,
+          configurable: true,
+          value: originalMatchMedia,
+        });
+      }
     } else {
       try {
         delete (globalThis as any).matchMedia;

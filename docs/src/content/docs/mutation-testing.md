@@ -49,13 +49,23 @@ If you are working on a specific feature or file and want to see how robust your
      --reporters clear-text,progress
    ```
 
-3. **Run Stryker on a Directory**:
+3. **Validating Test Runner Configurations (`--dryRunOnly`)**:
+   When verifying or troubleshooting local test runner configurations or Vitest setup changes, use `--dryRunOnly` as the recommended pattern. This executes only the initial test run across configured Vitest projects without evaluating mutations, confirming sandbox stability and test runner compatibility in seconds:
+
+   ```bash
+   npx stryker run \
+     -m "src/server/version.js,src/client/src/utils/contrast.ts" \
+     -t "src/server/version.test.js,src/client/src/utils/contrast.test.ts" \
+     --dryRunOnly --reporters clear-text --concurrency 1
+   ```
+
+4. **Run Stryker on a Directory**:
 
    ```bash
    npx stryker run -m src/server/routes
    ```
 
-4. **View Local Results**: Once complete, Stryker will generate a local HTML report in `reports/mutation/index.html` which you can open in your browser.
+5. **View Local Results**: Once complete, Stryker will generate a local HTML report in `reports/mutation/index.html` which you can open in your browser.
 
 ## Configuration & Architecture
 
@@ -66,5 +76,4 @@ Stryker is configured via `stryker.config.json` with dedicated Vitest settings i
 1. **Relocated Test Setup**: Test setup infrastructure and global mocks live in `tests/setupTests.ts` rather than the `src/` source tree. This ensures Stryker `mutate` patterns target pure application logic without generating noise for mock setups.
 2. **Boilerplate & Entry Point Exclusions**: Entry points and process bootstrap files without business logic (`src/server/index.js`, `src/client/src/main.tsx`) are excluded in `stryker.config.json`. The declarative OpenAPI registry (`src/server/docs/openapi.js`) is excluded for the same reason: it is a Zod schema/document definition whose string and object literals are documentation metadata (e.g. `.openapi({ example: … })`), not executable logic. Its correctness is verified by the generated-spec check (`npm run api:spec:check`), the OpenAPI unit tests, and the client↔server contract-guard integration test — not by mutation of its example strings. At the time of exclusion it contributed 1,120 mutants at a 4.7% score, almost entirely unkillable StringLiteral/ObjectLiteral mutants, which masked the score of the executable code around it.
 3. **Vite Sandbox Stability (`stryker.vite.config.ts`)**:
-   - Excludes `src/server/index.test.js` to prevent Express server process listener sandbox collisions. Because `include`/`exclude` are defined per Vitest project (`client` and `node` in `vite.config.ts`), the exclusions are applied to each project rather than to the root `test` config.
-   - Forces `pool: 'forks'` to isolate test worker environments.
+   - Excludes `src/server/index.test.js` and `tests/integration/client-server-route-guard.integration.test.js` to prevent Express server process listener sandbox collisions and route guard conflicts. Because `include`/`exclude` are defined per Vitest project (`client` and `node` in `vite.config.ts`), these exclusions are applied to each project as well as at the root test configuration level for defense-in-depth.

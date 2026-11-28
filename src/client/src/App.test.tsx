@@ -225,54 +225,39 @@ describe('App Component', () => {
   });
 
   it('redirects to /api/docs when #api-docs or #api/docs hash is accessed', async () => {
-    const replaceSpy = vi.fn();
-    vi.stubGlobal('location', {
-      ...globalThis.location,
-      hash: '#api-docs',
-      pathname: '/',
-      replace: replaceSpy,
-    });
+    const proto = Object.getPrototypeOf((globalThis.window as any)._document._location);
+    const replaceSpy = vi.spyOn(proto, 'replace').mockImplementation(() => {});
+    globalThis.history.replaceState({}, '', '/');
+    globalThis.location.hash = '#api-docs';
 
     render(<App />);
     expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
 
     replaceSpy.mockClear();
-    vi.stubGlobal('location', {
-      ...globalThis.location,
-      hash: '#api/docs',
-      pathname: '/',
-      replace: replaceSpy,
-    });
+    globalThis.location.hash = '#api/docs';
     render(<App />);
     expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
 
-    vi.unstubAllGlobals();
+    replaceSpy.mockRestore();
     globalThis.location.hash = '#home';
   });
 
   it('redirects to /api/docs when pathname /api-docs or /api/docs is accessed without hash', async () => {
-    const replaceSpy = vi.fn();
-    vi.stubGlobal('location', {
-      ...globalThis.location,
-      hash: '',
-      pathname: '/api-docs',
-      replace: replaceSpy,
-    });
+    const proto = Object.getPrototypeOf((globalThis.window as any)._document._location);
+    const replaceSpy = vi.spyOn(proto, 'replace').mockImplementation(() => {});
+    globalThis.location.hash = '';
+    globalThis.history.replaceState({}, '', '/api-docs');
 
     render(<App />);
     expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
 
     replaceSpy.mockClear();
-    vi.stubGlobal('location', {
-      ...globalThis.location,
-      hash: '',
-      pathname: '/api/docs',
-      replace: replaceSpy,
-    });
+    globalThis.location.hash = '';
+    globalThis.history.replaceState({}, '', '/api/docs');
     render(<App />);
     expect(replaceSpy).toHaveBeenCalledWith('/api/docs');
 
-    vi.unstubAllGlobals();
+    replaceSpy.mockRestore();
     globalThis.history.replaceState({}, '', '/');
     globalThis.location.hash = '#home';
   });

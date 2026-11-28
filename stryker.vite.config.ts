@@ -13,6 +13,7 @@ const strykerExclude = [
 
 if (base.test) {
   base.test.reporters = ['default'];
+  base.test.exclude = strykerExclude;
   // Include/exclude are defined per inline project (see vite.config.ts), so the
   // exclusions must be applied to each project rather than the root test config.
   for (const project of base.test.projects ?? []) {
