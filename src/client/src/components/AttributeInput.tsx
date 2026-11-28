@@ -1,5 +1,6 @@
 import React from 'react';
 import { useEventProfile } from '../EventProfileContext';
+import { findMatchingStickerKey } from '../utils/stickers';
 
 interface AttributeInputProps {
   id?: string;
@@ -21,22 +22,13 @@ type StickerRule = {
 };
 type StickerMap = Record<string, Record<string, StickerRule>>;
 
-function findStickerMatch(stickerMap: Record<string, StickerRule>, optLower: string) {
-  return Object.keys(stickerMap).find((k) => {
-    const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-    const regex = new RegExp(String.raw`\b${escapedKey}\b`);
-    return regex.test(optLower);
-  });
-}
-
 function resolveStickerRule(opt: string, category: string | undefined, stickersMap: StickerMap) {
-  const optLower = opt.toLowerCase();
   if (category && stickersMap[category]) {
-    const matchKey = findStickerMatch(stickersMap[category], optLower);
+    const matchKey = findMatchingStickerKey(stickersMap[category], opt);
     if (matchKey) return stickersMap[category][matchKey];
   } else {
     for (const cat of Object.keys(stickersMap)) {
-      const matchKey = findStickerMatch(stickersMap[cat], optLower);
+      const matchKey = findMatchingStickerKey(stickersMap[cat], opt);
       if (matchKey) {
         return stickersMap[cat][matchKey];
       }
