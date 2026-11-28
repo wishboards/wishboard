@@ -11,6 +11,7 @@ EVENT_PROFILE="${5:-lifestyle}"
 REMOTE_TEMP_DIR="${6:-}"
 ENABLE_AI_FEATURES="${7:-false}"
 AI_PROVIDER="${8:-noop}"
+PULL_POLICY="${9:-}"
 
 # Configure the Docker command to securely execute as the wishboard service user using their isolated rootless daemon
 WISHBOARD_UID=$(id -u wishboard)
@@ -102,14 +103,16 @@ echo "Starting/Updating services via Docker Compose..."
 # We assume the user has copied docker-compose.yml to the target directory.
 # If they are running this script in the repository root, it will find docker-compose.yml.
 export APP_VERSION=$APP_VERSION
-# Pull policy by mode:
+# Pull policy by mode (unless explicitly overridden via $9):
 #   prod  -> missing : events run offline; a cached image must be authoritative.
 #            --pull always would REQUIRE network and fail a disconnected deploy.
 #   dev/dual -> always : testing wants the freshest image for a moving tag
 #            (e.g. pr-NNN / latest), which 'missing' would serve stale from cache.
-PULL_POLICY="missing"
-if [[ "$MODE" = "dev" || "$MODE" = "dual" ]]; then
-  PULL_POLICY="always"
+if [[ -z "$PULL_POLICY" ]]; then
+  PULL_POLICY="missing"
+  if [[ "$MODE" = "dev" || "$MODE" = "dual" ]]; then
+    PULL_POLICY="always"
+  fi
 fi
 echo "Docker image pull policy: $PULL_POLICY (mode: $MODE)"
 $RUN_CMD compose --env-file .env up -d --pull "$PULL_POLICY"

@@ -195,6 +195,10 @@ kiosk
     'Container image tag to deploy (default: package.json version)'
   )
   .option('--skip-setup', 'Skip running setup-kiosk.sh on the Pi (fast container update)')
+  .option(
+    '--pull-policy <policy>',
+    'Docker Compose pull policy: always, missing, or never (default: missing in prod, always in dev/dual)'
+  )
   .option('--enable-ai', 'Enable optional AI features (tag suggestions and semantic search)')
   .option(
     '--ai-provider <provider>',
@@ -240,6 +244,10 @@ kiosk
   )
   .option('--reset-rules', 'Re-seed matching rules from bundled defaults (default: keep existing)')
   .option('--app-version <version>', 'Container image tag to run (default: package.json version)')
+  .option(
+    '--pull-policy <policy>',
+    'Docker Compose pull policy: always, missing, or never (default: missing in prod, always in dev/dual)'
+  )
   .option('--enable-ai', 'Enable optional AI features (tag suggestions and semantic search)')
   .option(
     '--ai-provider <provider>',
