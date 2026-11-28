@@ -430,4 +430,67 @@ describe('Admin routes coverage', () => {
       }
     });
   });
+
+  describe('POST & DELETE /api/admin/proposals/test-seed', () => {
+    it('returns 404 outside NODE_ENV=test', async () => {
+      const token = await loginAsAdmin();
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        const postRes = await request(app)
+          .post('/api/admin/proposals/test-seed')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ proposal_type: 'suggestion', normalized_key: 'prod-blocked' });
+        expect(postRes.status).toBe(404);
+
+        const delRes = await request(app)
+          .delete('/api/admin/proposals/test-seed')
+          .set('Authorization', `Bearer ${token}`)
+          .send({});
+        expect(delRes.status).toBe(404);
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('seeds, increments, validates, and clears proposals in NODE_ENV=test', async () => {
+      const token = await loginAsAdmin();
+      const badRes = await request(app)
+        .post('/api/admin/proposals/test-seed')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ proposal_type: 'invalid', normalized_key: 'bad' });
+      expect(badRes.status).toBe(400);
+
+      const first = await request(app)
+        .post('/api/admin/proposals/test-seed')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          proposal_type: 'suggestion',
+          normalized_key: 'test_seed_key',
+          proposed_payload: { categoryId: 'interests', term: 'test_seed_key' },
+          occurrence_count: 1,
+        });
+      expect(first.status).toBe(200);
+      expect(first.body.proposal.occurrence_count).toBe(1);
+
+      const second = await request(app)
+        .post('/api/admin/proposals/test-seed')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          proposal_type: 'suggestion',
+          normalized_key: 'test_seed_key',
+          proposed_payload: { categoryId: 'interests', term: 'test_seed_key' },
+          occurrence_count: 2,
+        });
+      expect(second.status).toBe(200);
+      expect(second.body.proposal.occurrence_count).toBe(3);
+
+      const delRes = await request(app)
+        .delete('/api/admin/proposals/test-seed')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ normalizedKeys: ['test_seed_key'] });
+      expect(delRes.status).toBe(200);
+      expect(delRes.body.success).toBe(true);
+    });
+  });
 });
