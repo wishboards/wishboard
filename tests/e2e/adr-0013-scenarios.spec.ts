@@ -7,14 +7,26 @@ import { harvestTestSignals, normalizeProposalKey } from './fixtures/taxonomyDb'
 const ADMIN_SECRET = 'e2e-admin-password'; // gitleaks:allow
 const SCENARIO_PASSPHRASE = 'ScenarioPassphrase123'; // gitleaks:allow
 
+let cachedAdminToken: string | null = null;
+
 async function loginAdminApi(request: APIRequestContext): Promise<string> {
-  const res = await request.post('/api/users/login', {
-    data: { username: 'admin', passphrase: ADMIN_SECRET },
-  });
-  expect(res.ok()).toBe(true);
-  const body = await res.json();
-  expect(body.token).toBeTruthy();
-  return body.token as string;
+  if (cachedAdminToken) return cachedAdminToken;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const res = await request.post('/api/users/login', {
+      data: { username: 'admin', passphrase: ADMIN_SECRET },
+    });
+    if (res.ok()) {
+      const body = await res.json();
+      expect(body.token).toBeTruthy();
+      cachedAdminToken = body.token as string;
+      return cachedAdminToken;
+    }
+    if (res.status() !== 429 && res.status() < 500) {
+      expect(res.ok()).toBe(true);
+    }
+    await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+  }
+  throw new Error('loginAdminApi failed after retries');
 }
 
 async function loginAdminUi(page: Page): Promise<void> {
