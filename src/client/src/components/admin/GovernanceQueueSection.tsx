@@ -285,24 +285,32 @@ export default function GovernanceQueueSection({
     await loadProposals();
   };
 
-  const handleMatchSticker = async (proposal: TaxonomyProposal) => {
-    setError(null);
-    setMessage(null);
+  const resolveProposalStickerInput = (proposal: TaxonomyProposal) => {
     const payload = proposal.proposed_payload ?? {};
     const label =
       typeof payload.label === 'string' && payload.label.trim()
         ? payload.label.trim()
         : proposal.normalized_key;
-    const category =
-      typeof payload.category === 'string' && payload.category.trim()
-        ? payload.category.trim()
-        : typeof payload.categoryId === 'string' && payload.categoryId.trim()
-          ? payload.categoryId.trim()
-          : 'interests';
+    let category = 'interests';
+    if (typeof payload.category === 'string' && payload.category.trim()) {
+      category = payload.category.trim();
+    } else if (typeof payload.categoryId === 'string' && payload.categoryId.trim()) {
+      category = payload.categoryId.trim();
+    }
+    return { label, tag: proposal.normalized_key, category };
+  };
 
-    const { data, response } = await apiClient.POST('/api/admin/stickers/match', {
+  const requestStickerCandidate = async (
+    proposal: TaxonomyProposal,
+    endpoint: '/api/admin/stickers/match' | '/api/admin/stickers/synthesize',
+    failureMessage: string,
+    buildResult: (data: Record<string, unknown>) => StickerCandidateState & { message: string }
+  ) => {
+    setError(null);
+    setMessage(null);
+    const { data, response } = await apiClient.POST(endpoint, {
       headers: authHeader,
-      body: { label, tag: proposal.normalized_key, category },
+      body: resolveProposalStickerInput(proposal),
     });
 
     if (response.status === 401) {
@@ -310,63 +318,53 @@ export default function GovernanceQueueSection({
       return;
     }
     if (!response.ok || !data) {
-      setError('Failed to match sticker.');
+      setError(failureMessage);
       return;
     }
 
-    const matchData = data as StickerMatchResponse;
+    const mapped = buildResult(data as Record<string, unknown>);
     setStickerCandidates((prev) => ({
       ...prev,
       [proposal.id]: {
-        source: matchData.source,
-        license: matchData.license,
-        sticker: matchData.sticker,
+        source: mapped.source,
+        license: mapped.license,
+        sticker: mapped.sticker,
       },
     }));
-    setMessage(
-      `Matched ${matchData.source} sticker (${matchData.license}) for "${proposal.normalized_key}".`
+    setMessage(mapped.message);
+  };
+
+  const handleMatchSticker = (proposal: TaxonomyProposal) =>
+    requestStickerCandidate(
+      proposal,
+      '/api/admin/stickers/match',
+      'Failed to match sticker.',
+      (raw) => {
+        const matchData = raw as unknown as StickerMatchResponse;
+        return {
+          source: matchData.source,
+          license: matchData.license,
+          sticker: matchData.sticker,
+          message: `Matched ${matchData.source} sticker (${matchData.license}) for "${proposal.normalized_key}".`,
+        };
+      }
     );
-  };
 
-  const handleSynthesizeSticker = async (proposal: TaxonomyProposal) => {
-    setError(null);
-    setMessage(null);
-    const payload = proposal.proposed_payload ?? {};
-    const label =
-      typeof payload.label === 'string' && payload.label.trim()
-        ? payload.label.trim()
-        : proposal.normalized_key;
-    const category =
-      typeof payload.category === 'string' && payload.category.trim()
-        ? payload.category.trim()
-        : typeof payload.categoryId === 'string' && payload.categoryId.trim()
-          ? payload.categoryId.trim()
-          : 'interests';
-
-    const { data, response } = await apiClient.POST('/api/admin/stickers/synthesize', {
-      headers: authHeader,
-      body: { label, tag: proposal.normalized_key, category },
-    });
-
-    if (response.status === 401) {
-      onSessionExpired?.();
-      return;
-    }
-    if (!response.ok || !data) {
-      setError('Failed to synthesize geometric SVG sticker.');
-      return;
-    }
-
-    setStickerCandidates((prev) => ({
-      ...prev,
-      [proposal.id]: {
-        source: 'synthesized',
-        license: data.license,
-        sticker: data.sticker,
-      },
-    }));
-    setMessage(`Synthesized CC0-1.0 geometric SVG for "${proposal.normalized_key}".`);
-  };
+  const handleSynthesizeSticker = (proposal: TaxonomyProposal) =>
+    requestStickerCandidate(
+      proposal,
+      '/api/admin/stickers/synthesize',
+      'Failed to synthesize geometric SVG sticker.',
+      (raw) => {
+        const synthData = raw as { license: string; sticker: StickerCandidateState['sticker'] };
+        return {
+          source: 'synthesized',
+          license: synthData.license,
+          sticker: synthData.sticker,
+          message: `Synthesized CC0-1.0 geometric SVG for "${proposal.normalized_key}".`,
+        };
+      }
+    );
 
   const handleExportYaml = async () => {
     setError(null);
@@ -550,16 +548,22 @@ export default function GovernanceQueueSection({
             return `data:image/svg+xml;utf8,${encodeURIComponent(withXmlns)}`;
           };
 
-          const previewSrc =
-            candidate?.sticker.type === 'image'
-              ? sanitizeStickerImageSrc(candidate.sticker.src ?? '')
-              : candidate?.sticker.type === 'svg'
-                ? toSafeSvgDataUri(candidate.sticker.svg)
-                : payloadSrc
-                  ? sanitizeStickerImageSrc(payloadSrc)
-                  : payloadSvg
-                    ? toSafeSvgDataUri(payloadSvg)
-                    : null;
+          const resolvePreviewSrc = () => {
+            if (candidate?.sticker.type === 'image') {
+              return sanitizeStickerImageSrc(candidate.sticker.src ?? '');
+            }
+            if (candidate?.sticker.type === 'svg') {
+              return toSafeSvgDataUri(candidate.sticker.svg);
+            }
+            if (payloadSrc) {
+              return sanitizeStickerImageSrc(payloadSrc);
+            }
+            if (payloadSvg) {
+              return toSafeSvgDataUri(payloadSvg);
+            }
+            return null;
+          };
+          const previewSrc = resolvePreviewSrc();
 
           return (
             <article

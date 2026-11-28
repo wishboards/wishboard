@@ -59,12 +59,7 @@ function loadAllowedBundledLicenses(repoRoot = REPO_ROOT) {
  * @param {string} [repoRoot]
  * @returns {Map<string, { src: string, license: 'CC0-1.0' | 'MIT' }>}
  */
-export function loadBundledStickerCatalog(repoRoot = REPO_ROOT) {
-  const allowedLicenses = loadAllowedBundledLicenses(repoRoot);
-  const defaultPrideLicense = allowedLicenses.has('CC0-1.0') ? 'CC0-1.0' : 'MIT';
-  const defaultOtherLicense = allowedLicenses.has('MIT') ? 'MIT' : 'CC0-1.0';
-
-  const catalog = new Map();
+function scanAssetDirectories(catalog, repoRoot, defaultPrideLicense, defaultOtherLicense) {
   const assetDirs = [
     path.join(repoRoot, 'profiles', 'lifestyle', 'assets', 'stickers'),
     path.join(repoRoot, 'public', 'assets', 'stickers'),
@@ -81,46 +76,54 @@ export function loadBundledStickerCatalog(repoRoot = REPO_ROOT) {
     }
     for (const file of files) {
       if (!file.toLowerCase().endsWith('.svg')) continue;
-      const baseName = file.slice(0, -4);
-      const slug = normalizeSlug(baseName);
-      if (!slug) continue;
-      const src = sanitizeStickerImageSrc(`/assets/stickers/${file}`);
-      if (!src) continue;
+      const slug = normalizeSlug(file.slice(0, -4));
+      const src = slug ? sanitizeStickerImageSrc(`/assets/stickers/${file}`) : null;
+      if (!src || catalog.has(slug)) continue;
       const license = PRIDE_SVG_NAMES.has(slug) ? defaultPrideLicense : defaultOtherLicense;
-      if (!catalog.has(slug)) {
-        catalog.set(slug, { src, license });
-      }
+      catalog.set(slug, { src, license });
     }
   }
+}
 
+function scanStickersYaml(catalog, repoRoot, defaultPrideLicense, defaultOtherLicense) {
   const stickersYamlPath = path.join(repoRoot, 'profiles', 'lifestyle', 'stickers.yaml');
-  if (fs.existsSync(stickersYamlPath)) {
-    try {
-      const parsed = yaml.parse(fs.readFileSync(stickersYamlPath, 'utf8'));
-      const stickersObj = parsed?.stickers;
-      if (stickersObj && typeof stickersObj === 'object') {
-        for (const catMap of Object.values(stickersObj)) {
-          if (!catMap || typeof catMap !== 'object') continue;
-          for (const [term, rule] of Object.entries(catMap)) {
-            if (rule?.type === 'image' && typeof rule.src === 'string') {
-              const safeSrc = sanitizeStickerImageSrc(rule.src);
-              if (!safeSrc) continue;
-              const slug = normalizeSlug(term);
-              const fileStem = normalizeSlug(path.basename(safeSrc, '.svg'));
-              const license = PRIDE_SVG_NAMES.has(fileStem)
-                ? defaultPrideLicense
-                : defaultOtherLicense;
-              if (slug && !catalog.has(slug)) {
-                catalog.set(slug, { src: safeSrc, license });
-              }
-            }
-          }
-        }
+  if (!fs.existsSync(stickersYamlPath)) return;
+  try {
+    const parsed = yaml.parse(fs.readFileSync(stickersYamlPath, 'utf8'));
+    const stickersObj = parsed?.stickers;
+    if (!stickersObj || typeof stickersObj !== 'object') return;
+    for (const catMap of Object.values(stickersObj)) {
+      if (!catMap || typeof catMap !== 'object') continue;
+      for (const [term, rule] of Object.entries(catMap)) {
+        if (rule?.type !== 'image' || typeof rule.src !== 'string') continue;
+        const safeSrc = sanitizeStickerImageSrc(rule.src);
+        const slug = safeSrc ? normalizeSlug(term) : '';
+        if (!slug || catalog.has(slug)) continue;
+        const fileStem = normalizeSlug(path.basename(safeSrc, '.svg'));
+        const license = PRIDE_SVG_NAMES.has(fileStem) ? defaultPrideLicense : defaultOtherLicense;
+        catalog.set(slug, { src: safeSrc, license });
       }
-    } catch {
-      // Ignore malformed stickers.yaml during fallback
     }
+  } catch {
+    // Ignore malformed stickers.yaml during fallback
   }
+}
+
+/**
+ * Loads bundled CC0-1.0 / MIT sticker SVG entries from profile and public asset directories
+ * and `profiles/lifestyle/stickers.yaml`.
+ *
+ * @param {string} [repoRoot]
+ * @returns {Map<string, { src: string, license: 'CC0-1.0' | 'MIT' }>}
+ */
+export function loadBundledStickerCatalog(repoRoot = REPO_ROOT) {
+  const allowedLicenses = loadAllowedBundledLicenses(repoRoot);
+  const defaultPrideLicense = allowedLicenses.has('CC0-1.0') ? 'CC0-1.0' : 'MIT';
+  const defaultOtherLicense = allowedLicenses.has('MIT') ? 'MIT' : 'CC0-1.0';
+
+  const catalog = new Map();
+  scanAssetDirectories(catalog, repoRoot, defaultPrideLicense, defaultOtherLicense);
+  scanStickersYaml(catalog, repoRoot, defaultPrideLicense, defaultOtherLicense);
 
   // Common identity aliases that map directly to bundled CC0-1.0 assets
   if (catalog.has('nonbinary')) {
@@ -162,6 +165,16 @@ export function matchBundledSticker(input = {}, options = {}) {
   return null;
 }
 
+function resolveSeedTag(input) {
+  if (typeof input.tag === 'string' && input.tag.trim()) {
+    return input.tag.trim().toLowerCase();
+  }
+  if (typeof input.label === 'string' && input.label.trim()) {
+    return input.label.trim().toLowerCase();
+  }
+  return 'sticker';
+}
+
 /**
  * Generates a deterministic, constrained geometric SVG (`viewBox="0 0 64 64"`)
  * using only `svg`, `rect`, `circle`, `polygon`, `path`, and `line` elements,
@@ -172,14 +185,11 @@ export function matchBundledSticker(input = {}, options = {}) {
  * @returns {string}
  */
 export function synthesizeGeometricSvg(input = {}) {
-  const seedKey = [
-    typeof input.category === 'string' ? input.category.trim().toLowerCase() : 'interests',
-    typeof input.tag === 'string' && input.tag.trim()
-      ? input.tag.trim().toLowerCase()
-      : typeof input.label === 'string' && input.label.trim()
-        ? input.label.trim().toLowerCase()
-        : 'sticker',
-  ].join(':');
+  const category =
+    typeof input.category === 'string' && input.category.trim()
+      ? input.category.trim().toLowerCase()
+      : 'interests';
+  const seedKey = `${category}:${resolveSeedTag(input)}`;
 
   const digest = crypto.createHash('sha256').update(seedKey).digest();
   const palette = GEOMETRIC_PALETTES[digest[0] % GEOMETRIC_PALETTES.length];
