@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import ManageWishPage from './ManageWishPage';
 import EventProfileContext from '../EventProfileContext';
@@ -308,7 +308,9 @@ describe('ManageWishPage', () => {
     )?.[1];
     expect(readyHandler).toBeTypeOf('function');
 
-    readyHandler({ wish_id: 'w-live', suggestion_id: 'sugg-live' });
+    await act(async () => {
+      readyHandler({ wish_id: 'w-live', suggestion_id: 'sugg-live' });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /View 1 AI suggestion/i })).toBeInTheDocument();

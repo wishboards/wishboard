@@ -817,6 +817,7 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+    await waitFor(() => expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Identity & Match' }));
 
@@ -859,6 +860,7 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+    await waitFor(() => expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Identity & Match' }));
 
@@ -1355,6 +1357,7 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+    await waitFor(() => expect(screen.queryByText(/Loading/i)).not.toBeInTheDocument());
 
     const tabWishes = screen.getByRole('tab', { name: 'My Wishes' });
     const tabIdentity = screen.getByRole('tab', { name: 'Identity & Match' });
@@ -1401,7 +1404,7 @@ describe('AccountPage', () => {
     expect(screen.getByLabelText('Genders')).toHaveValue('nonbinary, queer');
   });
 
-  it('initializes active tab from URL hash parameter', () => {
+  it('initializes active tab from URL hash parameter', async () => {
     globalThis.location.hash = '#account?tab=identity';
     useAuthMock.mockReturnValue({
       user: {
@@ -1418,6 +1421,7 @@ describe('AccountPage', () => {
     });
 
     render(<AccountPage />);
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
 
     expect(screen.getByRole('tab', { name: 'Identity & Match' })).toHaveAttribute(
       'aria-selected',
